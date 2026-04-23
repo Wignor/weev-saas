@@ -36,7 +36,7 @@ function createCarIcon(color: string, isSelected: boolean): string {
 
 export default function Map({ devices, positions, selectedDeviceId, onDeviceSelect }: MapProps) {
   const mapRef = useRef<LeafletMap | null>(null);
-  const markersRef = useRef<Map<number, Marker>>(new Map());
+  const markersRef = useRef<globalThis.Map<number, Marker>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
