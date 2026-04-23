@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-const tabs = [
+const baseTabs = [
   {
     href: '/dashboard',
     label: 'Monitor',
     icon: (active: boolean) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#007AFF' : '#6B7280'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3" fill={active ? '#007AFF' : 'none'} stroke={active ? '#007AFF' : '#6B7280'}/>
+        <circle cx="12" cy="12" r="3" fill={active ? '#007AFF' : 'none'}/>
         <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
       </svg>
     ),
@@ -45,8 +46,33 @@ const tabs = [
   },
 ];
 
+const gestaoTab = {
+  href: '/gestao',
+  label: 'Gestão',
+  icon: (active: boolean) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#007AFF' : '#6B7280'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  ),
+};
+
 export default function BottomNav() {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = document.cookie.split('; ').find(r => r.startsWith('wt_user='))?.split('=').slice(1).join('=');
+      if (raw) {
+        const u = JSON.parse(decodeURIComponent(raw));
+        setIsAdmin(!!u.administrator);
+      }
+    } catch { /* silencioso */ }
+  }, []);
+
+  const tabs = isAdmin ? [...baseTabs, gestaoTab] : baseTabs;
 
   return (
     <nav

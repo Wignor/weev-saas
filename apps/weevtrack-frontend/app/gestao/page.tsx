@@ -1,0 +1,363 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import BottomNav from '@/components/BottomNav';
+
+interface TUser { id: number; name: string; email: string; administrator: boolean; }
+interface TDevice { id: number; name: string; uniqueId: string; status: string; }
+
+export default function GestaoPage() {
+  const router = useRouter();
+  const [users, setUsers] = useState<TUser[]>([]);
+  const [allDevices, setAllDevices] = useState<TDevice[]>([]);
+  const [selectedUser, setSelectedUser] = useState<TUser | null>(null);
+  const [userDevices, setUserDevices] = useState<TDevice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '' });
+  const [creating, setCreating] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [loadingDevices, setLoadingDevices] = useState(false);
+
+  useEffect(() => {
+    // Guard: only admins
+    try {
+      const raw = document.cookie.split('; ').find(r => r.startsWith('wt_user='))?.split('=').slice(1).join('=');
+      if (raw) {
+        const u = JSON.parse(decodeURIComponent(raw));
+        if (!u.administrator) router.replace('/dashboard');
+      } else {
+        router.replace('/login');
+      }
+    } catch { router.replace('/login'); }
+
+    loadData();
+  }, [router]);
+
+  async function loadData() {
+    setLoading(true);
+    try {
+      const [usersRes, devicesRes] = await Promise.all([
+        fetch('/api/admin/users'),
+        fetch('/api/devices'),
+      ]);
+      const usersData = await usersRes.json();
+      const devicesData = await devicesRes.json();
+      if (Array.isArray(usersData)) setUsers(usersData.filter(u => !u.administrator));
+      if (Array.isArray(devicesData)) setAllDevices(devicesData);
+    } catch { /* silencioso */ }
+    setLoading(false);
+  }
+
+  async function selectUser(user: TUser) {
+    if (selectedUser?.id === user.id) {
+      setSelectedUser(null);
+      setUserDevices([]);
+      return;
+    }
+    setSelectedUser(user);
+    setLoadingDevices(true);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/devices`);
+      const data = await res.json();
+      setUserDevices(Array.isArray(data) ? data : []);
+    } catch { setUserDevices([]); }
+    setLoadingDevices(false);
+  }
+
+  function flash(text: string) {
+    setMsg(text);
+    setTimeout(() => setMsg(''), 3500);
+  }
+
+  async function createUser() {
+    if (!newUser.name || !newUser.email || !newUser.password) return;
+    setCreating(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser),
+      });
+      if (res.ok) {
+        flash('✅ Cliente criado com sucesso');
+        setNewUser({ name: '', email: '', password: '' });
+        setShowCreate(false);
+        await loadData();
+      } else {
+        const err = await res.json();
+        flash(`❌ ${err.error || 'Erro ao criar'}`);
+      }
+    } catch { flash('❌ Erro de conexão'); }
+    setCreating(false);
+  }
+
+  async function assignDevice(deviceId: number) {
+    if (!selectedUser) return;
+    const res = await fetch(`/api/admin/users/${selectedUser.id}/devices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId }),
+    });
+    if (res.ok) {
+      const device = allDevices.find(d => d.id === deviceId);
+      if (device) setUserDevices(prev => [...prev, device]);
+      flash('✅ Dispositivo atribuído');
+    } else {
+      flash('❌ Erro ao atribuir dispositivo');
+    }
+  }
+
+  async function removeDevice(deviceId: number) {
+    if (!selectedUser) return;
+    const res = await fetch(`/api/admin/users/${selectedUser.id}/devices`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId }),
+    });
+    if (res.ok) {
+      setUserDevices(prev => prev.filter(d => d.id !== deviceId));
+      flash('✅ Dispositivo removido');
+    } else {
+      flash('❌ Erro ao remover dispositivo');
+    }
+  }
+
+  async function deleteUser(userId: number) {
+    if (!confirm('Excluir este cliente?')) return;
+    const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      if (selectedUser?.id === userId) { setSelectedUser(null); setUserDevices([]); }
+      flash('✅ Cliente excluído');
+    } else {
+      flash('❌ Erro ao excluir');
+    }
+  }
+
+  const unassigned = allDevices.filter(d => !userDevices.find(ud => ud.id === d.id));
+
+  return (
+    <div className="flex flex-col" style={{ height: '100dvh', background: '#12131A' }}>
+      {/* Header */}
+      <header className="flex-shrink-0 flex items-center justify-between px-4 h-14"
+        style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E' }}>
+        <div className="flex items-center gap-3">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <h1 className="font-bold text-app-text">Gestão de Clientes</h1>
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
+        >
+          + Novo cliente
+        </button>
+      </header>
+
+      {/* Feedback */}
+      {msg && (
+        <div className="mx-4 mt-3 rounded-xl px-4 py-2 text-sm text-center font-medium"
+          style={{
+            background: msg.startsWith('✅') ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)',
+            color: msg.startsWith('✅') ? '#34C759' : '#FF3B30',
+            border: `1px solid ${msg.startsWith('✅') ? 'rgba(52,199,89,0.2)' : 'rgba(255,59,48,0.2)'}`,
+          }}>
+          {msg}
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto pb-20">
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <>
+            <div className="px-4 pt-4 pb-2">
+              <p className="text-xs font-semibold text-app-muted uppercase tracking-wider">
+                Clientes ({users.length})
+              </p>
+            </div>
+
+            {users.length === 0 ? (
+              <div className="text-center py-12 px-8">
+                <div className="text-5xl mb-4">👥</div>
+                <p className="text-app-muted text-sm">Nenhum cliente cadastrado</p>
+                <p className="text-app-muted text-xs mt-1">Toque em "+ Novo cliente" para adicionar</p>
+              </div>
+            ) : (
+              <div className="mt-2" style={{ borderTop: '1px solid #2A2D3E' }}>
+                {users.map(user => (
+                  <div key={user.id}>
+                    {/* Linha do cliente */}
+                    <div className="flex items-center gap-3 px-4 py-3"
+                      style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E' }}>
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'rgba(0,122,255,0.15)' }}>
+                        <span className="font-bold text-sm" style={{ color: '#007AFF' }}>
+                          {user.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <button className="flex-1 text-left" onClick={() => selectUser(user)}>
+                        <p className="text-sm font-semibold text-app-text">{user.name}</p>
+                        <p className="text-xs text-app-muted">{user.email}</p>
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => selectUser(user)}
+                          className="text-xs px-2.5 py-1 rounded-lg font-medium transition-all"
+                          style={{
+                            background: selectedUser?.id === user.id ? '#007AFF' : '#2A2D3E',
+                            color: selectedUser?.id === user.id ? 'white' : '#6B7280',
+                          }}
+                        >
+                          {selectedUser?.id === user.id ? 'Fechar' : 'Dispositivos'}
+                        </button>
+                        <button
+                          onClick={() => deleteUser(user.id)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: 'rgba(255,59,48,0.1)' }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Painel de dispositivos do cliente */}
+                    {selectedUser?.id === user.id && (
+                      <div className="px-4 py-4" style={{ background: '#12131A', borderBottom: '1px solid #2A2D3E' }}>
+                        {loadingDevices ? (
+                          <div className="flex justify-center py-4">
+                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        ) : (
+                          <>
+                            {/* Dispositivos atribuídos */}
+                            <p className="text-xs font-semibold text-app-muted uppercase tracking-wider mb-3">
+                              Atribuídos a {user.name} ({userDevices.length})
+                            </p>
+                            {userDevices.length === 0 ? (
+                              <p className="text-xs text-app-muted mb-4 text-center py-2">Nenhum dispositivo atribuído ainda</p>
+                            ) : (
+                              <div className="space-y-2 mb-4">
+                                {userDevices.map(device => (
+                                  <div key={device.id} className="flex items-center justify-between rounded-xl px-3 py-2.5"
+                                    style={{ background: '#1E2030', border: '1px solid #2A2D3E' }}>
+                                    <div className="flex items-center gap-2">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2">
+                                        <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-3"/>
+                                        <circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
+                                      </svg>
+                                      <div>
+                                        <p className="text-sm font-medium text-app-text">{device.name}</p>
+                                        <p className="text-xs text-app-muted">{device.uniqueId}</p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() => removeDevice(device.id)}
+                                      className="text-xs px-2.5 py-1 rounded-lg font-medium"
+                                      style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}
+                                    >
+                                      Remover
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Dispositivos disponíveis para atribuir */}
+                            {unassigned.length > 0 && (
+                              <>
+                                <p className="text-xs font-semibold text-app-muted uppercase tracking-wider mb-3">
+                                  Disponíveis para atribuir
+                                </p>
+                                <div className="space-y-2">
+                                  {unassigned.map(device => (
+                                    <div key={device.id} className="flex items-center justify-between rounded-xl px-3 py-2.5"
+                                      style={{ background: '#1E2030', border: '1px solid #2A2D3E' }}>
+                                      <div className="flex items-center gap-2">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
+                                          <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-3"/>
+                                          <circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
+                                        </svg>
+                                        <div>
+                                          <p className="text-sm font-medium text-app-text">{device.name}</p>
+                                          <p className="text-xs text-app-muted">{device.uniqueId}</p>
+                                        </div>
+                                      </div>
+                                      <button
+                                        onClick={() => assignDevice(device.id)}
+                                        className="text-xs px-2.5 py-1 rounded-lg font-medium"
+                                        style={{ background: 'rgba(0,122,255,0.15)', color: '#007AFF' }}
+                                      >
+                                        Atribuir
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Modal criar cliente */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-end"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setShowCreate(false)}>
+          <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
+            style={{ background: '#1E2030' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: '#2A2D3E' }} />
+            <h3 className="font-bold text-app-text text-lg mb-5">Novo cliente</h3>
+            <div className="space-y-3">
+              {([
+                { label: 'Nome completo', key: 'name', type: 'text', placeholder: 'Ex: João Silva' },
+                { label: 'E-mail de acesso', key: 'email', type: 'email', placeholder: 'joao@email.com' },
+                { label: 'Senha inicial', key: 'password', type: 'password', placeholder: '••••••••' },
+              ] as const).map(field => (
+                <div key={field.key}>
+                  <label className="block text-xs font-medium text-app-muted mb-1.5">{field.label}</label>
+                  <input
+                    type={field.type}
+                    placeholder={field.placeholder}
+                    value={newUser[field.key]}
+                    onChange={e => setNewUser(prev => ({ ...prev, [field.key]: e.target.value }))}
+                    className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+                    style={{ background: '#12131A', color: '#F0F0F5', border: '1px solid #2A2D3E' }}
+                  />
+                </div>
+              ))}
+              <button
+                onClick={createUser}
+                disabled={creating || !newUser.name || !newUser.email || !newUser.password}
+                className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl mt-2 disabled:opacity-60 transition-all"
+              >
+                {creating ? 'Criando...' : 'Criar cliente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <BottomNav />
+    </div>
+  );
+}
