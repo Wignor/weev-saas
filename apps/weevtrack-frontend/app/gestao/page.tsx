@@ -9,19 +9,25 @@ interface TDevice { id: number; name: string; uniqueId: string; status: string; 
 
 export default function GestaoPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'clientes' | 'dispositivos'>('clientes');
   const [users, setUsers] = useState<TUser[]>([]);
   const [allDevices, setAllDevices] = useState<TDevice[]>([]);
+  const [assignments, setAssignments] = useState<Record<number, string>>({});
   const [selectedUser, setSelectedUser] = useState<TUser | null>(null);
   const [userDevices, setUserDevices] = useState<TDevice[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showCreateDevice, setShowCreateDevice] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '' });
+  const [newDevice, setNewDevice] = useState({ name: '', uniqueId: '' });
   const [creating, setCreating] = useState(false);
+  const [creatingDevice, setCreatingDevice] = useState(false);
   const [msg, setMsg] = useState('');
   const [loadingDevices, setLoadingDevices] = useState(false);
+  const [renamingDeviceId, setRenamingDeviceId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   useEffect(() => {
-    // Guard: only admins
     try {
       const raw = document.cookie.split('; ').find(r => r.startsWith('wt_user='))?.split('=').slice(1).join('=');
       if (raw) {
@@ -31,21 +37,23 @@ export default function GestaoPage() {
         router.replace('/login');
       }
     } catch { router.replace('/login'); }
-
     loadData();
   }, [router]);
 
   async function loadData() {
     setLoading(true);
     try {
-      const [usersRes, devicesRes] = await Promise.all([
+      const [usersRes, devicesRes, assignRes] = await Promise.all([
         fetch('/api/admin/users'),
         fetch('/api/devices'),
+        fetch('/api/admin/assignments'),
       ]);
-      const usersData = await usersRes.json();
-      const devicesData = await devicesRes.json();
+      const [usersData, devicesData, assignData] = await Promise.all([
+        usersRes.json(), devicesRes.json(), assignRes.json(),
+      ]);
       if (Array.isArray(usersData)) setUsers(usersData.filter(u => !u.administrator));
       if (Array.isArray(devicesData)) setAllDevices(devicesData);
+      if (assignData && typeof assignData === 'object') setAssignments(assignData);
     } catch { /* silencioso */ }
     setLoading(false);
   }
@@ -93,6 +101,18 @@ export default function GestaoPage() {
     setCreating(false);
   }
 
+  async function deleteUser(userId: number) {
+    if (!confirm('Excluir este cliente?')) return;
+    const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      if (selectedUser?.id === userId) { setSelectedUser(null); setUserDevices([]); }
+      flash('✅ Cliente excluído');
+    } else {
+      flash('❌ Erro ao excluir');
+    }
+  }
+
   async function assignDevice(deviceId: number) {
     if (!selectedUser) return;
     const res = await fetch(`/api/admin/users/${selectedUser.id}/devices`, {
@@ -103,6 +123,7 @@ export default function GestaoPage() {
     if (res.ok) {
       const device = allDevices.find(d => d.id === deviceId);
       if (device) setUserDevices(prev => [...prev, device]);
+      setAssignments(prev => ({ ...prev, [deviceId]: selectedUser.name }));
       flash('✅ Dispositivo atribuído');
     } else {
       flash('❌ Erro ao atribuir dispositivo');
@@ -118,9 +139,10 @@ export default function GestaoPage() {
     });
     if (res.ok) {
       setUserDevices(prev => prev.filter(d => d.id !== deviceId));
+      setAssignments(prev => { const next = { ...prev }; delete next[deviceId]; return next; });
       flash('✅ Dispositivo removido');
     } else {
-      flash('❌ Erro ao remover dispositivo');
+      flash('❌ Erro ao remover');
     }
   }
 
@@ -131,22 +153,65 @@ export default function GestaoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deviceId, type }),
       });
-      flash(res.ok ? `✅ Comando enviado` : `❌ Falha ao enviar comando`);
-    } catch {
-      flash('❌ Erro de conexão');
+      flash(res.ok ? '✅ Comando enviado' : '❌ Falha ao enviar comando');
+    } catch { flash('❌ Erro de conexão'); }
+  }
+
+  async function createDevice() {
+    if (!newDevice.name || !newDevice.uniqueId) return;
+    setCreatingDevice(true);
+    try {
+      const res = await fetch('/api/admin/devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDevice),
+      });
+      if (res.ok) {
+        flash('✅ Dispositivo cadastrado com sucesso');
+        setNewDevice({ name: '', uniqueId: '' });
+        setShowCreateDevice(false);
+        await loadData();
+      } else {
+        const err = await res.json();
+        flash(`❌ ${err.error || 'Erro ao cadastrar'}`);
+      }
+    } catch { flash('❌ Erro de conexão'); }
+    setCreatingDevice(false);
+  }
+
+  async function deleteDevice(deviceId: number) {
+    if (!confirm('Excluir este dispositivo da plataforma? O rastreador precisará ser recadastrado para voltar.')) return;
+    const res = await fetch('/api/admin/devices', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId }),
+    });
+    if (res.ok) {
+      setAllDevices(prev => prev.filter(d => d.id !== deviceId));
+      flash('✅ Dispositivo excluído');
+    } else {
+      flash('❌ Erro ao excluir dispositivo');
     }
   }
 
-  async function deleteUser(userId: number) {
-    if (!confirm('Excluir este cliente?')) return;
-    const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+  async function renameDevice(deviceId: number) {
+    if (!renameValue.trim()) return;
+    const res = await fetch('/api/admin/devices', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId, name: renameValue.trim() }),
+    });
     if (res.ok) {
-      setUsers(prev => prev.filter(u => u.id !== userId));
-      if (selectedUser?.id === userId) { setSelectedUser(null); setUserDevices([]); }
-      flash('✅ Cliente excluído');
+      setAllDevices(prev => prev.map(d => d.id === deviceId ? { ...d, name: renameValue.trim() } : d));
+      setRenamingDeviceId(null);
+      flash('✅ Dispositivo renomeado');
     } else {
-      flash('❌ Erro ao excluir');
+      flash('❌ Erro ao renomear');
     }
+  }
+
+  function statusColor(status: string) {
+    return status === 'online' ? '#34C759' : '#6B7280';
   }
 
   const unassigned = allDevices.filter(d => !userDevices.find(ud => ud.id === d.id));
@@ -162,15 +227,33 @@ export default function GestaoPage() {
             <circle cx="9" cy="7" r="4"/>
             <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
-          <h1 className="font-bold text-app-text">Gestão de Clientes</h1>
+          <h1 className="font-bold text-app-text">Gestão</h1>
         </div>
         <button
-          onClick={() => setShowCreate(true)}
+          onClick={() => activeTab === 'clientes' ? setShowCreate(true) : setShowCreateDevice(true)}
           className="bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
         >
-          + Novo cliente
+          {activeTab === 'clientes' ? '+ Novo cliente' : '+ Novo dispositivo'}
         </button>
       </header>
+
+      {/* Tabs */}
+      <div className="flex-shrink-0 flex px-4 py-2 gap-2"
+        style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E' }}>
+        {(['clientes', 'dispositivos'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className="flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all"
+            style={{
+              background: activeTab === tab ? '#007AFF' : 'transparent',
+              color: activeTab === tab ? 'white' : '#6B7280',
+            }}
+          >
+            {tab === 'clientes' ? `Clientes (${users.length})` : `Dispositivos (${allDevices.length})`}
+          </button>
+        ))}
+      </div>
 
       {/* Feedback */}
       {msg && (
@@ -189,14 +272,10 @@ export default function GestaoPage() {
           <div className="flex justify-center py-16">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : (
-          <>
-            <div className="px-4 pt-4 pb-2">
-              <p className="text-xs font-semibold text-app-muted uppercase tracking-wider">
-                Clientes ({users.length})
-              </p>
-            </div>
+        ) : activeTab === 'clientes' ? (
 
+          /* ─── CLIENTES TAB ─── */
+          <>
             {users.length === 0 ? (
               <div className="text-center py-12 px-8">
                 <div className="text-5xl mb-4">👥</div>
@@ -207,7 +286,6 @@ export default function GestaoPage() {
               <div className="mt-2" style={{ borderTop: '1px solid #2A2D3E' }}>
                 {users.map(user => (
                   <div key={user.id}>
-                    {/* Linha do cliente */}
                     <div className="flex items-center gap-3 px-4 py-3"
                       style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E' }}>
                       <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
@@ -244,7 +322,6 @@ export default function GestaoPage() {
                       </div>
                     </div>
 
-                    {/* Painel de dispositivos do cliente */}
                     {selectedUser?.id === user.id && (
                       <div className="px-4 py-4" style={{ background: '#12131A', borderBottom: '1px solid #2A2D3E' }}>
                         {loadingDevices ? (
@@ -253,7 +330,6 @@ export default function GestaoPage() {
                           </div>
                         ) : (
                           <>
-                            {/* Dispositivos atribuídos */}
                             <p className="text-xs font-semibold text-app-muted uppercase tracking-wider mb-3">
                               Atribuídos a {user.name} ({userDevices.length})
                             </p>
@@ -266,10 +342,7 @@ export default function GestaoPage() {
                                     style={{ background: '#1E2030', border: '1px solid #2A2D3E' }}>
                                     <div className="flex items-center justify-between mb-2">
                                       <div className="flex items-center gap-2">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2">
-                                          <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-3"/>
-                                          <circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
-                                        </svg>
+                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
                                         <div>
                                           <p className="text-sm font-medium text-app-text">{device.name}</p>
                                           <p className="text-xs text-app-muted">{device.uniqueId}</p>
@@ -304,7 +377,6 @@ export default function GestaoPage() {
                               </div>
                             )}
 
-                            {/* Dispositivos disponíveis para atribuir */}
                             {unassigned.length > 0 && (
                               <>
                                 <p className="text-xs font-semibold text-app-muted uppercase tracking-wider mb-3">
@@ -315,10 +387,7 @@ export default function GestaoPage() {
                                     <div key={device.id} className="flex items-center justify-between rounded-xl px-3 py-2.5"
                                       style={{ background: '#1E2030', border: '1px solid #2A2D3E' }}>
                                       <div className="flex items-center gap-2">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
-                                          <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-3"/>
-                                          <circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
-                                        </svg>
+                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
                                         <div>
                                           <p className="text-sm font-medium text-app-text">{device.name}</p>
                                           <p className="text-xs text-app-muted">{device.uniqueId}</p>
@@ -345,10 +414,119 @@ export default function GestaoPage() {
               </div>
             )}
           </>
+
+        ) : (
+
+          /* ─── DISPOSITIVOS TAB ─── */
+          <>
+            {allDevices.length === 0 ? (
+              <div className="text-center py-12 px-8">
+                <div className="text-5xl mb-4">📡</div>
+                <p className="text-app-muted text-sm">Nenhum dispositivo cadastrado</p>
+                <p className="text-app-muted text-xs mt-1">Toque em "+ Novo dispositivo" para adicionar</p>
+              </div>
+            ) : (
+              <div className="mt-2" style={{ borderTop: '1px solid #2A2D3E' }}>
+                {allDevices.map(device => {
+                  const isRenaming = renamingDeviceId === device.id;
+                  const clientName = assignments[device.id];
+                  return (
+                    <div key={device.id} className="px-4 py-3"
+                      style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E' }}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ background: '#12131A' }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={statusColor(device.status)} strokeWidth="1.8" strokeLinecap="round">
+                            <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-3"/>
+                            <circle cx="7.5" cy="17.5" r="2.5"/>
+                            <circle cx="17.5" cy="17.5" r="2.5"/>
+                          </svg>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          {isRenaming ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                autoFocus
+                                value={renameValue}
+                                onChange={e => setRenameValue(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') renameDevice(device.id);
+                                  if (e.key === 'Escape') setRenamingDeviceId(null);
+                                }}
+                                className="flex-1 rounded-lg px-2 py-1 text-sm focus:outline-none"
+                                style={{ background: '#12131A', color: '#F0F0F5', border: '1px solid #007AFF' }}
+                              />
+                              <button onClick={() => renameDevice(device.id)}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                                style={{ background: 'rgba(52,199,89,0.15)' }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2.5">
+                                  <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                              </button>
+                              <button onClick={() => setRenamingDeviceId(null)}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                                style={{ background: 'rgba(255,59,48,0.1)' }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2.5">
+                                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-sm font-semibold text-app-text truncate">{device.name}</p>
+                          )}
+                          <p className="text-xs text-app-muted mt-0.5 font-mono">{device.uniqueId}</p>
+                          {clientName && (
+                            <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full mt-1"
+                              style={{ background: 'rgba(255,149,0,0.1)', color: '#FF9500' }}>
+                              👤 {clientName}
+                            </span>
+                          )}
+                          {!clientName && (
+                            <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full mt-1"
+                              style={{ background: 'rgba(107,114,128,0.1)', color: '#6B7280' }}>
+                              Sem cliente
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {!isRenaming && (
+                            <button
+                              onClick={() => { setRenamingDeviceId(device.id); setRenameValue(device.name); }}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center"
+                              style={{ background: 'rgba(0,122,255,0.1)' }}
+                              title="Renomear"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteDevice(device.id)}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center"
+                            style={{ background: 'rgba(255,59,48,0.1)' }}
+                            title="Excluir"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round">
+                              <polyline points="3 6 5 6 21 6"/>
+                              <path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* Modal criar cliente */}
+      {/* Modal: Novo cliente */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-end"
           style={{ background: 'rgba(0,0,0,0.6)' }}
@@ -382,6 +560,54 @@ export default function GestaoPage() {
                 className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl mt-2 disabled:opacity-60 transition-all"
               >
                 {creating ? 'Criando...' : 'Criar cliente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Novo dispositivo */}
+      {showCreateDevice && (
+        <div className="fixed inset-0 z-50 flex items-end"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setShowCreateDevice(false)}>
+          <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
+            style={{ background: '#1E2030' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: '#2A2D3E' }} />
+            <h3 className="font-bold text-app-text text-lg mb-1">Novo dispositivo</h3>
+            <p className="text-xs text-app-muted mb-5">Cadastre um novo rastreador GPS na plataforma</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-app-muted mb-1.5">Nome do veículo</label>
+                <input
+                  type="text"
+                  placeholder="Ex: VW Gol - ABC-1234"
+                  value={newDevice.name}
+                  onChange={e => setNewDevice(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+                  style={{ background: '#12131A', color: '#F0F0F5', border: '1px solid #2A2D3E' }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-app-muted mb-1.5">IMEI / ID único do aparelho</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Ex: 355488062098989"
+                  value={newDevice.uniqueId}
+                  onChange={e => setNewDevice(prev => ({ ...prev, uniqueId: e.target.value.replace(/\s/g, '') }))}
+                  className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none font-mono tracking-wide"
+                  style={{ background: '#12131A', color: '#F0F0F5', border: '1px solid #2A2D3E' }}
+                />
+                <p className="text-xs text-app-muted mt-1.5">📦 Consulte a etiqueta ou embalagem do aparelho</p>
+              </div>
+              <button
+                onClick={createDevice}
+                disabled={creatingDevice || !newDevice.name || !newDevice.uniqueId}
+                className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl mt-2 disabled:opacity-60 transition-all"
+              >
+                {creatingDevice ? 'Cadastrando...' : 'Cadastrar dispositivo'}
               </button>
             </div>
           </div>

@@ -50,6 +50,9 @@ interface DeviceDetailProps {
 function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin }: DeviceDetailProps) {
   const [cmdLoading, setCmdLoading] = useState<string | null>(null);
   const [cmdMsg, setCmdMsg] = useState('');
+  const [renaming, setRenaming] = useState(false);
+  const [renameVal, setRenameVal] = useState(device.name);
+  const [deviceName, setDeviceName] = useState(device.name);
   const status = getStatus(device, pos);
   const speed = pos ? knotsToKmh(pos.speed) : 0;
   const ignition = pos?.attributes?.ignition;
@@ -72,6 +75,25 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin }: 
       setCmdLoading(null);
       setTimeout(() => setCmdMsg(''), 4000);
     }
+  }
+
+  async function doRename() {
+    if (!renameVal.trim() || renameVal.trim() === deviceName) { setRenaming(false); return; }
+    try {
+      const res = await fetch('/api/admin/devices', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: device.id, name: renameVal.trim() }),
+      });
+      if (res.ok) {
+        setDeviceName(renameVal.trim());
+        setCmdMsg('✅ Renomeado com sucesso');
+      } else {
+        setCmdMsg('❌ Erro ao renomear');
+      }
+    } catch { setCmdMsg('❌ Erro de conexão'); }
+    setRenaming(false);
+    setTimeout(() => setCmdMsg(''), 3000);
   }
 
   function shareLocation() {
@@ -109,11 +131,46 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin }: 
 
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
-          <div>
-            <h2 className="font-bold text-lg text-app-text">{device.name}</h2>
+          <div className="flex-1 min-w-0 mr-3">
+            {renaming ? (
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  value={renameVal}
+                  onChange={e => setRenameVal(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') doRename(); if (e.key === 'Escape') setRenaming(false); }}
+                  className="flex-1 rounded-lg px-2 py-1 text-base font-bold focus:outline-none"
+                  style={{ background: '#12131A', color: '#F0F0F5', border: '1px solid #007AFF' }}
+                />
+                <button onClick={doRename}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(52,199,89,0.15)' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                </button>
+                <button onClick={() => setRenaming(false)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(255,59,48,0.1)' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-lg text-app-text truncate">{deviceName}</h2>
+                {isAdmin && (
+                  <button onClick={() => { setRenameVal(deviceName); setRenaming(true); }}
+                    className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'rgba(0,122,255,0.1)' }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )}
             <p className="text-xs text-app-muted mt-0.5">{device.uniqueId}</p>
           </div>
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusBadge[status]}`}>
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${statusBadge[status]}`}>
             {statusLabel[status]}
           </span>
         </div>
