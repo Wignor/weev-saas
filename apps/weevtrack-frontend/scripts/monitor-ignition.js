@@ -1,0 +1,120 @@
+const fs = require('fs');
+const path = require('path');
+
+const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
+const TRACCAR_EMAIL = process.env.TRACCAR_EMAIL;
+const TRACCAR_PASSWORD = process.env.TRACCAR_PASSWORD;
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@weevtrack.com';
+const SUBS_FILE = path.join(__dirname, '..', 'data', 'subscriptions.json');
+const STATE_FILE = path.join(__dirname, '..', 'data', 'ignition-state.json');
+
+if (!TRACCAR_EMAIL || !TRACCAR_PASSWORD) {
+  console.error('TRACCAR_EMAIL e TRACCAR_PASSWORD são obrigatórios');
+  process.exit(1);
+}
+
+let webpush;
+try {
+  webpush = require('web-push');
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+} catch {
+  console.error('web-push não encontrado. Execute: npm install');
+  process.exit(1);
+}
+
+function readJSON(file) {
+  try {
+    if (!fs.existsSync(file)) return {};
+    return JSON.parse(fs.readFileSync(file, 'utf-8'));
+  } catch {
+    return {};
+  }
+}
+
+function writeJSON(file, data) {
+  const dir = path.dirname(file);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(data, null, 2));
+}
+
+function readSubs() {
+  try {
+    if (!fs.existsSync(SUBS_FILE)) return [];
+    return JSON.parse(fs.readFileSync(SUBS_FILE, 'utf-8'));
+  } catch {
+    return [];
+  }
+}
+
+async function getSession() {
+  const res = await fetch(`${TRACCAR_URL}/api/session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ email: TRACCAR_EMAIL, password: TRACCAR_PASSWORD }),
+  });
+  if (!res.ok) throw new Error('Login Traccar falhou');
+  const setCookie = res.headers.get('set-cookie') || '';
+  const match = setCookie.match(/JSESSIONID=([^;]+)/);
+  return match?.[1] || '';
+}
+
+async function sendPush(sub, title, body) {
+  try {
+    await webpush.sendNotification(sub, JSON.stringify({ title, body, url: '/dashboard' }));
+  } catch (err) {
+    if (err.statusCode === 410) {
+      const subs = readSubs();
+      writeJSON(SUBS_FILE, subs.filter((s) => s.endpoint !== sub.endpoint));
+    }
+  }
+}
+
+async function check() {
+  try {
+    const subscriptions = readSubs();
+    if (subscriptions.length === 0) return;
+
+    const session = await getSession();
+    const headers = { Cookie: `JSESSIONID=${session}` };
+
+    const [devRes, posRes] = await Promise.all([
+      fetch(`${TRACCAR_URL}/api/devices`, { headers }),
+      fetch(`${TRACCAR_URL}/api/positions`, { headers }),
+    ]);
+
+    const devices = await devRes.json();
+    const positions = await posRes.json();
+    const prevState = readJSON(STATE_FILE);
+    const newState = {};
+
+    for (const pos of positions) {
+      const device = devices.find((d) => d.id === pos.deviceId);
+      if (!device) continue;
+
+      const ignition = pos.attributes?.ignition;
+      if (ignition === undefined || ignition === null) continue;
+
+      newState[pos.deviceId] = ignition;
+      const prev = prevState[pos.deviceId];
+
+      if (prev !== undefined && prev !== ignition) {
+        const title = ignition ? '🔑 Motor Ligado' : '🔒 Motor Desligado';
+        const body = `${device.name} — ${ignition ? 'Veículo foi ligado' : 'Veículo foi desligado'}`;
+        console.log(`[${new Date().toLocaleTimeString('pt-BR')}] ${body}`);
+        for (const sub of subscriptions) {
+          await sendPush(sub, title, body);
+        }
+      }
+    }
+
+    writeJSON(STATE_FILE, { ...prevState, ...newState });
+  } catch (err) {
+    console.error(`[${new Date().toLocaleTimeString('pt-BR')}] Erro:`, err.message);
+  }
+}
+
+console.log('WeevTrack — Monitor de Ignição iniciado');
+check();
+setInterval(check, 30000);

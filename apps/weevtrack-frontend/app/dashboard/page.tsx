@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import DeviceList from '@/components/DeviceList';
+import PushNotificationSetup from '@/components/PushNotificationSetup';
 import { TraccarDevice, TraccarPosition } from '@/lib/traccar';
 
 const VehicleMap = dynamic(() => import('@/components/Map'), {
@@ -103,6 +104,8 @@ export default function DashboardPage() {
           </span>
         )}
       </div>
+
+      <PushNotificationSetup />
 
       {/* Conteúdo principal */}
       {loading ? (
