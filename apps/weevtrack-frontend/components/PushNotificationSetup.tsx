@@ -30,7 +30,7 @@ export default function PushNotificationSetup() {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(key),
+        applicationServerKey: urlBase64ToUint8Array(key).buffer as ArrayBuffer,
       });
       await fetch('/api/push/subscribe', {
         method: 'POST',
