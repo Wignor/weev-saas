@@ -29,7 +29,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d atrás`;
 }
 
-export default function DeviceList({ devices, positions, selectedId, onSelect }: DeviceListProps) {
+export default function DeviceList({ devices = [], positions = [], selectedId, onSelect }: DeviceListProps) {
   const posMap = Object.fromEntries(positions.map((p) => [p.deviceId, p]));
 
   const online = devices.filter((d) => d.status === 'online').length;
