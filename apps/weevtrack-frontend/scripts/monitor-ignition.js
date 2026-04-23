@@ -7,8 +7,11 @@ const TRACCAR_PASSWORD = process.env.TRACCAR_PASSWORD;
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@weevtrack.com';
+const SPEED_LIMIT_KMH = Number(process.env.SPEED_LIMIT_KMH) || 100;
+const LOW_BATTERY_THRESHOLD = Number(process.env.LOW_BATTERY_THRESHOLD) || 20;
+
 const SUBS_FILE = path.join(__dirname, '..', 'data', 'subscriptions.json');
-const STATE_FILE = path.join(__dirname, '..', 'data', 'ignition-state.json');
+const STATE_FILE = path.join(__dirname, '..', 'data', 'monitor-state.json');
 
 if (!TRACCAR_EMAIL || !TRACCAR_PASSWORD) {
   console.error('TRACCAR_EMAIL e TRACCAR_PASSWORD são obrigatórios');
@@ -22,6 +25,10 @@ try {
 } catch {
   console.error('web-push não encontrado. Execute: npm install');
   process.exit(1);
+}
+
+function knotsToKmh(knots) {
+  return Math.round(knots * 1.852);
 }
 
 function readJSON(file) {
@@ -60,14 +67,21 @@ async function getSession() {
   return match?.[1] || '';
 }
 
-async function sendPush(sub, title, body) {
+async function sendPush(sub, title, body, url = '/dashboard') {
   try {
-    await webpush.sendNotification(sub, JSON.stringify({ title, body, url: '/dashboard' }));
+    await webpush.sendNotification(sub, JSON.stringify({ title, body, url }));
   } catch (err) {
     if (err.statusCode === 410) {
       const subs = readSubs();
       writeJSON(SUBS_FILE, subs.filter((s) => s.endpoint !== sub.endpoint));
     }
+  }
+}
+
+async function broadcastPush(subscriptions, title, body, url = '/dashboard') {
+  console.log(`[${new Date().toLocaleTimeString('pt-BR')}] ALERTA: ${title} — ${body}`);
+  for (const sub of subscriptions) {
+    await sendPush(sub, title, body, url);
   }
 }
 
@@ -93,19 +107,72 @@ async function check() {
       const device = devices.find((d) => d.id === pos.deviceId);
       if (!device) continue;
 
+      const id = String(pos.deviceId);
+      const prev = prevState[id] || {};
+      const speedKmh = knotsToKmh(pos.speed || 0);
       const ignition = pos.attributes?.ignition;
-      if (ignition === undefined || ignition === null) continue;
+      const battery = pos.attributes?.batteryLevel;
+      const moving = speedKmh > 2;
 
-      newState[pos.deviceId] = ignition;
-      const prev = prevState[pos.deviceId];
+      newState[id] = {
+        ignition,
+        moving,
+        speedKmh,
+        battery,
+        overspeedActive: prev.overspeedActive || false,
+        lowBatteryNotified: prev.lowBatteryNotified || false,
+      };
 
-      if (prev !== undefined && prev !== ignition) {
+      // --- Ignição ---
+      if (ignition !== undefined && prev.ignition !== undefined && prev.ignition !== ignition) {
         const title = ignition ? '🔑 Motor Ligado' : '🔒 Motor Desligado';
         const body = `${device.name} — ${ignition ? 'Veículo foi ligado' : 'Veículo foi desligado'}`;
-        console.log(`[${new Date().toLocaleTimeString('pt-BR')}] ${body}`);
-        for (const sub of subscriptions) {
-          await sendPush(sub, title, body);
+        await broadcastPush(subscriptions, title, body, `/historico?device=${pos.deviceId}`);
+        newState[id].lowBatteryNotified = false;
+      }
+
+      // --- Movimento ---
+      if (prev.moving !== undefined && prev.moving !== moving) {
+        if (moving) {
+          await broadcastPush(
+            subscriptions,
+            '🚗 Veículo em movimento',
+            `${device.name} — começou a se mover (${speedKmh} km/h)`,
+            `/historico?device=${pos.deviceId}`
+          );
+        } else if (prev.moving && !moving) {
+          await broadcastPush(
+            subscriptions,
+            '🛑 Veículo parou',
+            `${device.name} — parou`,
+            `/dashboard`
+          );
         }
+      }
+
+      // --- Excesso de velocidade ---
+      const overSpeed = speedKmh > SPEED_LIMIT_KMH;
+      if (overSpeed && !prev.overspeedActive) {
+        await broadcastPush(
+          subscriptions,
+          `🚦 Excesso de velocidade`,
+          `${device.name} — ${speedKmh} km/h (limite: ${SPEED_LIMIT_KMH} km/h)`,
+          `/dashboard`
+        );
+        newState[id].overspeedActive = true;
+      } else if (!overSpeed) {
+        newState[id].overspeedActive = false;
+      }
+
+      // --- Bateria fraca (apenas uma vez por ciclo de ignição) ---
+      if (battery !== undefined && battery <= LOW_BATTERY_THRESHOLD && !prev.lowBatteryNotified) {
+        await broadcastPush(
+          subscriptions,
+          `🔋 Bateria fraca`,
+          `${device.name} — bateria em ${battery}%`,
+          `/dashboard`
+        );
+        newState[id].lowBatteryNotified = true;
       }
     }
 
@@ -115,6 +182,6 @@ async function check() {
   }
 }
 
-console.log('WeevTrack — Monitor de Ignição iniciado');
+console.log(`WeevTrack — Monitor iniciado (limite velocidade: ${SPEED_LIMIT_KMH} km/h, bateria: ${LOW_BATTERY_THRESHOLD}%)`);
 check();
 setInterval(check, 30000);
