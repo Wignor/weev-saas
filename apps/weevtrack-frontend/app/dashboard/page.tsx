@@ -43,9 +43,11 @@ interface DeviceDetailProps {
   pos?: TraccarPosition;
   onClose: () => void;
   onHistory: () => void;
+  clientName?: string;
+  isAdmin?: boolean;
 }
 
-function DeviceDetail({ device, pos, onClose, onHistory }: DeviceDetailProps) {
+function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin }: DeviceDetailProps) {
   const [cmdLoading, setCmdLoading] = useState<string | null>(null);
   const [cmdMsg, setCmdMsg] = useState('');
   const status = getStatus(device, pos);
@@ -140,37 +142,50 @@ function DeviceDetail({ device, pos, onClose, onHistory }: DeviceDetailProps) {
           </p>
         )}
 
-        {/* Ações */}
-        <div className="grid grid-cols-3 gap-3">
-          <button
-            onClick={() => sendCommand('engineStop', 'Bloqueio')}
-            disabled={!!cmdLoading}
-            className="flex flex-col items-center gap-2 rounded-xl py-3 px-2 transition-all disabled:opacity-50"
-            style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.2)' }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round">
-              <rect x="3" y="11" width="18" height="11" rx="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <span className="text-xs font-medium" style={{ color: '#FF3B30' }}>
-              {cmdLoading === 'engineStop' ? '...' : 'Bloquear'}
-            </span>
-          </button>
+        {/* Badge de cliente */}
+        {clientName && (
+          <div className="rounded-xl px-3 py-2 mb-4 flex items-center gap-2"
+            style={{ background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.2)' }}>
+            <span className="text-sm">👤</span>
+            <p className="text-xs text-app-muted">Atribuído ao cliente <span className="font-semibold" style={{ color: '#FF9500' }}>{clientName}</span></p>
+          </div>
+        )}
 
-          <button
-            onClick={() => sendCommand('engineResume', 'Desbloqueio')}
-            disabled={!!cmdLoading}
-            className="flex flex-col items-center gap-2 rounded-xl py-3 px-2 transition-all disabled:opacity-50"
-            style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)' }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
-              <rect x="3" y="11" width="18" height="11" rx="2"/>
-              <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
-            </svg>
-            <span className="text-xs font-medium" style={{ color: '#34C759' }}>
-              {cmdLoading === 'engineResume' ? '...' : 'Desbloquear'}
-            </span>
-          </button>
+        {/* Ações */}
+        <div className={`grid gap-3 ${!clientName || isAdmin ? 'grid-cols-3' : 'grid-cols-1'}`}>
+          {(!clientName || isAdmin) && (
+            <button
+              onClick={() => sendCommand('engineStop', 'Bloqueio')}
+              disabled={!!cmdLoading}
+              className="flex flex-col items-center gap-2 rounded-xl py-3 px-2 transition-all disabled:opacity-50"
+              style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.2)' }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span className="text-xs font-medium" style={{ color: '#FF3B30' }}>
+                {cmdLoading === 'engineStop' ? '...' : 'Bloquear'}
+              </span>
+            </button>
+          )}
+
+          {(!clientName || isAdmin) && (
+            <button
+              onClick={() => sendCommand('engineResume', 'Desbloqueio')}
+              disabled={!!cmdLoading}
+              className="flex flex-col items-center gap-2 rounded-xl py-3 px-2 transition-all disabled:opacity-50"
+              style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)' }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+              </svg>
+              <span className="text-xs font-medium" style={{ color: '#34C759' }}>
+                {cmdLoading === 'engineResume' ? '...' : 'Desbloquear'}
+              </span>
+            </button>
+          )}
 
           <button
             onClick={onHistory}
@@ -196,12 +211,18 @@ export default function DashboardPage() {
   const [view, setView] = useState<'lista' | 'mapa'>('lista');
   const [user, setUser] = useState({ name: '', administrator: false });
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [assignments, setAssignments] = useState<Record<number, string>>({});
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRef<{ push: (p: string) => void } | null>(null);
 
   useEffect(() => {
-    setUser(getUserFromCookie());
-    import('next/navigation').then(({ useRouter: _useRouter }) => {}).catch(() => {});
+    const u = getUserFromCookie();
+    setUser(u);
+    if (u.administrator) {
+      fetch('/api/admin/assignments').then(r => r.json()).then(data => {
+        if (data && typeof data === 'object') setAssignments(data);
+      }).catch(() => {});
+    }
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -228,6 +249,9 @@ export default function DashboardPage() {
 
   const statusBadge: Record<string, string> = { movendo: 'badge-online', parado: 'badge-parado', offline: 'badge-offline' };
   const statusLabel: Record<string, string> = { movendo: 'Movendo', parado: 'Estático', offline: 'Offline' };
+
+  const isAssigned = (deviceId: number) => !!assignments[deviceId];
+  const assignedTo = (deviceId: number) => assignments[deviceId] || '';
 
   return (
     <div className="flex flex-col" style={{ height: '100dvh', background: '#12131A' }}>
@@ -302,6 +326,9 @@ export default function DashboardPage() {
                 const ignition = pos?.attributes?.ignition;
                 const isSelected = selectedId === device.id;
 
+                const assigned = isAssigned(device.id);
+                const clientName = assignedTo(device.id);
+
                 return (
                   <button
                     key={device.id}
@@ -317,7 +344,7 @@ export default function DashboardPage() {
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                         style={{ background: isSelected ? 'rgba(0,122,255,0.2)' : '#1E2030' }}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                          stroke={isSelected ? '#007AFF' : status === 'offline' ? '#6B7280' : status === 'movendo' ? '#34C759' : '#FF9500'}
+                          stroke={isSelected ? '#007AFF' : assigned ? '#FF9500' : status === 'offline' ? '#6B7280' : status === 'movendo' ? '#34C759' : '#FF9500'}
                           strokeWidth="1.8" strokeLinecap="round">
                           <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-3"/>
                           <circle cx="7.5" cy="17.5" r="2.5"/>
@@ -329,9 +356,16 @@ export default function DashboardPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="font-semibold text-app-text text-sm truncate">{device.name}</span>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${statusBadge[status]}`}>
-                            {statusLabel[status]}
-                          </span>
+                          {assigned ? (
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                              style={{ background: 'rgba(255,149,0,0.15)', color: '#FF9500' }}>
+                              👤 {clientName}
+                            </span>
+                          ) : (
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${statusBadge[status]}`}>
+                              {statusLabel[status]}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-3 text-xs text-app-muted">
                           <span>{device.uniqueId.slice(-8)}</span>
@@ -369,6 +403,8 @@ export default function DashboardPage() {
           pos={posMap[selectedId]}
           onClose={() => setSelectedId(null)}
           onHistory={() => { window.location.href = `/historico?device=${selectedId}`; }}
+          clientName={assignments[selectedId]}
+          isAdmin={user.administrator}
         />
       )}
     </div>
