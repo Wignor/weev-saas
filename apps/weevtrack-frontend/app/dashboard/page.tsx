@@ -7,7 +7,7 @@ import Navbar from '@/components/Navbar';
 import DeviceList from '@/components/DeviceList';
 import { TraccarDevice, TraccarPosition } from '@/lib/traccar';
 
-const Map = dynamic(() => import('@/components/Map'), {
+const VehicleMap = dynamic(() => import('@/components/Map'), {
   ssr: false,
   loading: () => (
     <div className="flex-1 flex items-center justify-center bg-surface">
@@ -120,7 +120,7 @@ export default function DashboardPage() {
             selectedId={selectedId}
             onSelect={setSelectedId}
           />
-          <Map
+          <VehicleMap
             devices={devices}
             positions={positions}
             selectedDeviceId={selectedId}
