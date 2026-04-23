@@ -124,6 +124,19 @@ export default function GestaoPage() {
     }
   }
 
+  async function sendCmd(deviceId: number, type: string) {
+    try {
+      const res = await fetch('/api/commands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId, type }),
+      });
+      flash(res.ok ? `✅ Comando enviado` : `❌ Falha ao enviar comando`);
+    } catch {
+      flash('❌ Erro de conexão');
+    }
+  }
+
   async function deleteUser(userId: number) {
     if (!confirm('Excluir este cliente?')) return;
     const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
@@ -249,25 +262,43 @@ export default function GestaoPage() {
                             ) : (
                               <div className="space-y-2 mb-4">
                                 {userDevices.map(device => (
-                                  <div key={device.id} className="flex items-center justify-between rounded-xl px-3 py-2.5"
+                                  <div key={device.id} className="rounded-xl px-3 py-2.5"
                                     style={{ background: '#1E2030', border: '1px solid #2A2D3E' }}>
-                                    <div className="flex items-center gap-2">
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2">
-                                        <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-3"/>
-                                        <circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
-                                      </svg>
-                                      <div>
-                                        <p className="text-sm font-medium text-app-text">{device.name}</p>
-                                        <p className="text-xs text-app-muted">{device.uniqueId}</p>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2">
+                                          <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-3"/>
+                                          <circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
+                                        </svg>
+                                        <div>
+                                          <p className="text-sm font-medium text-app-text">{device.name}</p>
+                                          <p className="text-xs text-app-muted">{device.uniqueId}</p>
+                                        </div>
                                       </div>
+                                      <button
+                                        onClick={() => removeDevice(device.id)}
+                                        className="text-xs px-2.5 py-1 rounded-lg font-medium"
+                                        style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}
+                                      >
+                                        Remover
+                                      </button>
                                     </div>
-                                    <button
-                                      onClick={() => removeDevice(device.id)}
-                                      className="text-xs px-2.5 py-1 rounded-lg font-medium"
-                                      style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}
-                                    >
-                                      Remover
-                                    </button>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <button
+                                        onClick={() => sendCmd(device.id, 'engineStop')}
+                                        className="text-xs py-1.5 rounded-lg font-medium"
+                                        style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}
+                                      >
+                                        🔒 Bloquear
+                                      </button>
+                                      <button
+                                        onClick={() => sendCmd(device.id, 'engineResume')}
+                                        className="text-xs py-1.5 rounded-lg font-medium"
+                                        style={{ background: 'rgba(52,199,89,0.1)', color: '#34C759' }}
+                                      >
+                                        🔓 Desbloquear
+                                      </button>
+                                    </div>
                                   </div>
                                 ))}
                               </div>

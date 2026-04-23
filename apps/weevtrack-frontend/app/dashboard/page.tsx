@@ -74,6 +74,18 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin }: 
     }
   }
 
+  function shareLocation() {
+    if (!pos) return;
+    const url = `https://maps.google.com/maps?q=${pos.latitude},${pos.longitude}`;
+    if (navigator.share) {
+      navigator.share({ title: device.name, text: `Localização de ${device.name}`, url });
+    } else {
+      navigator.clipboard.writeText(url);
+      setCmdMsg('✅ Link copiado!');
+      setTimeout(() => setCmdMsg(''), 3000);
+    }
+  }
+
   const statusBadge: Record<string, string> = {
     movendo: 'badge-online',
     parado: 'badge-parado',
@@ -196,6 +208,35 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin }: 
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
             </svg>
             <span className="text-xs font-medium" style={{ color: '#007AFF' }}>Trajetos</span>
+          </button>
+        </div>
+
+        {/* Segunda linha de ações */}
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <button
+            onClick={shareLocation}
+            disabled={!pos}
+            className="flex flex-col items-center gap-2 rounded-xl py-3 px-2 transition-all disabled:opacity-40"
+            style={{ background: 'rgba(88,86,214,0.12)', border: '1px solid rgba(88,86,214,0.2)' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5856D6" strokeWidth="2" strokeLinecap="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            <span className="text-xs font-medium" style={{ color: '#5856D6' }}>Compartilhar</span>
+          </button>
+
+          <button
+            onClick={() => pos && window.open(`https://maps.google.com/maps?q=${pos.latitude},${pos.longitude}`, '_blank')}
+            disabled={!pos}
+            className="flex flex-col items-center gap-2 rounded-xl py-3 px-2 transition-all disabled:opacity-40"
+            style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+            </svg>
+            <span className="text-xs font-medium" style={{ color: '#34C759' }}>Ver no Google</span>
           </button>
         </div>
       </div>
