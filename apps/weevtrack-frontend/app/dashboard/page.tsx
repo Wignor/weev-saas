@@ -59,13 +59,12 @@ function getStatus(device: TraccarDevice, pos?: TraccarPosition) {
 }
 
 function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme') || 'dark';
-  const next = current === 'dark' ? 'light' : 'dark';
+  const next = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   try { localStorage.setItem('wt_theme', next); } catch { /* */ }
 }
 
-/* ── DeviceDetail (shared between mobile sheet and desktop panel) ── */
+/* ── DeviceDetail ── */
 interface DeviceDetailProps {
   device: TraccarDevice;
   pos?: TraccarPosition;
@@ -93,21 +92,17 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
   const voltageStr = voltage !== undefined ? `${voltage.toFixed(1)}V` : '—';
   const powerSource = voltage !== undefined ? (voltage > 10 ? 'Com fio' : 'Bateria') : battery !== undefined ? 'Bateria' : '—';
 
-  const statusColor: Record<string, string> = { movendo: '#34C759', parado: '#FF9500', offline: '#6B7280' };
-  const statusBg: Record<string, string> = { movendo: 'rgba(52,199,89,0.15)', parado: 'rgba(255,149,0,0.15)', offline: 'rgba(107,114,128,0.15)' };
-  const statusLabel: Record<string, string> = { movendo: 'Movendo', parado: 'Estático', offline: 'Offline' };
-
+  const sColor: Record<string, string> = { movendo: '#34C759', parado: '#FF9500', offline: '#6B7280' };
+  const sBg: Record<string, string> = { movendo: 'rgba(52,199,89,0.15)', parado: 'rgba(255,149,0,0.15)', offline: 'rgba(107,114,128,0.15)' };
+  const sLabel: Record<string, string> = { movendo: 'Movendo', parado: 'Estático', offline: 'Offline' };
   const statusSince = pos?.deviceTime || device.lastUpdate;
-  const statusStr = `${statusLabel[status]}${statusSince ? ' ' + fmtDuration(statusSince) : ''} GPS`;
+  const statusStr = `${sLabel[status]}${statusSince ? ' ' + fmtDuration(statusSince) : ''} GPS`;
   const canControl = !clientName || isAdmin;
 
   async function sendCommand(type: string, label: string) {
     setCmdLoading(type); setCmdMsg('');
     try {
-      const res = await fetch('/api/commands', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId: device.id, type }),
-      });
+      const res = await fetch('/api/commands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device.id, type }) });
       const data = await res.json();
       setCmdMsg(res.ok ? `✅ ${label} enviado` : `❌ ${data.error || 'Falha'}`);
     } catch { setCmdMsg('❌ Erro de conexão'); }
@@ -117,10 +112,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
   async function doRename() {
     if (!renameVal.trim() || renameVal.trim() === deviceName) { setRenaming(false); return; }
     try {
-      const res = await fetch('/api/admin/devices', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId: device.id, name: renameVal.trim() }),
-      });
+      const res = await fetch('/api/admin/devices', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device.id, name: renameVal.trim() }) });
       if (res.ok) { setDeviceName(renameVal.trim()); setCmdMsg('✅ Renomeado'); }
       else { setCmdMsg('❌ Erro ao renomear'); }
     } catch { setCmdMsg('❌ Erro de conexão'); }
@@ -143,12 +135,10 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
         <div className="flex-1 min-w-0 mr-3">
           {renaming ? (
             <div className="flex items-center gap-2">
-              <input autoFocus value={renameVal}
-                onChange={e => setRenameVal(e.target.value)}
+              <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') doRename(); if (e.key === 'Escape') setRenaming(false); }}
                 className="flex-1 rounded-lg px-2 py-1 text-base font-bold focus:outline-none"
-                style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid #007AFF' }}
-              />
+                style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid #007AFF' }} />
               <button onClick={doRename} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(52,199,89,0.15)' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               </button>
@@ -161,8 +151,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
               <h2 className="font-bold text-lg truncate" style={{ color: 'var(--text-hi)' }}>{deviceName}</h2>
               {isAdmin && (
                 <button onClick={() => { setRenameVal(deviceName); setRenaming(true); }}
-                  className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(0,122,255,0.1)' }}>
+                  className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(0,122,255,0.1)' }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -179,14 +168,12 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           )}
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-            style={{ background: statusBg[status], color: statusColor[status] }}>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: sBg[status], color: sColor[status] }}>
             {statusStr}
           </span>
         </div>
       </div>
 
-      {/* Feedback */}
       {cmdMsg && (
         <p className="text-xs text-center mb-3 font-medium py-2 rounded-lg"
           style={{ background: cmdMsg.startsWith('✅') ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)', color: cmdMsg.startsWith('✅') ? '#34C759' : '#FF3B30' }}>
@@ -204,8 +191,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
         </p>
         {pos && (
           <button onClick={() => window.open(`https://maps.google.com/maps?q=${pos.latitude},${pos.longitude}`, '_blank')}
-            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ml-1"
-            style={{ background: 'rgba(0,122,255,0.15)' }}>
+            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ml-1" style={{ background: 'rgba(0,122,255,0.15)' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
               <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
             </svg>
@@ -213,17 +199,17 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
         )}
       </div>
 
-      {/* Info grid 2×4 */}
+      {/* Info grid */}
       <div className="grid grid-cols-2 gap-2 mb-3">
         {[
-          { icon: '🕐', label: 'Servidor', value: fmtDateTime(pos?.serverTime) },
-          { icon: '📡', label: 'GPS Fix',  value: fmtDateTime(pos?.fixTime) },
-          { icon: '🔌', label: 'Fonte',    value: powerSource, color: voltage && voltage > 10 ? '#34C759' : 'var(--text-lo)' },
-          { icon: '🔑', label: 'Ignição',  value: ignition === true ? 'Ligada' : ignition === false ? 'Desligada' : '—', color: ignition === true ? '#34C759' : ignition === false ? '#FF3B30' : 'var(--text-lo)' },
-          { icon: '⚡', label: 'Tensão',   value: voltageStr, color: voltage ? (voltage > 11 ? '#34C759' : '#FF9500') : 'var(--text-lo)' },
-          { icon: '🏁', label: 'Odômetro', value: odometerKm },
+          { icon: '🕐', label: 'Servidor',   value: fmtDateTime(pos?.serverTime) },
+          { icon: '📡', label: 'GPS Fix',    value: fmtDateTime(pos?.fixTime) },
+          { icon: '🔌', label: 'Fonte',      value: powerSource, color: voltage && voltage > 10 ? '#34C759' : 'var(--text-lo)' },
+          { icon: '🔑', label: 'Ignição',    value: ignition === true ? 'Ligada' : ignition === false ? 'Desligada' : '—', color: ignition === true ? '#34C759' : ignition === false ? '#FF3B30' : 'var(--text-lo)' },
+          { icon: '⚡', label: 'Tensão',     value: voltageStr, color: voltage ? (voltage > 11 ? '#34C759' : '#FF9500') : 'var(--text-lo)' },
+          { icon: '🏁', label: 'Odômetro',   value: odometerKm },
           { icon: '🚀', label: 'Velocidade', value: `${speed} km/h`, color: speed > 0 ? '#007AFF' : 'var(--text-lo)' },
-          { icon: '🔋', label: 'Bateria',  value: battery !== undefined ? `${battery}%` : powerSource === 'Com fio' ? 'Com fio' : '—', color: battery !== undefined ? (battery > 20 ? '#34C759' : '#FF3B30') : 'var(--text-lo)' },
+          { icon: '🔋', label: 'Bateria',    value: battery !== undefined ? `${battery}%` : powerSource === 'Com fio' ? 'Com fio' : '—', color: battery !== undefined ? (battery > 20 ? '#34C759' : '#FF3B30') : 'var(--text-lo)' },
         ].map((item) => (
           <div key={item.label} className="rounded-xl p-2.5" style={{ background: 'var(--bg-input)' }}>
             <p className="text-xs mb-0.5" style={{ color: 'var(--text-lo)' }}>{item.icon} {item.label}</p>
@@ -232,10 +218,8 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
         ))}
       </div>
 
-      {/* Coords */}
       {pos && <p className="text-xs text-center mb-3" style={{ color: 'var(--text-lo)' }}>{pos.latitude.toFixed(6)}, {pos.longitude.toFixed(6)}</p>}
 
-      {/* Client badge */}
       {clientName && (
         <div className="rounded-xl px-3 py-2 mb-3 flex items-center gap-2"
           style={{ background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.15)' }}>
@@ -244,11 +228,11 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
         </div>
       )}
 
-      {/* Action buttons – scrollable row */}
+      {/* Action buttons */}
       <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
         {canControl && (
           <button onClick={() => sendCommand('engineStop', 'Bloqueio')} disabled={!!cmdLoading}
-            className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-50 transition-all"
+            className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-50"
             style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.2)', minWidth: '64px' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round">
               <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -258,7 +242,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
         )}
         {canControl && (
           <button onClick={() => sendCommand('engineResume', 'Desbloqueio')} disabled={!!cmdLoading}
-            className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-50 transition-all"
+            className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-50"
             style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)', minWidth: '64px' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
               <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
@@ -266,16 +250,14 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
             <span className="text-xs font-medium" style={{ color: '#34C759' }}>{cmdLoading === 'engineResume' ? '...' : 'Desbloquear'}</span>
           </button>
         )}
-        <button onClick={onHistory}
-          className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 transition-all"
+        <button onClick={onHistory} className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0"
           style={{ background: 'rgba(0,122,255,0.12)', border: '1px solid rgba(0,122,255,0.2)', minWidth: '64px' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
           </svg>
           <span className="text-xs font-medium" style={{ color: '#007AFF' }}>Trajetos</span>
         </button>
-        <button onClick={shareLocation} disabled={!pos}
-          className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40 transition-all"
+        <button onClick={shareLocation} disabled={!pos} className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40"
           style={{ background: 'rgba(88,86,214,0.12)', border: '1px solid rgba(88,86,214,0.2)', minWidth: '64px' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5856D6" strokeWidth="2" strokeLinecap="round">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -283,8 +265,8 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
           </svg>
           <span className="text-xs font-medium" style={{ color: '#5856D6' }}>Compartilhar</span>
         </button>
-        <button onClick={() => pos && window.open(`https://maps.google.com/maps?q=${pos.latitude},${pos.longitude}`, '_blank')} disabled={!pos}
-          className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40 transition-all"
+        <button onClick={() => pos && window.open(`https://maps.google.com/maps?q=${pos.latitude},${pos.longitude}`, '_blank')}
+          disabled={!pos} className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40"
           style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)', minWidth: '64px' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
             <circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
@@ -307,22 +289,18 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
   );
 }
 
-/* ── DeviceListItem — defined OUTSIDE DashboardPage to avoid React reconciliation errors ── */
+/* ── DeviceListItem — MUST be outside DashboardPage ── */
 interface ListItemProps {
-  device: TraccarDevice;
-  pos?: TraccarPosition;
-  isSelected: boolean;
-  clientName: string;
-  onSelect: () => void;
+  device: TraccarDevice; pos?: TraccarPosition;
+  isSelected: boolean; clientName: string; onSelect: () => void;
 }
 
 function DeviceListItem({ device, pos, isSelected, clientName, onSelect }: ListItemProps) {
   const status = getStatus(device, pos);
   const speed = pos ? knotsToKmh(pos.speed) : 0;
   const ignition = pos?.attributes?.ignition;
-
-  const statusBadge: Record<string, string> = { movendo: 'badge-online', parado: 'badge-parado', offline: 'badge-offline' };
-  const statusLabel: Record<string, string> = { movendo: 'Movendo', parado: 'Estático', offline: 'Offline' };
+  const sBadge: Record<string, string> = { movendo: 'badge-online', parado: 'badge-parado', offline: 'badge-offline' };
+  const sLabel: Record<string, string> = { movendo: 'Movendo', parado: 'Estático', offline: 'Offline' };
 
   return (
     <button onClick={onSelect} className="w-full text-left px-4 py-3 transition-all"
@@ -344,7 +322,7 @@ function DeviceListItem({ device, pos, isSelected, clientName, onSelect }: ListI
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
                 style={{ background: 'rgba(255,149,0,0.15)', color: '#FF9500' }}>👤 {clientName}</span>
             ) : (
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${statusBadge[status]}`}>{statusLabel[status]}</span>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${sBadge[status]}`}>{sLabel[status]}</span>
             )}
           </div>
           <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-lo)' }}>
@@ -364,13 +342,6 @@ function DeviceListItem({ device, pos, isSelected, clientName, onSelect }: ListI
 export default function DashboardPage() {
   const [asUser, setAsUser] = useState<string | null>(null);
   const [asUserName, setAsUserName] = useState<string | null>(null);
-
-  useEffect(() => {
-    const p = new URLSearchParams(window.location.search);
-    setAsUser(p.get('asUser'));
-    setAsUserName(p.get('asUserName'));
-  }, []);
-
   const [devices, setDevices] = useState<TraccarDevice[]>([]);
   const [positions, setPositions] = useState<TraccarPosition[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -378,11 +349,16 @@ export default function DashboardPage() {
   const [mobileView, setMobileView] = useState<'lista' | 'mapa'>('lista');
   const [filter, setFilter] = useState<'todos' | 'online' | 'offline'>('todos');
   const [search, setSearch] = useState('');
-  const [showAssigned, setShowAssigned] = useState(false);
   const [user, setUser] = useState({ name: '', administrator: false });
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [assignments, setAssignments] = useState<Record<number, string>>({});
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    setAsUser(p.get('asUser'));
+    setAsUserName(p.get('asUserName'));
+  }, []);
 
   useEffect(() => {
     const u = getUserFromCookie();
@@ -397,10 +373,7 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     try {
       const suffix = asUser ? `?asUser=${asUser}` : '';
-      const [devRes, posRes] = await Promise.all([
-        fetch(`/api/devices${suffix}`),
-        fetch(`/api/positions${suffix}`),
-      ]);
+      const [devRes, posRes] = await Promise.all([fetch(`/api/devices${suffix}`), fetch(`/api/positions${suffix}`)]);
       if (devRes.status === 401) { window.location.href = '/login'; return; }
       const [devData, posData] = await Promise.all([devRes.json(), posRes.json()]);
       if (Array.isArray(devData)) setDevices(devData);
@@ -420,23 +393,19 @@ export default function DashboardPage() {
   const online = devices.filter((d) => d.status === 'online').length;
   const selectedDevice = devices.find((d) => d.id === selectedId);
 
-  // Admin: hide devices assigned to clients unless showAssigned is toggled
-  const visibleDevices = devices.filter(d => {
-    if (user.administrator && !asUser && !showAssigned && assignments[d.id]) return false;
+  const filteredDevices = devices.filter(d => {
     if (filter === 'online' && d.status !== 'online') return false;
     if (filter === 'offline' && d.status === 'online') return false;
     if (search && !d.name.toLowerCase().includes(search.toLowerCase()) && !d.uniqueId.includes(search)) return false;
     return true;
   });
 
-  const assignedCount = Object.keys(assignments).length;
-
   const desktopNavTabs = [
-    { href: '/dashboard', label: 'Monitor', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg> },
-    { href: '/historico', label: 'Trajetos', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
-    { href: '/alertas', label: 'Alertas', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> },
-    { href: '/perfil', label: 'Perfil', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
-    ...(user.administrator ? [{ href: '/gestao', label: 'Gestão', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> }] : []),
+    { href: '/dashboard', label: 'Monitor', icon: 'M12 2v2M12 20v2M2 12h2M20 12h2' },
+    { href: '/historico', label: 'Trajetos', icon: '' },
+    { href: '/alertas', label: 'Alertas', icon: '' },
+    { href: '/perfil', label: 'Perfil', icon: '' },
+    ...(user.administrator ? [{ href: '/gestao', label: 'Gestão', icon: '' }] : []),
   ];
 
   return (
@@ -463,8 +432,8 @@ export default function DashboardPage() {
           <span className="text-xs badge-online px-2 py-0.5 rounded-full font-medium">{online} online</span>
           <span className="text-xs badge-offline px-2 py-0.5 rounded-full font-medium">{devices.length - online} offline</span>
           {asUser ? (
-            <a href="/dashboard" className="text-xs px-2.5 py-1 rounded-lg font-medium"
-              style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}>Sair</a>
+            <a href="/dashboard" className="text-xs px-2.5 py-1 rounded-lg font-medium no-underline"
+              style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}>✕ Sair</a>
           ) : (
             <button onClick={toggleTheme} className="w-8 h-8 rounded-lg flex items-center justify-center"
               style={{ background: 'var(--bg-border)' }} title="Alternar tema">
@@ -481,6 +450,32 @@ export default function DashboardPage() {
           )}
         </div>
       </header>
+
+      {/* ── Desktop nav tabs (below header, desktop only) ── */}
+      <div className="hidden md:flex flex-shrink-0 px-4 gap-1"
+        style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)', paddingTop: '6px', paddingBottom: '6px' }}>
+        {[
+          { href: '/dashboard', label: 'Monitor' },
+          { href: '/historico', label: 'Trajetos' },
+          { href: '/alertas', label: 'Alertas' },
+          ...(user.administrator ? [{ href: '/gestao', label: 'Gestão' }] : []),
+          { href: '/perfil', label: 'Perfil' },
+        ].map(tab => {
+          const active = typeof window !== 'undefined' && window.location.pathname === tab.href;
+          return (
+            <a key={tab.href} href={tab.href}
+              className="px-4 py-1.5 rounded-lg text-sm font-medium no-underline transition-all"
+              style={{ background: active ? '#007AFF' : 'transparent', color: active ? 'white' : 'var(--text-lo)' }}>
+              {tab.label}
+            </a>
+          );
+        })}
+        {lastUpdate && (
+          <span className="ml-auto text-xs self-center" style={{ color: 'var(--text-lo)' }}>
+            Atualizado {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </span>
+        )}
+      </div>
 
       {/* ── Mobile view toggle ── */}
       <div className="md:hidden flex-shrink-0 flex px-4 py-2 gap-2"
@@ -501,14 +496,15 @@ export default function DashboardPage() {
 
       <PushNotificationSetup />
 
-      {/* ── Main layout ── */}
-      <div className="flex-1 flex overflow-hidden" style={{ minHeight: 0, position: 'relative' }}>
+      {/* ── Main layout ──
+          Desktop: flex-row [sidebar 280px | map flex-1 | detail 360px]
+          Mobile:  map fills all, list is an absolute overlay on top
+      ── */}
+      <div className="flex-1 flex overflow-hidden" style={{ position: 'relative', minHeight: 0 }}>
 
-        {/* ── Desktop sidebar ── */}
+        {/* Desktop sidebar */}
         <div className="hidden md:flex flex-col flex-none overflow-hidden"
           style={{ width: '280px', borderRight: '1px solid var(--bg-border)', background: 'var(--bg-page)' }}>
-
-          {/* Search + filter */}
           <div className="flex-shrink-0 p-3" style={{ borderBottom: '1px solid var(--bg-border)' }}>
             <div className="relative mb-2">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
@@ -527,87 +523,62 @@ export default function DashboardPage() {
                 </button>
               ))}
             </div>
-            {/* Admin: toggle to show assigned devices */}
-            {user.administrator && !asUser && assignedCount > 0 && (
-              <button onClick={() => setShowAssigned(v => !v)}
-                className="w-full mt-2 text-xs py-1.5 rounded-lg font-medium transition-all"
-                style={{ background: showAssigned ? 'rgba(255,149,0,0.15)' : 'var(--bg-border)', color: showAssigned ? '#FF9500' : 'var(--text-lo)' }}>
-                {showAssigned ? `👥 Mostrando atribuídos (${assignedCount})` : `👥 ${assignedCount} atribuído(s) oculto(s)`}
-              </button>
-            )}
           </div>
-
-          {/* List */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex justify-center py-12"><div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
-            ) : visibleDevices.length === 0 ? (
-              <div className="text-center py-12 px-6">
-                <p className="text-sm" style={{ color: 'var(--text-lo)' }}>{search ? 'Nenhum resultado' : 'Nenhum dispositivo'}</p>
-              </div>
+            ) : filteredDevices.length === 0 ? (
+              <div className="text-center py-12 px-6"><p className="text-sm" style={{ color: 'var(--text-lo)' }}>Nenhum dispositivo</p></div>
             ) : (
-              visibleDevices.map(device => (
+              filteredDevices.map(device => (
                 <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
                   isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
                   onSelect={() => setSelectedId(selectedId === device.id ? null : device.id)} />
               ))
             )}
           </div>
-
-          {/* Desktop nav at bottom */}
-          <div className="flex-shrink-0" style={{ borderTop: '1px solid var(--bg-border)' }}>
-            {desktopNavTabs.map(tab => {
-              const active = typeof window !== 'undefined' && window.location.pathname.startsWith(tab.href);
-              return (
-                <a key={tab.href} href={tab.href}
-                  className="flex items-center gap-3 px-4 py-2.5 transition-all no-underline"
-                  style={{ color: active ? '#007AFF' : 'var(--text-lo)', background: active ? 'rgba(0,122,255,0.08)' : 'transparent' }}>
-                  {tab.icon}
-                  <span className="text-sm font-medium">{tab.label}</span>
-                </a>
-              );
-            })}
-          </div>
         </div>
 
-        {/* ── Map (always mounted, fills space) ── */}
+        {/* Map — always mounted and filling flex-1, provides correct dimensions for Leaflet */}
         <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
           <VehicleMap
-            devices={devices}
-            positions={positions}
+            devices={devices} positions={positions}
             selectedDeviceId={selectedId}
             onDeviceSelect={(id) => { setSelectedId(id); setMobileView('mapa'); }}
             visible={mobileView === 'mapa'}
           />
         </div>
 
-        {/* ── Mobile list overlay (sits over the map when in lista view) ── */}
-        <div className="md:hidden absolute inset-0 z-10 flex flex-col overflow-hidden"
+        {/* Desktop detail panel */}
+        {selectedId && selectedDevice && (
+          <div className="hidden md:flex flex-col flex-none overflow-hidden"
+            style={{ width: '360px', borderLeft: '1px solid var(--bg-border)', background: 'var(--bg-card)' }}>
+            <DeviceDetail device={selectedDevice} pos={posMap[selectedId]}
+              onClose={() => setSelectedId(null)}
+              onHistory={() => { window.location.href = `/historico?device=${selectedId}`; }}
+              clientName={assignments[selectedId]} isAdmin={user.administrator} variant="panel" />
+          </div>
+        )}
+
+        {/* Mobile list overlay — sits OVER the map, shown when in lista view */}
+        <div className="md:hidden"
           style={{
-            opacity: mobileView === 'lista' ? 1 : 0,
-            pointerEvents: mobileView === 'lista' ? 'auto' : 'none',
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            zIndex: 10,
             background: 'var(--bg-page)',
-            transition: 'opacity 0.15s',
+            display: mobileView === 'lista' ? 'flex' : 'none',
+            flexDirection: 'column',
+            overflow: 'hidden',
           }}>
-          {/* Admin toggle in mobile */}
-          {user.administrator && !asUser && assignedCount > 0 && (
-            <div className="flex-shrink-0 px-4 py-2" style={{ borderBottom: '1px solid var(--bg-border)' }}>
-              <button onClick={() => setShowAssigned(v => !v)}
-                className="w-full text-xs py-1.5 rounded-lg font-medium"
-                style={{ background: showAssigned ? 'rgba(255,149,0,0.15)' : 'var(--bg-border)', color: showAssigned ? '#FF9500' : 'var(--text-lo)' }}>
-                {showAssigned ? `👥 Atribuídos visíveis (${assignedCount})` : `👥 ${assignedCount} atribuído(s) oculto(s) — toque para ver`}
-              </button>
-            </div>
-          )}
           <div className="flex-1 overflow-y-auto pb-20">
             {loading ? (
               <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
-            ) : visibleDevices.length === 0 ? (
+            ) : filteredDevices.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center px-8">
-                <p className="text-sm" style={{ color: 'var(--text-lo)' }}>{search ? 'Nenhum resultado' : 'Nenhum dispositivo'}</p>
+                <p className="text-sm" style={{ color: 'var(--text-lo)' }}>Nenhum dispositivo</p>
               </div>
             ) : (
-              visibleDevices.map(device => (
+              filteredDevices.map(device => (
                 <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
                   isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
                   onSelect={() => setSelectedId(selectedId === device.id ? null : device.id)} />
@@ -615,20 +586,6 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-
-        {/* ── Desktop detail panel ── */}
-        {selectedId && selectedDevice && (
-          <div className="hidden md:flex flex-col flex-none overflow-hidden"
-            style={{ width: '360px', borderLeft: '1px solid var(--bg-border)', background: 'var(--bg-card)' }}>
-            <DeviceDetail
-              device={selectedDevice} pos={posMap[selectedId]}
-              onClose={() => setSelectedId(null)}
-              onHistory={() => { window.location.href = `/historico?device=${selectedId}`; }}
-              clientName={assignments[selectedId]} isAdmin={user.administrator}
-              variant="panel"
-            />
-          </div>
-        )}
       </div>
 
       {/* ── Mobile bottom nav ── */}
@@ -637,13 +594,10 @@ export default function DashboardPage() {
       {/* ── Mobile bottom sheet ── */}
       {selectedId && selectedDevice && (
         <div className="md:hidden">
-          <DeviceDetail
-            device={selectedDevice} pos={posMap[selectedId]}
+          <DeviceDetail device={selectedDevice} pos={posMap[selectedId]}
             onClose={() => setSelectedId(null)}
             onHistory={() => { window.location.href = `/historico?device=${selectedId}`; }}
-            clientName={assignments[selectedId]} isAdmin={user.administrator}
-            variant="sheet"
-          />
+            clientName={assignments[selectedId]} isAdmin={user.administrator} variant="sheet" />
         </div>
       )}
     </div>
