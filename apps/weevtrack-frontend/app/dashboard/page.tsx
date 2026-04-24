@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import BottomNav from '@/components/BottomNav';
 import PushNotificationSetup from '@/components/PushNotificationSetup';
@@ -363,9 +362,14 @@ function DeviceListItem({ device, pos, isSelected, clientName, onSelect }: ListI
 
 /* ── Main page ── */
 export default function DashboardPage() {
-  const searchParams = useSearchParams();
-  const asUser = searchParams.get('asUser');
-  const asUserName = searchParams.get('asUserName');
+  const [asUser, setAsUser] = useState<string | null>(null);
+  const [asUserName, setAsUserName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    setAsUser(p.get('asUser'));
+    setAsUserName(p.get('asUserName'));
+  }, []);
 
   const [devices, setDevices] = useState<TraccarDevice[]>([]);
   const [positions, setPositions] = useState<TraccarPosition[]>([]);
