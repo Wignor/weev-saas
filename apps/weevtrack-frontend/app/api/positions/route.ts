@@ -1,8 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { traccarGet, TraccarPosition } from '@/lib/traccar';
+import { TraccarPosition } from '@/lib/traccar';
 
-export async function GET() {
+const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
+
+export async function GET(req: NextRequest) {
   const cookieStore = await cookies();
   const session = cookieStore.get('wt_session')?.value;
 
@@ -10,8 +12,18 @@ export async function GET() {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   }
 
+  const asUser = req.nextUrl.searchParams.get('asUser');
+  const url = asUser
+    ? `${TRACCAR_URL}/api/positions?userId=${asUser}`
+    : `${TRACCAR_URL}/api/positions`;
+
   try {
-    const positions = await traccarGet<TraccarPosition[]>('/api/positions', session);
+    const res = await fetch(url, {
+      headers: { Cookie: `JSESSIONID=${session}` },
+      cache: 'no-store',
+    });
+    if (!res.ok) return NextResponse.json({ error: `Traccar ${res.status}` }, { status: res.status });
+    const positions: TraccarPosition[] = await res.json();
     return NextResponse.json(positions);
   } catch (err) {
     return NextResponse.json(

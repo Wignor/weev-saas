@@ -76,7 +76,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 h-16 flex items-center z-50"
+      className="md:hidden fixed bottom-0 left-0 right-0 h-16 flex items-center z-50"
       style={{ background: '#1E2030', borderTop: '1px solid #2A2D3E' }}
     >
       {tabs.map((tab) => {

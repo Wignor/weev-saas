@@ -9,6 +9,7 @@ interface MapProps {
   positions: TraccarPosition[];
   selectedDeviceId: number | null;
   onDeviceSelect: (id: number) => void;
+  visible?: boolean;
 }
 
 function getMarkerColor(device: TraccarDevice, position?: TraccarPosition): string {
@@ -36,7 +37,7 @@ function createCarIcon(color: string, isSelected: boolean): string {
   `;
 }
 
-export default function VehicleMap({ devices = [], positions = [], selectedDeviceId, onDeviceSelect }: MapProps) {
+export default function VehicleMap({ devices = [], positions = [], selectedDeviceId, onDeviceSelect, visible = true }: MapProps) {
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<globalThis.Map<number, Marker>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
@@ -65,6 +66,16 @@ export default function VehicleMap({ devices = [], positions = [], selectedDevic
       markersRef.current.clear();
     };
   }, []);
+
+  // When the map becomes visible (e.g. user switches from Lista to Mapa on mobile),
+  // Leaflet needs to recalculate its container size.
+  useEffect(() => {
+    if (!visible || !mapRef.current) return;
+    const timer = setTimeout(() => {
+      mapRef.current?.invalidateSize();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [visible]);
 
   useEffect(() => {
     if (!mapRef.current || typeof window === 'undefined') return;
@@ -114,7 +125,8 @@ export default function VehicleMap({ devices = [], positions = [], selectedDevic
     }
   }, [selectedDeviceId]);
 
+  // Use position:absolute to reliably fill parent regardless of flex context
   return (
-    <div ref={containerRef} className="flex-1 w-full h-full" style={{ minHeight: '400px' }} />
+    <div ref={containerRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
   );
 }
