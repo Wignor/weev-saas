@@ -237,6 +237,27 @@ export default function GestaoPage() {
         </button>
       </header>
 
+      {/* Desktop nav tabs */}
+      <div className="hidden md:flex flex-shrink-0 px-4 gap-1"
+        style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E', paddingTop: '6px', paddingBottom: '6px' }}>
+        {[
+          { href: '/dashboard', label: 'Monitor' },
+          { href: '/historico', label: 'Trajetos' },
+          { href: '/alertas', label: 'Alertas' },
+          { href: '/gestao', label: 'Gestão' },
+          { href: '/perfil', label: 'Perfil' },
+        ].map(tab => {
+          const active = typeof window !== 'undefined' && window.location.pathname === tab.href;
+          return (
+            <a key={tab.href} href={tab.href}
+              className="px-4 py-1.5 rounded-lg text-sm font-medium no-underline transition-all"
+              style={{ background: active ? '#007AFF' : 'transparent', color: active ? 'white' : '#6B7280' }}>
+              {tab.label}
+            </a>
+          );
+        })}
+      </div>
+
       {/* Tabs */}
       <div className="flex-shrink-0 flex px-4 py-2 gap-2"
         style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E' }}>

@@ -539,8 +539,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Map — always mounted and filling flex-1, provides correct dimensions for Leaflet */}
-        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+        {/* Map — zIndex:0 creates a stacking context, trapping Leaflet's internal z-indexes (200-700)
+            so the list overlay (z:10) and BottomNav (z:50) appear correctly above the map */}
+        <div style={{ flex: 1, position: 'relative', minHeight: 0, zIndex: 0 }}>
           <VehicleMap
             devices={devices} positions={positions}
             selectedDeviceId={selectedId}
