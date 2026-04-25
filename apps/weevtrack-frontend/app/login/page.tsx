@@ -32,80 +32,78 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#12131A' }}>
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: "url('/login-bg.jpg')", backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
+    <div style={{ minHeight: '100vh', background: '#12131A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1.5rem', width: '100%' }}>
 
-      <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1.5rem', width: '100%' }}>
-
-      {/* Logo */}
-      <div className="text-center mb-10">
-        <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 relative">
-          <div className="absolute w-14 h-14 rounded-full border-2 border-white/30" />
-          <div className="absolute w-9 h-9 rounded-full border-2 border-white/50" />
-          <div className="w-6 h-6 rounded-full bg-white" />
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <div style={{ width: 80, height: 80, borderRadius: 16, background: '#007AFF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', position: 'relative' }}>
+            <div style={{ position: 'absolute', width: 56, height: 56, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)' }} />
+            <div style={{ position: 'absolute', width: 36, height: 36, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.5)' }} />
+            <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'white' }} />
+          </div>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: '#F0F0F5', margin: 0 }}>WeevTrack</h1>
+          <p style={{ color: '#8E8EA0', fontSize: '0.875rem', marginTop: 4 }}>Rastreamento Veicular Inteligente</p>
         </div>
-        <h1 className="text-3xl font-bold text-app-text">WeevTrack</h1>
-        <p className="text-app-muted text-sm mt-1">Rastreamento Veicular Inteligente</p>
-      </div>
 
-      {/* Card */}
-      <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: '#1E2030' }}>
-        <h2 className="text-xl font-bold text-app-text mb-1">Entrar</h2>
-        <p className="text-app-muted text-sm mb-6">Acesse sua conta WeevTrack</p>
+        {/* Card */}
+        <div style={{ width: '100%', maxWidth: 384, borderRadius: 16, padding: '1.5rem', background: '#1E2030' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#F0F0F5', margin: '0 0 4px' }}>Entrar</h2>
+          <p style={{ color: '#8E8EA0', fontSize: '0.875rem', marginTop: 0, marginBottom: '1.5rem' }}>Acesse sua conta WeevTrack</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-app-muted mb-1.5">E-mail</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
-              required
-              className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all"
-              style={{ background: '#12131A', color: '#F0F0F5', border: '1px solid #2A2D3E' }}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-app-muted mb-1.5">Senha</label>
-            <div className="relative">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: '#8E8EA0', marginBottom: 6 }}>E-mail</label>
               <input
-                type={showPass ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="seu@email.com"
                 required
-                className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition-all pr-12"
-                style={{ background: '#12131A', color: '#F0F0F5', border: '1px solid #2A2D3E' }}
+                style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: 12, fontSize: '0.875rem', outline: 'none', background: '#12131A', color: '#F0F0F5', border: '1px solid #2A2D3E', boxSizing: 'border-box' }}
               />
-              <button type="button" onClick={() => setShowPass(!showPass)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-app-muted">
-                {showPass ? '🙈' : '👁️'}
-              </button>
             </div>
-          </div>
 
-          {error && (
-            <div className="rounded-xl px-4 py-3 text-sm" style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30', border: '1px solid rgba(255,59,48,0.2)' }}>
-              {error}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: '#8E8EA0', marginBottom: 6 }}>Senha</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  style={{ width: '100%', padding: '0.75rem 3rem 0.75rem 1rem', borderRadius: 12, fontSize: '0.875rem', outline: 'none', background: '#12131A', color: '#F0F0F5', border: '1px solid #2A2D3E', boxSizing: 'border-box' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#8E8EA0', fontSize: '1rem', padding: 0 }}
+                >
+                  {showPass ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl transition-all disabled:opacity-60 text-sm mt-2"
-          >
-            {loading ? 'Entrando...' : 'Entrar'}
-          </button>
-        </form>
-      </div>
+            {error && (
+              <div style={{ borderRadius: 12, padding: '0.75rem 1rem', fontSize: '0.875rem', background: 'rgba(255,59,48,0.1)', color: '#FF3B30', border: '1px solid rgba(255,59,48,0.2)' }}>
+                {error}
+              </div>
+            )}
 
-      <p className="text-center text-xs text-app-muted mt-8">
-        © {new Date().getFullYear()} WeevTrack. Todos os direitos reservados.
-      </p>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{ width: '100%', background: '#007AFF', color: 'white', fontWeight: 600, padding: '0.875rem', borderRadius: 12, border: 'none', fontSize: '0.875rem', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1, marginTop: 8 }}
+            >
+              {loading ? 'Entrando...' : 'Entrar'}
+            </button>
+          </form>
+        </div>
+
+        <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#8E8EA0', marginTop: '2rem' }}>
+          © {new Date().getFullYear()} WeevTrack. Todos os direitos reservados.
+        </p>
 
       </div>
     </div>
