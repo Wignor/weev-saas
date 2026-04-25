@@ -47,7 +47,8 @@ html, body {
 /* Fix Leaflet */
 .leaflet-top, .leaflet-bottom { z-index: 400 !important; }
 .leaflet-pane { z-index: 300 !important; }
-.leaflet-container { background: var(--bg-card); }
+.leaflet-container { background: #1a1a2e; }
+[data-theme="light"] .leaflet-container { background: #e8eaf0; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }

@@ -70,12 +70,13 @@ interface DeviceDetailProps {
   pos?: TraccarPosition;
   onClose: () => void;
   onHistory: () => void;
+  onCenter?: () => void;
   clientName?: string;
   isAdmin?: boolean;
   variant?: 'sheet' | 'panel';
 }
 
-function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, variant = 'sheet' }: DeviceDetailProps) {
+function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, isAdmin, variant = 'sheet' }: DeviceDetailProps) {
   const [cmdLoading, setCmdLoading] = useState<string | null>(null);
   const [cmdMsg, setCmdMsg] = useState('');
   const [renaming, setRenaming] = useState(false);
@@ -181,55 +182,26 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
         </p>
       )}
 
-      {/* Address */}
-      <div className="rounded-xl px-3 py-2.5 mb-3 flex items-start gap-2" style={{ background: 'var(--bg-input)' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round" className="mt-0.5 flex-shrink-0">
-          <circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-        </svg>
-        <p className="flex-1 text-xs leading-relaxed" style={{ color: pos?.address ? 'var(--text-mid)' : 'var(--text-lo)' }}>
-          {pos?.address || 'Endereço não disponível'}
-        </p>
-        {pos && (
-          <button onClick={() => window.open(`https://maps.google.com/maps?q=${pos.latitude},${pos.longitude}`, '_blank')}
-            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ml-1" style={{ background: 'rgba(0,122,255,0.15)' }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
-              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+      {/* Action buttons — first, like IOP GPS */}
+      <div className="flex gap-2 overflow-x-auto mb-3 pb-1" style={{ scrollbarWidth: 'none' }}>
+        {onCenter && (
+          <button onClick={onCenter} disabled={!pos}
+            className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40"
+            style={{ background: 'rgba(0,122,255,0.12)', border: '1px solid rgba(0,122,255,0.2)', minWidth: '64px' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
+              <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" strokeOpacity="0.4"/>
             </svg>
+            <span className="text-xs font-medium" style={{ color: '#007AFF' }}>Rastrear</span>
           </button>
         )}
-      </div>
-
-      {/* Info grid */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        {[
-          { icon: '🕐', label: 'Servidor',   value: fmtDateTime(pos?.serverTime) },
-          { icon: '📡', label: 'GPS Fix',    value: fmtDateTime(pos?.fixTime) },
-          { icon: '🔌', label: 'Fonte',      value: powerSource, color: voltage && voltage > 10 ? '#34C759' : 'var(--text-lo)' },
-          { icon: '🔑', label: 'Ignição',    value: ignition === true ? 'Ligada' : ignition === false ? 'Desligada' : '—', color: ignition === true ? '#34C759' : ignition === false ? '#FF3B30' : 'var(--text-lo)' },
-          { icon: '⚡', label: 'Tensão',     value: voltageStr, color: voltage ? (voltage > 11 ? '#34C759' : '#FF9500') : 'var(--text-lo)' },
-          { icon: '🏁', label: 'Odômetro',   value: odometerKm },
-          { icon: '🚀', label: 'Velocidade', value: `${speed} km/h`, color: speed > 0 ? '#007AFF' : 'var(--text-lo)' },
-          { icon: '🔋', label: 'Bateria',    value: battery !== undefined ? `${battery}%` : powerSource === 'Com fio' ? 'Com fio' : '—', color: battery !== undefined ? (battery > 20 ? '#34C759' : '#FF3B30') : 'var(--text-lo)' },
-        ].map((item) => (
-          <div key={item.label} className="rounded-xl p-2.5" style={{ background: 'var(--bg-input)' }}>
-            <p className="text-xs mb-0.5" style={{ color: 'var(--text-lo)' }}>{item.icon} {item.label}</p>
-            <p className="text-xs font-semibold leading-tight" style={{ color: item.color || 'var(--text-mid)' }}>{item.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {pos && <p className="text-xs text-center mb-3" style={{ color: 'var(--text-lo)' }}>{pos.latitude.toFixed(6)}, {pos.longitude.toFixed(6)}</p>}
-
-      {clientName && (
-        <div className="rounded-xl px-3 py-2 mb-3 flex items-center gap-2"
-          style={{ background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.15)' }}>
-          <span>👤</span>
-          <p className="text-xs" style={{ color: 'var(--text-mid)' }}>Cliente: <span className="font-semibold" style={{ color: '#FF9500' }}>{clientName}</span></p>
-        </div>
-      )}
-
-      {/* Action buttons */}
-      <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        <button onClick={onHistory} className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0"
+          style={{ background: 'rgba(88,86,214,0.12)', border: '1px solid rgba(88,86,214,0.2)', minWidth: '64px' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5856D6" strokeWidth="2" strokeLinecap="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+          <span className="text-xs font-medium" style={{ color: '#5856D6' }}>Trajetos</span>
+        </button>
         {canControl && (
           <button onClick={() => sendCommand('engineStop', 'Bloqueio')} disabled={!!cmdLoading}
             className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-50"
@@ -250,20 +222,13 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
             <span className="text-xs font-medium" style={{ color: '#34C759' }}>{cmdLoading === 'engineResume' ? '...' : 'Desbloquear'}</span>
           </button>
         )}
-        <button onClick={onHistory} className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0"
-          style={{ background: 'rgba(0,122,255,0.12)', border: '1px solid rgba(0,122,255,0.2)', minWidth: '64px' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-          <span className="text-xs font-medium" style={{ color: '#007AFF' }}>Trajetos</span>
-        </button>
         <button onClick={shareLocation} disabled={!pos} className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40"
-          style={{ background: 'rgba(88,86,214,0.12)', border: '1px solid rgba(88,86,214,0.2)', minWidth: '64px' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5856D6" strokeWidth="2" strokeLinecap="round">
+          style={{ background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.2)', minWidth: '64px' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF9500" strokeWidth="2" strokeLinecap="round">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
           </svg>
-          <span className="text-xs font-medium" style={{ color: '#5856D6' }}>Compartilhar</span>
+          <span className="text-xs font-medium" style={{ color: '#FF9500' }}>Compartilhar</span>
         </button>
         <button onClick={() => pos && window.open(`https://maps.google.com/maps?q=${pos.latitude},${pos.longitude}`, '_blank')}
           disabled={!pos} className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40"
@@ -274,6 +239,52 @@ function DeviceDetail({ device, pos, onClose, onHistory, clientName, isAdmin, va
           <span className="text-xs font-medium" style={{ color: '#34C759' }}>Google Maps</span>
         </button>
       </div>
+
+      {/* Address */}
+      <div className="rounded-xl px-3 py-2.5 mb-3 flex items-start gap-2" style={{ background: 'var(--bg-input)' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round" className="mt-0.5 flex-shrink-0">
+          <circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+        </svg>
+        <p className="flex-1 text-xs leading-relaxed" style={{ color: pos?.address ? 'var(--text-mid)' : 'var(--text-lo)' }}>
+          {pos?.address || 'Endereço não disponível'}
+        </p>
+        {pos && (
+          <button onClick={() => window.open(`https://maps.google.com/maps?q=${pos.latitude},${pos.longitude}`, '_blank')}
+            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ml-1" style={{ background: 'rgba(0,122,255,0.15)' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Info grid — compact like IOP GPS */}
+      <div className="rounded-xl overflow-hidden mb-3" style={{ border: '1px solid var(--bg-border)' }}>
+        {[
+          { label: 'Servidor',   value: fmtDateTime(pos?.serverTime) },
+          { label: 'GPS Fix',    value: fmtDateTime(pos?.fixTime) },
+          { label: `Fonte · ${powerSource}`, value: voltageStr, valueColor: voltage ? (voltage > 11 ? '#34C759' : '#FF9500') : 'var(--text-lo)' },
+          { label: 'Ignição',    value: ignition === true ? 'Ligada' : ignition === false ? `Desligada ${fmtDuration(statusSince)}` : '—', valueColor: ignition === true ? '#34C759' : ignition === false ? '#FF3B30' : 'var(--text-lo)' },
+          { label: 'Odômetro',   value: odometerKm },
+          { label: 'Velocidade', value: `${speed} km/h`, valueColor: speed > 0 ? '#007AFF' : 'var(--text-lo)' },
+        ].map((item, i) => (
+          <div key={item.label} className="flex items-center justify-between px-3 py-2"
+            style={{ background: i % 2 === 0 ? 'var(--bg-input)' : 'transparent', borderBottom: i < 5 ? '1px solid var(--bg-border)' : 'none' }}>
+            <span className="text-xs" style={{ color: 'var(--text-lo)' }}>{item.label}</span>
+            <span className="text-xs font-semibold" style={{ color: item.valueColor || 'var(--text-mid)' }}>{item.value}</span>
+          </div>
+        ))}
+      </div>
+
+      {clientName && (
+        <div className="rounded-xl px-3 py-2 mb-2 flex items-center gap-2"
+          style={{ background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.15)' }}>
+          <span>👤</span>
+          <p className="text-xs" style={{ color: 'var(--text-mid)' }}>Cliente: <span className="font-semibold" style={{ color: '#FF9500' }}>{clientName}</span></p>
+        </div>
+      )}
+
+      {pos && <p className="text-xs text-center mt-1" style={{ color: 'var(--text-lo)' }}>{pos.latitude.toFixed(6)}, {pos.longitude.toFixed(6)}</p>}
     </div>
   );
 
@@ -352,6 +363,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState({ name: '', administrator: false });
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [assignments, setAssignments] = useState<Record<number, string>>({});
+  const [centerTrigger, setCenterTrigger] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -547,6 +559,7 @@ export default function DashboardPage() {
             selectedDeviceId={selectedId}
             onDeviceSelect={(id) => { setSelectedId(id); setMobileView('mapa'); }}
             visible={mobileView === 'mapa'}
+            centerTrigger={centerTrigger}
           />
         </div>
 
@@ -557,6 +570,7 @@ export default function DashboardPage() {
             <DeviceDetail device={selectedDevice} pos={posMap[selectedId]}
               onClose={() => setSelectedId(null)}
               onHistory={() => { window.location.href = `/historico?device=${selectedId}`; }}
+              onCenter={() => setCenterTrigger(t => t + 1)}
               clientName={assignments[selectedId]} isAdmin={user.administrator} variant="panel" />
           </div>
         )}
@@ -598,6 +612,7 @@ export default function DashboardPage() {
           <DeviceDetail device={selectedDevice} pos={posMap[selectedId]}
             onClose={() => setSelectedId(null)}
             onHistory={() => { window.location.href = `/historico?device=${selectedId}`; }}
+            onCenter={() => { setCenterTrigger(t => t + 1); setMobileView('mapa'); }}
             clientName={assignments[selectedId]} isAdmin={user.administrator} variant="sheet" />
         </div>
       )}
