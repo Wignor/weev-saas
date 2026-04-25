@@ -32,8 +32,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12"
-      style={{ background: '#12131A' }}>
+    <div className="min-h-screen relative flex items-center justify-center">
+      <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/login-bg.jpg')" }} />
+      <div className="absolute inset-0 bg-black/60" />
+
+      <div className="relative z-10 flex flex-col items-center px-6 py-12 w-full">
 
       {/* Logo */}
       <div className="text-center mb-10">
@@ -103,6 +106,8 @@ export default function LoginPage() {
       <p className="text-center text-xs text-app-muted mt-8">
         © {new Date().getFullYear()} WeevTrack. Todos os direitos reservados.
       </p>
+
+      </div>
     </div>
   );
 }
