@@ -15,7 +15,6 @@ const VehicleMap = dynamic(() => import('@/components/Map'), {
   ),
 });
 
-/* ── helpers ── */
 function getUserFromCookie() {
   if (typeof document === 'undefined') return { name: '', administrator: false };
   try {
@@ -25,12 +24,16 @@ function getUserFromCookie() {
   } catch { return { name: '', administrator: false }; }
 }
 
-function timeAgo(dateStr: string) {
+function timeOffline(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return 'agora';
-  if (diff < 3600) return `${Math.floor(diff / 60)}min`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}d`;
+  if (diff < 60) return `${diff}s`;
+  const days = Math.floor(diff / 86400);
+  const hours = Math.floor((diff % 86400) / 3600);
+  const mins = Math.floor((diff % 3600) / 60);
+  if (days > 0) return `${days}d${hours}h`;
+  if (hours > 0) return `${hours}h${mins}m`;
+  return `${mins}m`;
 }
 
 function fmtDuration(dateStr: string | null | undefined): string {
@@ -52,17 +55,35 @@ function fmtDateTime(dt: string | null | undefined): string {
   });
 }
 
-function getStatus(device: TraccarDevice, pos?: TraccarPosition) {
-  if (device.status === 'offline' || device.status === 'unknown') return 'offline';
-  if (pos && knotsToKmh(pos.speed) > 2) return 'movendo';
-  return 'parado';
+type DeviceStatus = 'movendo' | 'parado' | 'offline' | 'expirado';
+
+function getStatus(device: TraccarDevice, pos?: TraccarPosition): DeviceStatus {
+  if (device.status === 'online') {
+    if (pos && knotsToKmh(pos.speed) > 2) return 'movendo';
+    return 'parado';
+  }
+  if (device.lastUpdate) {
+    if ((Date.now() - new Date(device.lastUpdate).getTime()) / 86400000 > 7) return 'expirado';
+  }
+  return 'offline';
 }
 
 function toggleTheme() {
   const next = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
-  try { localStorage.setItem('wt_theme', next); } catch { /* */ }
+  try { localStorage.setItem('wt_theme', next); } catch { /**/ }
 }
+
+const S_COLOR: Record<DeviceStatus, string> = {
+  movendo: '#34C759', parado: '#FF9500', offline: '#6B7280', expirado: '#FF3B30',
+};
+const S_BG: Record<DeviceStatus, string> = {
+  movendo: 'rgba(52,199,89,0.15)', parado: 'rgba(255,149,0,0.15)',
+  offline: 'rgba(107,114,128,0.15)', expirado: 'rgba(255,59,48,0.15)',
+};
+const S_LABEL: Record<DeviceStatus, string> = {
+  movendo: 'Movendo', parado: 'Estático', offline: 'Offline', expirado: 'Expirado',
+};
 
 /* ── DeviceDetail ── */
 interface DeviceDetailProps {
@@ -92,12 +113,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
   const odometerKm = totalDist !== undefined ? Math.round(totalDist / 1000).toLocaleString('pt-BR') + ' km' : '—';
   const voltageStr = voltage !== undefined ? `${voltage.toFixed(1)}V` : '—';
   const powerSource = voltage !== undefined ? (voltage > 10 ? 'Com fio' : 'Bateria') : battery !== undefined ? 'Bateria' : '—';
-
-  const sColor: Record<string, string> = { movendo: '#34C759', parado: '#FF9500', offline: '#6B7280' };
-  const sBg: Record<string, string> = { movendo: 'rgba(52,199,89,0.15)', parado: 'rgba(255,149,0,0.15)', offline: 'rgba(107,114,128,0.15)' };
-  const sLabel: Record<string, string> = { movendo: 'Movendo', parado: 'Estático', offline: 'Offline' };
   const statusSince = pos?.deviceTime || device.lastUpdate;
-  const statusStr = `${sLabel[status]}${statusSince ? ' ' + fmtDuration(statusSince) : ''} GPS`;
   const canControl = !clientName || isAdmin;
 
   async function sendCommand(type: string, label: string) {
@@ -127,9 +143,9 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
     else { navigator.clipboard.writeText(url); setCmdMsg('✅ Link copiado!'); setTimeout(() => setCmdMsg(''), 3000); }
   }
 
-  const inner = (
-    <div style={{ padding: variant === 'panel' ? '16px' : '20px', paddingBottom: variant === 'sheet' ? '5rem' : '16px' }}>
-      {variant === 'sheet' && <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'var(--bg-border)' }} />}
+  return (
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px', paddingBottom: variant === 'sheet' ? '1.5rem' : '16px' }}>
+      {variant === 'sheet' && <div className="w-10 h-1 rounded-full mx-auto mb-3" style={{ background: 'var(--bg-border)' }} />}
 
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
@@ -149,7 +165,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <h2 className="font-bold text-lg truncate" style={{ color: 'var(--text-hi)' }}>{deviceName}</h2>
+              <h2 className="font-bold text-base truncate" style={{ color: 'var(--text-hi)' }}>{deviceName}</h2>
               {isAdmin && (
                 <button onClick={() => { setRenameVal(deviceName); setRenaming(true); }}
                   className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(0,122,255,0.1)' }}>
@@ -164,13 +180,11 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
           <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--text-lo)' }}>{device.uniqueId}</p>
         </div>
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
-          {variant === 'panel' && (
-            <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-border)' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          )}
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: sBg[status], color: sColor[status] }}>
-            {statusStr}
+          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-border)' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: S_BG[status], color: S_COLOR[status] }}>
+            {S_LABEL[status]}{statusSince ? ` ${fmtDuration(statusSince)}` : ''}
           </span>
         </div>
       </div>
@@ -182,7 +196,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
         </p>
       )}
 
-      {/* Action buttons — first, like IOP GPS */}
+      {/* Action buttons */}
       <div className="flex gap-2 overflow-x-auto mb-3 pb-1" style={{ scrollbarWidth: 'none' }}>
         {onCenter && (
           <button onClick={onCenter} disabled={!pos}
@@ -190,17 +204,25 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
             style={{ background: 'rgba(0,122,255,0.12)', border: '1px solid rgba(0,122,255,0.2)', minWidth: '64px' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
-              <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" strokeOpacity="0.4"/>
             </svg>
             <span className="text-xs font-medium" style={{ color: '#007AFF' }}>Rastrear</span>
           </button>
         )}
-        <button onClick={onHistory} className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0"
+        <button onClick={onHistory}
+          className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0"
           style={{ background: 'rgba(88,86,214,0.12)', border: '1px solid rgba(88,86,214,0.2)', minWidth: '64px' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5856D6" strokeWidth="2" strokeLinecap="round">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
           </svg>
           <span className="text-xs font-medium" style={{ color: '#5856D6' }}>Trajetos</span>
+        </button>
+        <button className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0"
+          style={{ background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.2)', minWidth: '64px' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF9500" strokeWidth="2" strokeLinecap="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span className="text-xs font-medium" style={{ color: '#FF9500' }}>Alarme</span>
         </button>
         {canControl && (
           <button onClick={() => sendCommand('engineStop', 'Bloqueio')} disabled={!!cmdLoading}
@@ -212,31 +234,15 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
             <span className="text-xs font-medium" style={{ color: '#FF3B30' }}>{cmdLoading === 'engineStop' ? '...' : 'Bloquear'}</span>
           </button>
         )}
-        {canControl && (
-          <button onClick={() => sendCommand('engineResume', 'Desbloqueio')} disabled={!!cmdLoading}
-            className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-50"
-            style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)', minWidth: '64px' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
-              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
-            </svg>
-            <span className="text-xs font-medium" style={{ color: '#34C759' }}>{cmdLoading === 'engineResume' ? '...' : 'Desbloquear'}</span>
-          </button>
-        )}
-        <button onClick={shareLocation} disabled={!pos} className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40"
-          style={{ background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.2)', minWidth: '64px' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF9500" strokeWidth="2" strokeLinecap="round">
-            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-          </svg>
-          <span className="text-xs font-medium" style={{ color: '#FF9500' }}>Compartilhar</span>
-        </button>
-        <button onClick={() => pos && window.open(`https://maps.google.com/maps?q=${pos.latitude},${pos.longitude}`, '_blank')}
-          disabled={!pos} className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40"
+        <button onClick={shareLocation} disabled={!pos}
+          className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40"
           style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)', minWidth: '64px' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
-            <circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
           </svg>
-          <span className="text-xs font-medium" style={{ color: '#34C759' }}>Google Maps</span>
+          <span className="text-xs font-medium" style={{ color: '#34C759' }}>Compartilhar</span>
         </button>
       </div>
 
@@ -250,7 +256,8 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
         </p>
         {pos && (
           <button onClick={() => window.open(`https://maps.google.com/maps?q=${pos.latitude},${pos.longitude}`, '_blank')}
-            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ml-1" style={{ background: 'rgba(0,122,255,0.15)' }}>
+            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ml-1"
+            style={{ background: 'rgba(0,122,255,0.15)' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
               <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
             </svg>
@@ -258,15 +265,15 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
         )}
       </div>
 
-      {/* Info grid — compact like IOP GPS */}
+      {/* Info table */}
       <div className="rounded-xl overflow-hidden mb-3" style={{ border: '1px solid var(--bg-border)' }}>
         {[
-          { label: 'Servidor',   value: fmtDateTime(pos?.serverTime) },
-          { label: 'GPS Fix',    value: fmtDateTime(pos?.fixTime) },
-          { label: `Fonte · ${powerSource}`, value: voltageStr, valueColor: voltage ? (voltage > 11 ? '#34C759' : '#FF9500') : 'var(--text-lo)' },
-          { label: 'Ignição',    value: ignition === true ? 'Ligada' : ignition === false ? `Desligada ${fmtDuration(statusSince)}` : '—', valueColor: ignition === true ? '#34C759' : ignition === false ? '#FF3B30' : 'var(--text-lo)' },
-          { label: 'Odômetro',   value: odometerKm },
-          { label: 'Velocidade', value: `${speed} km/h`, valueColor: speed > 0 ? '#007AFF' : 'var(--text-lo)' },
+          { label: 'Servidor', value: fmtDateTime(pos?.serverTime) },
+          { label: 'GPS Fix', value: fmtDateTime(pos?.fixTime) },
+          { label: `Fonte · ${powerSource}`, value: voltageStr, valueColor: voltage ? (voltage > 11 ? '#34C759' : '#FF9500') : undefined },
+          { label: 'Ignição', value: ignition === true ? 'Ligada' : ignition === false ? `Desligada ${fmtDuration(statusSince)}` : '—', valueColor: ignition === true ? '#34C759' : ignition === false ? '#FF3B30' : undefined },
+          { label: 'Odômetro', value: odometerKm },
+          { label: 'Velocidade', value: `${speed} km/h`, valueColor: speed > 0 ? '#007AFF' : undefined },
         ].map((item, i) => (
           <div key={item.label} className="flex items-center justify-between px-3 py-2"
             style={{ background: i % 2 === 0 ? 'var(--bg-input)' : 'transparent', borderBottom: i < 5 ? '1px solid var(--bg-border)' : 'none' }}>
@@ -287,63 +294,73 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
       {pos && <p className="text-xs text-center mt-1" style={{ color: 'var(--text-lo)' }}>{pos.latitude.toFixed(6)}, {pos.longitude.toFixed(6)}</p>}
     </div>
   );
-
-  if (variant === 'panel') return <div className="h-full overflow-y-auto">{inner}</div>;
-
-  return (
-    <div className="fixed inset-0 z-40 flex flex-col justify-end" onClick={onClose}>
-      <div className="slide-up rounded-t-2xl" style={{ background: 'var(--bg-card)', maxHeight: '90vh', overflowY: 'auto' }}
-        onClick={e => e.stopPropagation()}>
-        {inner}
-      </div>
-    </div>
-  );
 }
 
-/* ── DeviceListItem — MUST be outside DashboardPage ── */
+/* ── DeviceListItem ── */
 interface ListItemProps {
-  device: TraccarDevice; pos?: TraccarPosition;
-  isSelected: boolean; clientName: string; onSelect: () => void;
+  device: TraccarDevice;
+  pos?: TraccarPosition;
+  isSelected: boolean;
+  clientName: string;
+  onSelect: () => void;
 }
 
 function DeviceListItem({ device, pos, isSelected, clientName, onSelect }: ListItemProps) {
   const status = getStatus(device, pos);
   const speed = pos ? knotsToKmh(pos.speed) : 0;
-  const ignition = pos?.attributes?.ignition;
-  const sBadge: Record<string, string> = { movendo: 'badge-online', parado: 'badge-parado', offline: 'badge-offline' };
-  const sLabel: Record<string, string> = { movendo: 'Movendo', parado: 'Estático', offline: 'Offline' };
+  const isOffline = status === 'offline' || status === 'expirado';
+  const offlineTag = isOffline ? timeOffline(device.lastUpdate) : null;
 
   return (
     <button onClick={onSelect} className="w-full text-left px-4 py-3 transition-all"
       style={{ background: isSelected ? 'var(--bg-hover)' : 'transparent', borderBottom: '1px solid var(--bg-border)' }}>
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: isSelected ? 'rgba(0,122,255,0.2)' : 'var(--bg-card)' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke={isSelected ? '#007AFF' : status === 'offline' ? '#6B7280' : status === 'movendo' ? '#34C759' : '#FF9500'}
-            strokeWidth="1.8" strokeLinecap="round">
-            <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-3"/>
-            <circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
-          </svg>
+
+        {/* Avatar column */}
+        <div className="flex flex-col items-center flex-shrink-0" style={{ width: '52px' }}>
+          <div className="relative">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center"
+              style={{ background: isSelected ? 'rgba(0,122,255,0.2)' : S_BG[status] }}>
+              <svg width="24" height="24" viewBox="0 0 48 48" fill="none">
+                <path d="M10 30L12 22H36L38 30H10Z" fill={isSelected ? '#007AFF' : S_COLOR[status]}/>
+                <path d="M12 22L14.5 14H33.5L36 22" fill={isSelected ? '#007AFF' : S_COLOR[status]} opacity="0.55"/>
+                <circle cx="17" cy="32" r="3.5" fill={isSelected ? '#007AFF' : S_COLOR[status]}/>
+                <circle cx="31" cy="32" r="3.5" fill={isSelected ? '#007AFF' : S_COLOR[status]}/>
+              </svg>
+            </div>
+            {/* Signal dot */}
+            <div className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full"
+              style={{ background: S_COLOR[status], border: '2.5px solid var(--bg-page)' }} />
+          </div>
+          {offlineTag && (
+            <span className="mt-1 font-semibold text-center px-1.5 py-0.5 rounded"
+              style={{ background: S_BG[status], color: S_COLOR[status], fontSize: '9px', lineHeight: '1.2' }}>
+              {offlineTag}
+            </span>
+          )}
         </div>
+
+        {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="flex items-center justify-between gap-2">
             <span className="font-semibold text-sm truncate" style={{ color: 'var(--text-hi)' }}>{device.name}</span>
-            {clientName ? (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                style={{ background: 'rgba(255,149,0,0.15)', color: '#FF9500' }}>👤 {clientName}</span>
-            ) : (
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${sBadge[status]}`}>{sLabel[status]}</span>
-            )}
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+              style={{ background: clientName ? 'rgba(255,149,0,0.15)' : S_BG[status], color: clientName ? '#FF9500' : S_COLOR[status] }}>
+              {clientName ? `👤 ${clientName}` : S_LABEL[status]}
+            </span>
           </div>
-          <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-lo)' }}>
-            <span className="font-mono">{device.uniqueId.slice(-8)}</span>
-            <span>{ignition ? '🔑 ON' : '🔑 OFF'}</span>
-            {speed > 0 && <span>⚡ {speed}km/h</span>}
-            <span>{device.lastUpdate ? timeAgo(device.lastUpdate) : '—'}</span>
-          </div>
-          {pos?.address && <p className="text-xs mt-1 truncate opacity-60" style={{ color: 'var(--text-lo)' }}>📍 {pos.address}</p>}
+          <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--text-lo)' }}>{device.uniqueId.slice(-12)}</p>
+          {speed > 0 && <p className="text-xs mt-0.5" style={{ color: '#007AFF' }}>⚡ {speed} km/h</p>}
         </div>
+
+        {/* Three-dots */}
+        <button onClick={e => { e.stopPropagation(); onSelect(); }}
+          className="w-7 h-7 flex-shrink-0 flex items-center justify-center"
+          style={{ background: 'transparent', opacity: 0.4 }}>
+          <svg width="4" height="18" viewBox="0 0 4 18" fill="var(--text-lo)">
+            <circle cx="2" cy="2" r="2"/><circle cx="2" cy="9" r="2"/><circle cx="2" cy="16" r="2"/>
+          </svg>
+        </button>
       </div>
     </button>
   );
@@ -358,7 +375,7 @@ export default function DashboardPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [mobileView, setMobileView] = useState<'lista' | 'mapa'>('lista');
-  const [filter, setFilter] = useState<'todos' | 'online' | 'offline'>('todos');
+  const [filter, setFilter] = useState<'todos' | 'online' | 'offline' | 'expirando'>('todos');
   const [search, setSearch] = useState('');
   const [user, setUser] = useState({ name: '', administrator: false });
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -391,7 +408,7 @@ export default function DashboardPage() {
       if (Array.isArray(devData)) setDevices(devData);
       if (Array.isArray(posData)) setPositions(posData);
       setLastUpdate(new Date());
-    } catch { /* silencioso */ }
+    } catch { /**/ }
     finally { setLoading(false); }
   }, [asUser]);
 
@@ -402,23 +419,39 @@ export default function DashboardPage() {
   }, [fetchData]);
 
   const posMap = Object.fromEntries(positions.map((p) => [p.deviceId, p]));
-  const online = devices.filter((d) => d.status === 'online').length;
   const selectedDevice = devices.find((d) => d.id === selectedId);
 
+  const countByStatus = {
+    online: devices.filter(d => { const s = getStatus(d, posMap[d.id]); return s === 'movendo' || s === 'parado'; }).length,
+    offline: devices.filter(d => getStatus(d, posMap[d.id]) === 'offline').length,
+    expirando: devices.filter(d => getStatus(d, posMap[d.id]) === 'expirado').length,
+  };
+
   const filteredDevices = devices.filter(d => {
-    if (filter === 'online' && d.status !== 'online') return false;
-    if (filter === 'offline' && d.status === 'online') return false;
+    const st = getStatus(d, posMap[d.id]);
+    if (filter === 'online' && st !== 'movendo' && st !== 'parado') return false;
+    if (filter === 'offline' && st !== 'offline') return false;
+    if (filter === 'expirando' && st !== 'expirado') return false;
     if (search && !d.name.toLowerCase().includes(search.toLowerCase()) && !d.uniqueId.includes(search)) return false;
     return true;
   });
 
-  const desktopNavTabs = [
-    { href: '/dashboard', label: 'Monitor', icon: 'M12 2v2M12 20v2M2 12h2M20 12h2' },
-    { href: '/historico', label: 'Trajetos', icon: '' },
-    { href: '/alertas', label: 'Alertas', icon: '' },
-    { href: '/perfil', label: 'Perfil', icon: '' },
-    ...(user.administrator ? [{ href: '/gestao', label: 'Gestão', icon: '' }] : []),
+  const filterTabs: { key: typeof filter; label: string; count: number }[] = [
+    { key: 'todos', label: 'Todos', count: devices.length },
+    { key: 'online', label: 'Online', count: countByStatus.online },
+    { key: 'offline', label: 'Offline', count: countByStatus.offline },
+    { key: 'expirando', label: 'Expirando', count: countByStatus.expirando },
   ];
+
+  function selectDevice(id: number) {
+    setSelectedId(id);
+    setMobileView('mapa');
+  }
+
+  function closeDetailMobile() {
+    setSelectedId(null);
+    setMobileView('lista');
+  }
 
   return (
     <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
@@ -435,14 +468,21 @@ export default function DashboardPage() {
           </div>
           <span className="font-bold text-base" style={{ color: 'var(--text-hi)' }}>WeevTrack</span>
           {asUserName && (
-            <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(255,149,0,0.15)', color: '#FF9500' }}>
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ background: 'rgba(255,149,0,0.15)', color: '#FF9500' }}>
               👤 {asUserName}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs badge-online px-2 py-0.5 rounded-full font-medium">{online} online</span>
-          <span className="text-xs badge-offline px-2 py-0.5 rounded-full font-medium">{devices.length - online} offline</span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+            style={{ background: 'rgba(52,199,89,0.15)', color: '#34C759' }}>
+            {countByStatus.online} online
+          </span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+            style={{ background: 'rgba(107,114,128,0.15)', color: '#6B7280' }}>
+            {countByStatus.offline + countByStatus.expirando} offline
+          </span>
           {asUser ? (
             <a href="/dashboard" className="text-xs px-2.5 py-1 rounded-lg font-medium no-underline"
               style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}>✕ Sair</a>
@@ -463,7 +503,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* ── Desktop nav tabs (below header, desktop only) ── */}
+      {/* ── Desktop nav tabs ── */}
       <div className="hidden md:flex flex-shrink-0 px-4 gap-1"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)', paddingTop: '6px', paddingBottom: '6px' }}>
         {[
@@ -489,7 +529,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* ── Mobile view toggle ── */}
+      {/* ── Mobile toggle: Lista / Mapa ── */}
       <div className="md:hidden flex-shrink-0 flex px-4 py-2 gap-2"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
         {(['lista', 'mapa'] as const).map((v) => (
@@ -508,10 +548,7 @@ export default function DashboardPage() {
 
       <PushNotificationSetup />
 
-      {/* ── Main layout ──
-          Desktop: flex-row [sidebar 280px | map flex-1 | detail 360px]
-          Mobile:  map fills all, list is an absolute overlay on top
-      ── */}
+      {/* ── Main layout ── */}
       <div className="flex-1 flex overflow-hidden" style={{ position: 'relative', minHeight: 0 }}>
 
         {/* Desktop sidebar */}
@@ -519,48 +556,74 @@ export default function DashboardPage() {
           style={{ width: '280px', borderRight: '1px solid var(--bg-border)', background: 'var(--bg-page)' }}>
           <div className="flex-shrink-0 p-3" style={{ borderBottom: '1px solid var(--bg-border)' }}>
             <div className="relative mb-2">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
               <input type="text" placeholder="Buscar veículo..." value={search} onChange={e => setSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus:outline-none"
                 style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }} />
             </div>
-            <div className="flex gap-1">
-              {(['todos', 'online', 'offline'] as const).map(f => (
-                <button key={f} onClick={() => setFilter(f)}
+            <div className="flex gap-1 flex-wrap">
+              {filterTabs.map(f => (
+                <button key={f.key} onClick={() => setFilter(f.key)}
                   className="flex-1 text-xs py-1 rounded-lg font-medium transition-all"
-                  style={{ background: filter === f ? '#007AFF' : 'var(--bg-input)', color: filter === f ? 'white' : 'var(--text-lo)' }}>
-                  {f === 'todos' ? `Todos (${devices.length})` : f === 'online' ? `Online (${online})` : `Offline (${devices.length - online})`}
+                  style={{ background: filter === f.key ? '#007AFF' : 'var(--bg-input)', color: filter === f.key ? 'white' : 'var(--text-lo)', minWidth: '48px' }}>
+                  {f.label} ({f.count})
                 </button>
               ))}
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="flex justify-center py-12"><div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+              <div className="flex justify-center py-12">
+                <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
             ) : filteredDevices.length === 0 ? (
-              <div className="text-center py-12 px-6"><p className="text-sm" style={{ color: 'var(--text-lo)' }}>Nenhum dispositivo</p></div>
-            ) : (
-              filteredDevices.map(device => (
-                <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
-                  isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
-                  onSelect={() => setSelectedId(selectedId === device.id ? null : device.id)} />
-              ))
-            )}
+              <div className="text-center py-12 px-6">
+                <p className="text-sm" style={{ color: 'var(--text-lo)' }}>Nenhum dispositivo</p>
+              </div>
+            ) : filteredDevices.map(device => (
+              <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
+                isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
+                onSelect={() => setSelectedId(selectedId === device.id ? null : device.id)} />
+            ))}
           </div>
         </div>
 
-        {/* Map — zIndex:0 creates a stacking context, trapping Leaflet's internal z-indexes (200-700)
-            so the list overlay (z:10) and BottomNav (z:50) appear correctly above the map */}
+        {/* Map — zIndex:0 creates stacking context, trapping Leaflet internals (z 200-700)
+            so the list overlay (z:10) and BottomNav (fixed z:50) appear correctly above */}
         <div style={{ flex: 1, position: 'relative', minHeight: 0, zIndex: 0 }}>
           <VehicleMap
             devices={devices} positions={positions}
             selectedDeviceId={selectedId}
-            onDeviceSelect={(id) => { setSelectedId(id); setMobileView('mapa'); }}
+            onDeviceSelect={(id) => selectDevice(id)}
             visible={mobileView === 'mapa'}
             centerTrigger={centerTrigger}
           />
+
+          {/* Mobile bottom panel — absolute inside map container, shown only in mapa view */}
+          {selectedId && selectedDevice && mobileView === 'mapa' && (
+            <div className="md:hidden" style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              zIndex: 20,
+              background: 'var(--bg-card)',
+              borderRadius: '20px 20px 0 0',
+              maxHeight: '52%',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 -8px 32px rgba(0,0,0,0.4)',
+            }}>
+              <DeviceDetail
+                device={selectedDevice} pos={posMap[selectedId]}
+                onClose={closeDetailMobile}
+                onHistory={() => { window.location.href = `/historico?device=${selectedId}`; }}
+                onCenter={() => setCenterTrigger(t => t + 1)}
+                clientName={assignments[selectedId]} isAdmin={user.administrator}
+                variant="sheet"
+              />
+            </div>
+          )}
         </div>
 
         {/* Desktop detail panel */}
@@ -575,47 +638,56 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Mobile list overlay — sits OVER the map, shown when in lista view */}
-        <div className="md:hidden"
-          style={{
-            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            zIndex: 10,
-            background: 'var(--bg-page)',
-            display: mobileView === 'lista' ? 'flex' : 'none',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}>
+        {/* Mobile list overlay — sits over map in lista view */}
+        <div className="md:hidden" style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 10,
+          background: 'var(--bg-page)',
+          display: mobileView === 'lista' ? 'flex' : 'none',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
+          {/* Search & filters */}
+          <div className="flex-shrink-0 px-3 pt-3 pb-2" style={{ borderBottom: '1px solid var(--bg-border)' }}>
+            <div className="relative mb-2">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input type="text" placeholder="Buscar veículo..." value={search} onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus:outline-none"
+                style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }} />
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              {filterTabs.map(f => (
+                <button key={f.key} onClick={() => setFilter(f.key)}
+                  className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-all"
+                  style={{ background: filter === f.key ? '#007AFF' : 'var(--bg-input)', color: filter === f.key ? 'white' : 'var(--text-lo)', whiteSpace: 'nowrap' }}>
+                  {f.label} ({f.count})
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* List */}
           <div className="flex-1 overflow-y-auto pb-20">
             {loading ? (
-              <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+              <div className="flex justify-center py-12">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
             ) : filteredDevices.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center px-8">
                 <p className="text-sm" style={{ color: 'var(--text-lo)' }}>Nenhum dispositivo</p>
               </div>
-            ) : (
-              filteredDevices.map(device => (
-                <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
-                  isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
-                  onSelect={() => setSelectedId(selectedId === device.id ? null : device.id)} />
-              ))
-            )}
+            ) : filteredDevices.map(device => (
+              <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
+                isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
+                onSelect={() => selectDevice(device.id)} />
+            ))}
           </div>
         </div>
       </div>
 
-      {/* ── Mobile bottom nav ── */}
       <BottomNav />
-
-      {/* ── Mobile bottom sheet ── */}
-      {selectedId && selectedDevice && (
-        <div className="md:hidden">
-          <DeviceDetail device={selectedDevice} pos={posMap[selectedId]}
-            onClose={() => setSelectedId(null)}
-            onHistory={() => { window.location.href = `/historico?device=${selectedId}`; }}
-            onCenter={() => { setCenterTrigger(t => t + 1); setMobileView('mapa'); }}
-            clientName={assignments[selectedId]} isAdmin={user.administrator} variant="sheet" />
-        </div>
-      )}
     </div>
   );
 }
