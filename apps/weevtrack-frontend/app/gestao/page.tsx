@@ -7,6 +7,12 @@ import BottomNav from '@/components/BottomNav';
 interface TUser { id: number; name: string; email: string; administrator: boolean; }
 interface TDevice { id: number; name: string; uniqueId: string; status: string; }
 
+function toggleTheme() {
+  const next = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('wt_theme', next); } catch { /* */ }
+}
+
 export default function GestaoPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'clientes' | 'dispositivos'>('clientes');
@@ -211,35 +217,44 @@ export default function GestaoPage() {
   }
 
   function statusColor(status: string) {
-    return status === 'online' ? '#34C759' : '#6B7280';
+    return status === 'online' ? '#34C759' : 'var(--text-lo)';
   }
 
   const unassigned = allDevices.filter(d => !userDevices.find(ud => ud.id === d.id));
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: '#12131A' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14"
-        style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E' }}>
+        style={{ background: 'var(--bg-card)', borderBottom: '1px solid #2A2D3E' }}>
         <div className="flex items-center gap-3">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
             <circle cx="9" cy="7" r="4"/>
             <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
-          <h1 className="font-bold text-app-text">Gestão</h1>
+          <h1 className="font-bold t-text-hi">Gestão</h1>
         </div>
-        <button
-          onClick={() => activeTab === 'clientes' ? setShowCreate(true) : setShowCreateDevice(true)}
-          className="bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
-        >
-          {activeTab === 'clientes' ? '+ Novo cliente' : '+ Novo dispositivo'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={toggleTheme} className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: 'var(--bg-border)' }} title="Alternar tema">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="5"/>
+              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+          </button>
+          <button
+            onClick={() => activeTab === 'clientes' ? setShowCreate(true) : setShowCreateDevice(true)}
+            className="bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
+          >
+            {activeTab === 'clientes' ? '+ Novo cliente' : '+ Novo dispositivo'}
+          </button>
+        </div>
       </header>
 
       {/* Desktop nav tabs */}
       <div className="hidden md:flex flex-shrink-0 px-4 gap-1"
-        style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E', paddingTop: '6px', paddingBottom: '6px' }}>
+        style={{ background: 'var(--bg-card)', borderBottom: '1px solid #2A2D3E', paddingTop: '6px', paddingBottom: '6px' }}>
         {[
           { href: '/dashboard', label: 'Monitor' },
           { href: '/historico', label: 'Trajetos' },
@@ -251,7 +266,7 @@ export default function GestaoPage() {
           return (
             <a key={tab.href} href={tab.href}
               className="px-4 py-1.5 rounded-lg text-sm font-medium no-underline transition-all"
-              style={{ background: active ? '#007AFF' : 'transparent', color: active ? 'white' : '#6B7280' }}>
+              style={{ background: active ? '#007AFF' : 'transparent', color: active ? 'white' : 'var(--text-lo)' }}>
               {tab.label}
             </a>
           );
@@ -260,7 +275,7 @@ export default function GestaoPage() {
 
       {/* Tabs */}
       <div className="flex-shrink-0 flex px-4 py-2 gap-2"
-        style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E' }}>
+        style={{ background: 'var(--bg-card)', borderBottom: '1px solid #2A2D3E' }}>
         {(['clientes', 'dispositivos'] as const).map((tab) => (
           <button
             key={tab}
@@ -268,7 +283,7 @@ export default function GestaoPage() {
             className="flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all"
             style={{
               background: activeTab === tab ? '#007AFF' : 'transparent',
-              color: activeTab === tab ? 'white' : '#6B7280',
+              color: activeTab === tab ? 'white' : 'var(--text-lo)',
             }}
           >
             {tab === 'clientes' ? `Clientes (${users.length})` : `Dispositivos (${allDevices.length})`}
@@ -300,15 +315,15 @@ export default function GestaoPage() {
             {users.length === 0 ? (
               <div className="text-center py-12 px-8">
                 <div className="text-5xl mb-4">👥</div>
-                <p className="text-app-muted text-sm">Nenhum cliente cadastrado</p>
-                <p className="text-app-muted text-xs mt-1">Toque em "+ Novo cliente" para adicionar</p>
+                <p className="t-text-lo text-sm">Nenhum cliente cadastrado</p>
+                <p className="t-text-lo text-xs mt-1">Toque em "+ Novo cliente" para adicionar</p>
               </div>
             ) : (
               <div className="mt-2" style={{ borderTop: '1px solid #2A2D3E' }}>
                 {users.map(user => (
                   <div key={user.id}>
                     <div className="flex items-center gap-3 px-4 py-3"
-                      style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E' }}>
+                      style={{ background: 'var(--bg-card)', borderBottom: '1px solid #2A2D3E' }}>
                       <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                         style={{ background: 'rgba(0,122,255,0.15)' }}>
                         <span className="font-bold text-sm" style={{ color: '#007AFF' }}>
@@ -316,8 +331,8 @@ export default function GestaoPage() {
                         </span>
                       </div>
                       <button className="flex-1 text-left" onClick={() => selectUser(user)}>
-                        <p className="text-sm font-semibold text-app-text">{user.name}</p>
-                        <p className="text-xs text-app-muted">{user.email}</p>
+                        <p className="text-sm font-semibold t-text-hi">{user.name}</p>
+                        <p className="text-xs t-text-lo">{user.email}</p>
                       </button>
                       <div className="flex items-center gap-2">
                         <a
@@ -335,8 +350,8 @@ export default function GestaoPage() {
                           onClick={() => selectUser(user)}
                           className="text-xs px-2.5 py-1 rounded-lg font-medium transition-all"
                           style={{
-                            background: selectedUser?.id === user.id ? '#007AFF' : '#2A2D3E',
-                            color: selectedUser?.id === user.id ? 'white' : '#6B7280',
+                            background: selectedUser?.id === user.id ? '#007AFF' : 'var(--bg-border)',
+                            color: selectedUser?.id === user.id ? 'white' : 'var(--text-lo)',
                           }}
                         >
                           {selectedUser?.id === user.id ? 'Fechar' : 'Dispositivos'}
@@ -355,29 +370,29 @@ export default function GestaoPage() {
                     </div>
 
                     {selectedUser?.id === user.id && (
-                      <div className="px-4 py-4" style={{ background: '#12131A', borderBottom: '1px solid #2A2D3E' }}>
+                      <div className="px-4 py-4" style={{ background: 'var(--bg-page)', borderBottom: '1px solid #2A2D3E' }}>
                         {loadingDevices ? (
                           <div className="flex justify-center py-4">
                             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                           </div>
                         ) : (
                           <>
-                            <p className="text-xs font-semibold text-app-muted uppercase tracking-wider mb-3">
+                            <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-3">
                               Atribuídos a {user.name} ({userDevices.length})
                             </p>
                             {userDevices.length === 0 ? (
-                              <p className="text-xs text-app-muted mb-4 text-center py-2">Nenhum dispositivo atribuído ainda</p>
+                              <p className="text-xs t-text-lo mb-4 text-center py-2">Nenhum dispositivo atribuído ainda</p>
                             ) : (
                               <div className="space-y-2 mb-4">
                                 {userDevices.map(device => (
                                   <div key={device.id} className="rounded-xl px-3 py-2.5"
-                                    style={{ background: '#1E2030', border: '1px solid #2A2D3E' }}>
+                                    style={{ background: 'var(--bg-card)', border: '1px solid #2A2D3E' }}>
                                     <div className="flex items-center justify-between mb-2">
                                       <div className="flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
                                         <div>
-                                          <p className="text-sm font-medium text-app-text">{device.name}</p>
-                                          <p className="text-xs text-app-muted">{device.uniqueId}</p>
+                                          <p className="text-sm font-medium t-text-hi">{device.name}</p>
+                                          <p className="text-xs t-text-lo">{device.uniqueId}</p>
                                         </div>
                                       </div>
                                       <button
@@ -411,18 +426,18 @@ export default function GestaoPage() {
 
                             {unassigned.length > 0 && (
                               <>
-                                <p className="text-xs font-semibold text-app-muted uppercase tracking-wider mb-3">
+                                <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-3">
                                   Disponíveis para atribuir
                                 </p>
                                 <div className="space-y-2">
                                   {unassigned.map(device => (
                                     <div key={device.id} className="flex items-center justify-between rounded-xl px-3 py-2.5"
-                                      style={{ background: '#1E2030', border: '1px solid #2A2D3E' }}>
+                                      style={{ background: 'var(--bg-card)', border: '1px solid #2A2D3E' }}>
                                       <div className="flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
                                         <div>
-                                          <p className="text-sm font-medium text-app-text">{device.name}</p>
-                                          <p className="text-xs text-app-muted">{device.uniqueId}</p>
+                                          <p className="text-sm font-medium t-text-hi">{device.name}</p>
+                                          <p className="text-xs t-text-lo">{device.uniqueId}</p>
                                         </div>
                                       </div>
                                       <button
@@ -454,8 +469,8 @@ export default function GestaoPage() {
             {allDevices.length === 0 ? (
               <div className="text-center py-12 px-8">
                 <div className="text-5xl mb-4">📡</div>
-                <p className="text-app-muted text-sm">Nenhum dispositivo cadastrado</p>
-                <p className="text-app-muted text-xs mt-1">Toque em "+ Novo dispositivo" para adicionar</p>
+                <p className="t-text-lo text-sm">Nenhum dispositivo cadastrado</p>
+                <p className="t-text-lo text-xs mt-1">Toque em "+ Novo dispositivo" para adicionar</p>
               </div>
             ) : (
               <div className="mt-2" style={{ borderTop: '1px solid #2A2D3E' }}>
@@ -464,10 +479,10 @@ export default function GestaoPage() {
                   const clientName = assignments[device.id];
                   return (
                     <div key={device.id} className="px-4 py-3"
-                      style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E' }}>
+                      style={{ background: 'var(--bg-card)', borderBottom: '1px solid #2A2D3E' }}>
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{ background: '#12131A' }}>
+                          style={{ background: 'var(--bg-page)' }}>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={statusColor(device.status)} strokeWidth="1.8" strokeLinecap="round">
                             <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v9a2 2 0 0 1-2 2h-3"/>
                             <circle cx="7.5" cy="17.5" r="2.5"/>
@@ -487,7 +502,7 @@ export default function GestaoPage() {
                                   if (e.key === 'Escape') setRenamingDeviceId(null);
                                 }}
                                 className="flex-1 rounded-lg px-2 py-1 text-sm focus:outline-none"
-                                style={{ background: '#12131A', color: '#F0F0F5', border: '1px solid #007AFF' }}
+                                style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid #007AFF' }}
                               />
                               <button onClick={() => renameDevice(device.id)}
                                 className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -505,9 +520,9 @@ export default function GestaoPage() {
                               </button>
                             </div>
                           ) : (
-                            <p className="text-sm font-semibold text-app-text truncate">{device.name}</p>
+                            <p className="text-sm font-semibold t-text-hi truncate">{device.name}</p>
                           )}
-                          <p className="text-xs text-app-muted mt-0.5 font-mono">{device.uniqueId}</p>
+                          <p className="text-xs t-text-lo mt-0.5 font-mono">{device.uniqueId}</p>
                           {clientName && (
                             <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full mt-1"
                               style={{ background: 'rgba(255,149,0,0.1)', color: '#FF9500' }}>
@@ -516,7 +531,7 @@ export default function GestaoPage() {
                           )}
                           {!clientName && (
                             <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full mt-1"
-                              style={{ background: 'rgba(107,114,128,0.1)', color: '#6B7280' }}>
+                              style={{ background: 'rgba(107,114,128,0.1)', color: 'var(--text-lo)' }}>
                               Sem cliente
                             </span>
                           )}
@@ -564,10 +579,10 @@ export default function GestaoPage() {
           style={{ background: 'rgba(0,0,0,0.6)' }}
           onClick={() => setShowCreate(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
-            style={{ background: '#1E2030' }}
+            style={{ background: 'var(--bg-card)' }}
             onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: '#2A2D3E' }} />
-            <h3 className="font-bold text-app-text text-lg mb-5">Novo cliente</h3>
+            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--bg-border)' }} />
+            <h3 className="font-bold t-text-hi text-lg mb-5">Novo cliente</h3>
             <div className="space-y-3">
               {([
                 { label: 'Nome completo', key: 'name', type: 'text', placeholder: 'Ex: João Silva' },
@@ -575,14 +590,14 @@ export default function GestaoPage() {
                 { label: 'Senha inicial', key: 'password', type: 'password', placeholder: '••••••••' },
               ] as const).map(field => (
                 <div key={field.key}>
-                  <label className="block text-xs font-medium text-app-muted mb-1.5">{field.label}</label>
+                  <label className="block text-xs font-medium t-text-lo mb-1.5">{field.label}</label>
                   <input
                     type={field.type}
                     placeholder={field.placeholder}
                     value={newUser[field.key]}
                     onChange={e => setNewUser(prev => ({ ...prev, [field.key]: e.target.value }))}
                     className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
-                    style={{ background: '#12131A', color: '#F0F0F5', border: '1px solid #2A2D3E' }}
+                    style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid #2A2D3E' }}
                   />
                 </div>
               ))}
@@ -604,25 +619,25 @@ export default function GestaoPage() {
           style={{ background: 'rgba(0,0,0,0.6)' }}
           onClick={() => setShowCreateDevice(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
-            style={{ background: '#1E2030' }}
+            style={{ background: 'var(--bg-card)' }}
             onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: '#2A2D3E' }} />
-            <h3 className="font-bold text-app-text text-lg mb-1">Novo dispositivo</h3>
-            <p className="text-xs text-app-muted mb-5">Cadastre um novo rastreador GPS na plataforma</p>
+            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--bg-border)' }} />
+            <h3 className="font-bold t-text-hi text-lg mb-1">Novo dispositivo</h3>
+            <p className="text-xs t-text-lo mb-5">Cadastre um novo rastreador GPS na plataforma</p>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-app-muted mb-1.5">Nome do veículo</label>
+                <label className="block text-xs font-medium t-text-lo mb-1.5">Nome do veículo</label>
                 <input
                   type="text"
                   placeholder="Ex: VW Gol - ABC-1234"
                   value={newDevice.name}
                   onChange={e => setNewDevice(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
-                  style={{ background: '#12131A', color: '#F0F0F5', border: '1px solid #2A2D3E' }}
+                  style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid #2A2D3E' }}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-app-muted mb-1.5">IMEI / ID único do aparelho</label>
+                <label className="block text-xs font-medium t-text-lo mb-1.5">IMEI / ID único do aparelho</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -630,9 +645,9 @@ export default function GestaoPage() {
                   value={newDevice.uniqueId}
                   onChange={e => setNewDevice(prev => ({ ...prev, uniqueId: e.target.value.replace(/\s/g, '') }))}
                   className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none font-mono tracking-wide"
-                  style={{ background: '#12131A', color: '#F0F0F5', border: '1px solid #2A2D3E' }}
+                  style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid #2A2D3E' }}
                 />
-                <p className="text-xs text-app-muted mt-1.5">📦 Consulte a etiqueta ou embalagem do aparelho</p>
+                <p className="text-xs t-text-lo mt-1.5">📦 Consulte a etiqueta ou embalagem do aparelho</p>
               </div>
               <button
                 onClick={createDevice}
