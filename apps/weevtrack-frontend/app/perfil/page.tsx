@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
+import DesktopNav from '@/components/DesktopNav';
 
 function getUserFromCookie() {
   if (typeof document === 'undefined') return { name: '', email: '', administrator: false };
@@ -11,6 +12,12 @@ function getUserFromCookie() {
     if (!raw) return { name: '', email: '', administrator: false };
     return JSON.parse(decodeURIComponent(raw));
   } catch { return { name: '', email: '', administrator: false }; }
+}
+
+function toggleTheme() {
+  const next = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('wt_theme', next); } catch { /**/ }
 }
 
 export default function PerfilPage() {
@@ -66,16 +73,25 @@ export default function PerfilPage() {
   ];
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: '#12131A' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
       {/* Header */}
       <header className="flex-shrink-0 flex items-center px-4 h-14 gap-3"
-        style={{ background: '#1E2030', borderBottom: '1px solid #2A2D3E' }}>
+        style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
           <circle cx="12" cy="7" r="4"/>
         </svg>
-        <h1 className="font-bold text-app-text">Perfil</h1>
+        <h1 className="font-bold t-text-hi">Perfil</h1>
+        <button onClick={toggleTheme} className="ml-auto w-8 h-8 rounded-lg flex items-center justify-center"
+          style={{ background: 'var(--bg-border)' }} title="Alternar tema">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
       </header>
+
+      <DesktopNav />
 
       <div className="flex-1 overflow-y-auto pb-20">
         {/* Avatar */}
@@ -85,28 +101,28 @@ export default function PerfilPage() {
               {user.name ? user.name.charAt(0).toUpperCase() : '?'}
             </span>
           </div>
-          <h2 className="font-bold text-app-text text-lg">{user.name || 'Usuário'}</h2>
-          <p className="text-app-muted text-sm">{user.email}</p>
+          <h2 className="font-bold t-text-hi text-lg">{user.name || 'Usuário'}</h2>
+          <p className="t-text-lo text-sm">{user.email}</p>
         </div>
 
         {/* Seções */}
         {menuItems.map((section) => (
           <div key={section.section} className="mb-4">
-            <p className="text-xs font-semibold text-app-muted uppercase tracking-wider px-4 mb-2">
+            <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">
               {section.section}
             </p>
-            <div style={{ background: '#1E2030', borderTop: '1px solid #2A2D3E', borderBottom: '1px solid #2A2D3E' }}>
+            <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
               {section.items.map((item, i) => (
                 <div
                   key={item.label}
                   className="flex items-center justify-between px-4 py-3"
-                  style={{ borderBottom: i < section.items.length - 1 ? '1px solid #2A2D3E' : 'none' }}
+                  style={{ borderBottom: i < section.items.length - 1 ? '1px solid var(--bg-border)' : 'none' }}
                 >
                   <div className="flex items-center gap-3">
                     <span>{item.icon}</span>
-                    <span className="text-sm text-app-text">{item.label}</span>
+                    <span className="text-sm t-text-hi">{item.label}</span>
                   </div>
-                  <span className="text-sm text-app-muted truncate max-w-[160px] text-right">{item.value}</span>
+                  <span className="text-sm t-text-lo truncate max-w-[160px] text-right">{item.value}</span>
                 </div>
               ))}
             </div>

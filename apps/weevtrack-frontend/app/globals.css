@@ -76,3 +76,9 @@ html, body {
 
 /* Light theme leaflet tiles */
 [data-theme="light"] .leaflet-tile-pane { filter: brightness(0.92) saturate(0.9); }
+
+/* Form elements follow theme */
+input, select, textarea { color-scheme: dark; }
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea { color-scheme: light; }

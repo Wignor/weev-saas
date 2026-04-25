@@ -226,7 +226,7 @@ export default function GestaoPage() {
     <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14"
-        style={{ background: 'var(--bg-card)', borderBottom: '1px solid #2A2D3E' }}>
+        style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
         <div className="flex items-center gap-3">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -254,7 +254,7 @@ export default function GestaoPage() {
 
       {/* Desktop nav tabs */}
       <div className="hidden md:flex flex-shrink-0 px-4 gap-1"
-        style={{ background: 'var(--bg-card)', borderBottom: '1px solid #2A2D3E', paddingTop: '6px', paddingBottom: '6px' }}>
+        style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)', paddingTop: '6px', paddingBottom: '6px' }}>
         {[
           { href: '/dashboard', label: 'Monitor' },
           { href: '/historico', label: 'Trajetos' },
@@ -275,7 +275,7 @@ export default function GestaoPage() {
 
       {/* Tabs */}
       <div className="flex-shrink-0 flex px-4 py-2 gap-2"
-        style={{ background: 'var(--bg-card)', borderBottom: '1px solid #2A2D3E' }}>
+        style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
         {(['clientes', 'dispositivos'] as const).map((tab) => (
           <button
             key={tab}
@@ -319,11 +319,11 @@ export default function GestaoPage() {
                 <p className="t-text-lo text-xs mt-1">Toque em "+ Novo cliente" para adicionar</p>
               </div>
             ) : (
-              <div className="mt-2" style={{ borderTop: '1px solid #2A2D3E' }}>
+              <div className="mt-2" style={{ borderTop: '1px solid var(--bg-border)' }}>
                 {users.map(user => (
                   <div key={user.id}>
                     <div className="flex items-center gap-3 px-4 py-3"
-                      style={{ background: 'var(--bg-card)', borderBottom: '1px solid #2A2D3E' }}>
+                      style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
                       <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                         style={{ background: 'rgba(0,122,255,0.15)' }}>
                         <span className="font-bold text-sm" style={{ color: '#007AFF' }}>
@@ -370,7 +370,7 @@ export default function GestaoPage() {
                     </div>
 
                     {selectedUser?.id === user.id && (
-                      <div className="px-4 py-4" style={{ background: 'var(--bg-page)', borderBottom: '1px solid #2A2D3E' }}>
+                      <div className="px-4 py-4" style={{ background: 'var(--bg-page)', borderBottom: '1px solid var(--bg-border)' }}>
                         {loadingDevices ? (
                           <div className="flex justify-center py-4">
                             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -386,7 +386,7 @@ export default function GestaoPage() {
                               <div className="space-y-2 mb-4">
                                 {userDevices.map(device => (
                                   <div key={device.id} className="rounded-xl px-3 py-2.5"
-                                    style={{ background: 'var(--bg-card)', border: '1px solid #2A2D3E' }}>
+                                    style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
                                     <div className="flex items-center justify-between mb-2">
                                       <div className="flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
@@ -432,7 +432,7 @@ export default function GestaoPage() {
                                 <div className="space-y-2">
                                   {unassigned.map(device => (
                                     <div key={device.id} className="flex items-center justify-between rounded-xl px-3 py-2.5"
-                                      style={{ background: 'var(--bg-card)', border: '1px solid #2A2D3E' }}>
+                                      style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
                                       <div className="flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
                                         <div>
@@ -473,13 +473,13 @@ export default function GestaoPage() {
                 <p className="t-text-lo text-xs mt-1">Toque em "+ Novo dispositivo" para adicionar</p>
               </div>
             ) : (
-              <div className="mt-2" style={{ borderTop: '1px solid #2A2D3E' }}>
+              <div className="mt-2" style={{ borderTop: '1px solid var(--bg-border)' }}>
                 {allDevices.map(device => {
                   const isRenaming = renamingDeviceId === device.id;
                   const clientName = assignments[device.id];
                   return (
                     <div key={device.id} className="px-4 py-3"
-                      style={{ background: 'var(--bg-card)', borderBottom: '1px solid #2A2D3E' }}>
+                      style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                           style={{ background: 'var(--bg-page)' }}>
@@ -597,7 +597,7 @@ export default function GestaoPage() {
                     value={newUser[field.key]}
                     onChange={e => setNewUser(prev => ({ ...prev, [field.key]: e.target.value }))}
                     className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
-                    style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid #2A2D3E' }}
+                    style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
                   />
                 </div>
               ))}
@@ -633,7 +633,7 @@ export default function GestaoPage() {
                   value={newDevice.name}
                   onChange={e => setNewDevice(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
-                  style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid #2A2D3E' }}
+                  style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
                 />
               </div>
               <div>
@@ -645,7 +645,7 @@ export default function GestaoPage() {
                   value={newDevice.uniqueId}
                   onChange={e => setNewDevice(prev => ({ ...prev, uniqueId: e.target.value.replace(/\s/g, '') }))}
                   className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none font-mono tracking-wide"
-                  style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid #2A2D3E' }}
+                  style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
                 />
                 <p className="text-xs t-text-lo mt-1.5">📦 Consulte a etiqueta ou embalagem do aparelho</p>
               </div>
