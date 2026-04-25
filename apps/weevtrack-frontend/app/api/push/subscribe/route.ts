@@ -26,14 +26,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   }
 
+  let userId = 0;
+  let administrator = false;
+  try {
+    const raw = cookieStore.get('wt_user')?.value;
+    if (raw) {
+      const u = JSON.parse(decodeURIComponent(raw));
+      userId = u.id ?? 0;
+      administrator = !!u.administrator;
+    }
+  } catch { /**/ }
+
   const sub = await req.json();
   if (!sub?.endpoint) return NextResponse.json({ error: 'Subscription inválida' }, { status: 400 });
 
   const subs = readSubs() as Array<{ endpoint: string }>;
-  if (!subs.find((s) => s.endpoint === sub.endpoint)) {
-    subs.push(sub);
-    saveSubs(subs);
+  const existing = subs.findIndex((s) => s.endpoint === sub.endpoint);
+  const enriched = { ...sub, userId, administrator };
+  if (existing === -1) {
+    subs.push(enriched);
+  } else {
+    subs[existing] = enriched;
   }
+  saveSubs(subs);
 
   return NextResponse.json({ success: true });
 }

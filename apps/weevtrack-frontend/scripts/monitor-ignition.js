@@ -85,6 +85,29 @@ async function broadcastPush(subscriptions, title, body, url = '/dashboard') {
   }
 }
 
+async function getAssignments(headers) {
+  try {
+    const usersRes = await fetch(`${TRACCAR_URL}/api/users`, { headers });
+    if (!usersRes.ok) return {};
+    const users = await usersRes.json();
+    const clients = users.filter((u) => !u.administrator);
+    const map = {}; // deviceId → clientUserId
+    await Promise.all(
+      clients.map(async (client) => {
+        try {
+          const devRes = await fetch(`${TRACCAR_URL}/api/devices?userId=${client.id}`, { headers });
+          if (!devRes.ok) return;
+          const devices = await devRes.json();
+          for (const d of devices) map[d.id] = client.id;
+        } catch { /* silencioso */ }
+      })
+    );
+    return map;
+  } catch {
+    return {};
+  }
+}
+
 async function check() {
   try {
     const subscriptions = readSubs();
@@ -93,13 +116,35 @@ async function check() {
     const session = await getSession();
     const headers = { Cookie: `JSESSIONID=${session}` };
 
-    const [devRes, posRes] = await Promise.all([
+    const [devRes, posRes, assignments] = await Promise.all([
       fetch(`${TRACCAR_URL}/api/devices`, { headers }),
       fetch(`${TRACCAR_URL}/api/positions`, { headers }),
+      getAssignments(headers),
     ]);
 
     const devices = await devRes.json();
     const positions = await posRes.json();
+
+    // adminSubs: subscriptions de administradores
+    // clientSubs: mapa userId → subscriptions do cliente
+    const adminSubs = subscriptions.filter((s) => s.administrator);
+    const clientSubsMap = {};
+    for (const s of subscriptions) {
+      if (!s.administrator && s.userId) {
+        if (!clientSubsMap[s.userId]) clientSubsMap[s.userId] = [];
+        clientSubsMap[s.userId].push(s);
+      }
+    }
+
+    function subsForDevice(deviceId) {
+      const clientId = assignments[deviceId];
+      if (clientId) {
+        // dispositivo atribuído: notifica só o cliente dono
+        return clientSubsMap[clientId] || [];
+      }
+      // dispositivo livre: notifica só admins
+      return adminSubs;
+    }
     const prevState = readJSON(STATE_FILE);
     const newState = {};
 
@@ -123,11 +168,13 @@ async function check() {
         lowBatteryNotified: prev.lowBatteryNotified || false,
       };
 
+      const targetSubs = subsForDevice(pos.deviceId);
+
       // --- Ignição ---
       if (ignition !== undefined && prev.ignition !== undefined && prev.ignition !== ignition) {
         const title = ignition ? '🔑 Motor Ligado' : '🔒 Motor Desligado';
         const body = `${device.name} — ${ignition ? 'Veículo foi ligado' : 'Veículo foi desligado'}`;
-        await broadcastPush(subscriptions, title, body, `/historico?device=${pos.deviceId}`);
+        await broadcastPush(targetSubs, title, body, `/historico?device=${pos.deviceId}`);
         newState[id].lowBatteryNotified = false;
       }
 
@@ -135,14 +182,14 @@ async function check() {
       if (prev.moving !== undefined && prev.moving !== moving) {
         if (moving) {
           await broadcastPush(
-            subscriptions,
+            targetSubs,
             '🚗 Veículo em movimento',
             `${device.name} — começou a se mover (${speedKmh} km/h)`,
             `/historico?device=${pos.deviceId}`
           );
         } else if (prev.moving && !moving) {
           await broadcastPush(
-            subscriptions,
+            targetSubs,
             '🛑 Veículo parou',
             `${device.name} — parou`,
             `/dashboard`
@@ -154,7 +201,7 @@ async function check() {
       const overSpeed = speedKmh > SPEED_LIMIT_KMH;
       if (overSpeed && !prev.overspeedActive) {
         await broadcastPush(
-          subscriptions,
+          targetSubs,
           `🚦 Excesso de velocidade`,
           `${device.name} — ${speedKmh} km/h (limite: ${SPEED_LIMIT_KMH} km/h)`,
           `/dashboard`
@@ -167,7 +214,7 @@ async function check() {
       // --- Bateria fraca (apenas uma vez por ciclo de ignição) ---
       if (battery !== undefined && battery <= LOW_BATTERY_THRESHOLD && !prev.lowBatteryNotified) {
         await broadcastPush(
-          subscriptions,
+          targetSubs,
           `🔋 Bateria fraca`,
           `${device.name} — bateria em ${battery}%`,
           `/dashboard`
