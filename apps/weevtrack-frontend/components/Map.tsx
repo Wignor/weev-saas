@@ -53,12 +53,14 @@ function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'ca
         <circle cx="17" cy="30" r="2.5" fill="${color}" stroke="white" stroke-width="1.8"/>
         <circle cx="31" cy="30" r="2.5" fill="${color}" stroke="white" stroke-width="1.8"/>`;
       break;
-    case 'bicycle':
+    case 'pickup':
       shape = `
-        <circle cx="16" cy="30" r="6" fill="none" stroke="white" stroke-width="2"/>
-        <circle cx="32" cy="30" r="6" fill="none" stroke="white" stroke-width="2"/>
-        <path d="M16 30L24 16L32 30" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="24" cy="16" r="2.5" fill="white"/>`;
+        <rect x="10" y="20" width="16" height="10" rx="2" fill="white" opacity="0.85"/>
+        <rect x="12" y="20" width="10" height="5" rx="1" fill="${color}" opacity="0.5"/>
+        <rect x="26" y="22" width="12" height="8" rx="1" fill="white" opacity="0.55"/>
+        <line x1="26" y1="22" x2="26" y2="30" stroke="white" stroke-width="1.5"/>
+        <circle cx="16" cy="30" r="2.5" fill="${color}" stroke="white" stroke-width="1.8"/>
+        <circle cx="33" cy="30" r="2.5" fill="${color}" stroke="white" stroke-width="1.8"/>`;
       break;
     case 'boat':
       shape = `

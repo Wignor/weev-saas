@@ -56,6 +56,7 @@ function fmtDateTime(dt: string | null | undefined): string {
 }
 
 type DeviceStatus = 'movendo' | 'parado' | 'offline' | 'expirado';
+type DevicePref = { vehicleType: string; chipNumber?: string; iccid?: string };
 
 function getStatus(device: TraccarDevice, pos?: TraccarPosition): DeviceStatus {
   if (device.status === 'online') {
@@ -90,7 +91,7 @@ const VEHICLE_TYPES = [
   { type: 'motorcycle', label: 'Moto',      emoji: '🏍️' },
   { type: 'truck',      label: 'Caminhão',  emoji: '🚚' },
   { type: 'bus',        label: 'Ônibus',    emoji: '🚌' },
-  { type: 'bicycle',    label: 'Bicicleta', emoji: '🚲' },
+  { type: 'pickup',     label: 'Caminhonete', emoji: '🛻' },
   { type: 'boat',       label: 'Barco',     emoji: '⛵' },
 ];
 
@@ -106,11 +107,13 @@ type NotifPrefs = { ignitionOn: boolean; ignitionOff: boolean; moving: boolean; 
 const DEFAULT_PREFS: NotifPrefs = { ignitionOn: true, ignitionOff: true, moving: false, overspeed: false, lowBattery: false };
 
 /* ── DeviceInfoSheet ── */
-function DeviceInfoSheet({ device, pos, currentType, onClose, onSave }: {
-  device: TraccarDevice; pos?: TraccarPosition; currentType: string;
-  onClose: () => void; onSave: (deviceId: number, vehicleType: string) => void;
+function DeviceInfoSheet({ device, pos, currentPrefs, onClose, onSave }: {
+  device: TraccarDevice; pos?: TraccarPosition; currentPrefs: DevicePref;
+  onClose: () => void; onSave: (deviceId: number, prefs: DevicePref) => void;
 }) {
-  const [selectedType, setSelectedType] = useState(currentType || 'car');
+  const [selectedType, setSelectedType] = useState(currentPrefs.vehicleType || 'car');
+  const [chipNumber, setChipNumber] = useState(currentPrefs.chipNumber || '');
+  const [iccid, setIccid] = useState(currentPrefs.iccid || '');
   const [saving, setSaving] = useState(false);
   const status = getStatus(device, pos);
   const speed = pos ? knotsToKmh(pos.speed) : 0;
@@ -119,8 +122,9 @@ function DeviceInfoSheet({ device, pos, currentType, onClose, onSave }: {
 
   async function save() {
     setSaving(true);
-    await fetch('/api/devices/prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device.id, vehicleType: selectedType }) }).catch(() => {});
-    onSave(device.id, selectedType);
+    const prefs: DevicePref = { vehicleType: selectedType, chipNumber: chipNumber.trim(), iccid: iccid.trim() };
+    await fetch('/api/devices/prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device.id, ...prefs }) }).catch(() => {});
+    onSave(device.id, prefs);
     setSaving(false);
     onClose();
   }
@@ -146,7 +150,7 @@ function DeviceInfoSheet({ device, pos, currentType, onClose, onSave }: {
       </header>
       <div className="flex-1 overflow-y-auto p-4">
         <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-lo)' }}>Informações técnicas</p>
-        <div className="rounded-xl overflow-hidden mb-5" style={{ border: '1px solid var(--bg-border)' }}>
+        <div className="rounded-xl overflow-hidden mb-4" style={{ border: '1px solid var(--bg-border)' }}>
           {rows.map((row, i) => (
             <div key={row.label} className="flex items-center justify-between px-3 py-2.5"
               style={{ background: i % 2 === 0 ? 'var(--bg-input)' : 'transparent', borderBottom: i < rows.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
@@ -154,6 +158,21 @@ function DeviceInfoSheet({ device, pos, currentType, onClose, onSave }: {
               <span className="text-xs font-mono font-semibold" style={{ color: 'var(--text-mid)' }}>{row.value}</span>
             </div>
           ))}
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-lo)' }}>Informações do chip</p>
+        <div className="rounded-xl overflow-hidden mb-5" style={{ border: '1px solid var(--bg-border)' }}>
+          <div className="flex items-center gap-3 px-3 py-2.5" style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--bg-border)' }}>
+            <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-lo)', minWidth: '72px' }}>Nº do chip</span>
+            <input value={chipNumber} onChange={e => setChipNumber(e.target.value)} placeholder="Ex: 11987654321"
+              className="flex-1 text-xs font-mono font-semibold text-right focus:outline-none bg-transparent"
+              style={{ color: 'var(--text-mid)', minWidth: 0 }} />
+          </div>
+          <div className="flex items-center gap-3 px-3 py-2.5">
+            <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-lo)', minWidth: '72px' }}>ICCID</span>
+            <input value={iccid} onChange={e => setIccid(e.target.value)} placeholder="Ex: 89550..."
+              className="flex-1 text-xs font-mono font-semibold text-right focus:outline-none bg-transparent"
+              style={{ color: 'var(--text-mid)', minWidth: 0 }} />
+          </div>
         </div>
         <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-lo)' }}>Tipo de veículo</p>
         <p className="text-xs mb-3" style={{ color: 'var(--text-lo)' }}>O ícone aparecerá no mapa e na lista de veículos.</p>
@@ -544,7 +563,7 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, onSe
   const offlineTag = isOffline ? timeOffline(device.lastUpdate) : null;
 
   return (
-    <button onClick={onSelect} className="w-full text-left px-4 py-3 transition-all"
+    <div onClick={onSelect} className="w-full text-left px-4 py-3 transition-all cursor-pointer"
       style={{ background: isSelected ? 'var(--bg-hover)' : 'transparent', borderBottom: '1px solid var(--bg-border)' }}>
       <div className="flex items-center gap-3">
 
@@ -589,7 +608,7 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, onSe
           </svg>
         </button>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -610,7 +629,7 @@ export default function DashboardPage() {
   const [centerTrigger, setCenterTrigger] = useState(0);
   const [panelMinimized, setPanelMinimized] = useState(false);
   const [desktopPanelCollapsed, setDesktopPanelCollapsed] = useState(false);
-  const [vehiclePrefs, setVehiclePrefs] = useState<Record<number, string>>({});
+  const [vehiclePrefs, setVehiclePrefs] = useState<Record<number, DevicePref>>({});
   const [menuDeviceId, setMenuDeviceId] = useState<number | null>(null);
   const [infoDeviceId, setInfoDeviceId] = useState<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -632,10 +651,10 @@ export default function DashboardPage() {
   }, [asUser]);
 
   useEffect(() => {
-    fetch('/api/devices/prefs').then(r => r.json()).then((data: Record<string, { vehicleType: string }>) => {
+    fetch('/api/devices/prefs').then(r => r.json()).then((data: Record<string, DevicePref>) => {
       if (data && typeof data === 'object') {
-        const mapped: Record<number, string> = {};
-        for (const [id, pref] of Object.entries(data)) mapped[Number(id)] = pref.vehicleType;
+        const mapped: Record<number, DevicePref> = {};
+        for (const [id, pref] of Object.entries(data)) mapped[Number(id)] = pref;
         setVehiclePrefs(mapped);
       }
     }).catch(() => {});
@@ -662,6 +681,9 @@ export default function DashboardPage() {
 
   const posMap = Object.fromEntries(positions.map((p) => [p.deviceId, p]));
   const selectedDevice = devices.find((d) => d.id === selectedId);
+  const mapVehiclePrefs: Record<number, string> = Object.fromEntries(
+    Object.entries(vehiclePrefs).map(([k, v]) => [Number(k), v.vehicleType])
+  );
 
   const countByStatus = {
     online: devices.filter(d => { const s = getStatus(d, posMap[d.id]); return s === 'movendo' || s === 'parado'; }).length,
@@ -829,7 +851,7 @@ export default function DashboardPage() {
             ) : filteredDevices.map(device => (
               <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
                 isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
-                vehicleType={vehiclePrefs[device.id]}
+                vehicleType={vehiclePrefs[device.id]?.vehicleType}
                 onSelect={() => { const nid = selectedId === device.id ? null : device.id; setSelectedId(nid); if (nid) setDesktopPanelCollapsed(false); }}
                 onMenu={() => setMenuDeviceId(device.id)} />
             ))}
@@ -845,7 +867,7 @@ export default function DashboardPage() {
             onDeviceSelect={(id) => selectDevice(id)}
             visible={mobileView === 'mapa'}
             centerTrigger={centerTrigger}
-            vehiclePrefs={vehiclePrefs}
+            vehiclePrefs={mapVehiclePrefs}
           />
 
           {/* Mobile — barra minimizada */}
@@ -977,7 +999,7 @@ export default function DashboardPage() {
             ) : filteredDevices.map(device => (
               <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
                 isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
-                vehicleType={vehiclePrefs[device.id]}
+                vehicleType={vehiclePrefs[device.id]?.vehicleType}
                 onSelect={() => selectDevice(device.id)}
                 onMenu={() => setMenuDeviceId(device.id)} />
             ))}
@@ -998,9 +1020,9 @@ export default function DashboardPage() {
         const id = devices.find(d => d.id === infoDeviceId);
         return id ? (
           <DeviceInfoSheet device={id} pos={posMap[infoDeviceId]}
-            currentType={vehiclePrefs[infoDeviceId] || 'car'}
+            currentPrefs={vehiclePrefs[infoDeviceId] || { vehicleType: 'car' }}
             onClose={() => setInfoDeviceId(null)}
-            onSave={(deviceId, vType) => setVehiclePrefs(prev => ({ ...prev, [deviceId]: vType }))} />
+            onSave={(deviceId, prefs) => setVehiclePrefs(prev => ({ ...prev, [deviceId]: prefs }))} />
         ) : null;
       })()}
 
