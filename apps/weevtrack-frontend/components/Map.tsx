@@ -104,6 +104,7 @@ export default function VehicleMap({
     isDarkRef.current = document.documentElement.getAttribute('data-theme') !== 'light';
     const map = L.map(containerRef.current, { center: [-15.7801, -47.9292], zoom: 5, zoomControl: true });
     mapRef.current = map;
+    setTimeout(() => { map.invalidateSize(); }, 200);
     return () => {
       map.remove();
       mapRef.current = null;
@@ -123,7 +124,7 @@ export default function VehicleMap({
     if (mapLayer === 'satellite') {
       tileLayerRef.current = L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { attribution: '© Esri, Maxar, Earthstar Geographics', maxZoom: 19 }
+        { attribution: '© Esri, Maxar, Earthstar Geographics', maxZoom: 19, maxNativeZoom: 18 }
       ).addTo(mapRef.current);
     } else {
       const url = isDarkRef.current
@@ -131,7 +132,7 @@ export default function VehicleMap({
         : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
       tileLayerRef.current = L.tileLayer(url, {
         attribution: '© OpenStreetMap contributors © CARTO',
-        maxZoom: 20, subdomains: 'abcd',
+        maxZoom: 20, maxNativeZoom: 19, subdomains: 'abcd',
       }).addTo(mapRef.current);
     }
   }, [mapLayer]);

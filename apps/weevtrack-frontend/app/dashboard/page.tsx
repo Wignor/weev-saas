@@ -992,14 +992,15 @@ export default function DashboardPage() {
         )}
 
         {/* Mobile list overlay — sits over map in lista view */}
-        <div className="md:hidden" style={{
-          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          zIndex: 10,
-          background: 'var(--bg-page)',
-          display: mobileView === 'lista' ? 'flex' : 'none',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}>
+        <div
+          className={`md:hidden ${mobileView === 'lista' ? 'flex' : 'hidden'}`}
+          style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            zIndex: 10,
+            background: 'var(--bg-page)',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}>
           {/* Search & filters */}
           <div className="flex-shrink-0 px-3 pt-3 pb-2" style={{ borderBottom: '1px solid var(--bg-border)' }}>
             <div className="relative mb-2">
