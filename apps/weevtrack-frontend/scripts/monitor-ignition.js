@@ -144,7 +144,7 @@ async function check() {
 
     // adminSubs: subscriptions de administradores
     // clientSubs: mapa userId → subscriptions do cliente
-    const adminSubs = subscriptions.filter((s) => s.administrator);
+    const adminSubs = subscriptions.filter((s) => s.administrator || !s.userId);
     const clientSubsMap = {};
     for (const s of subscriptions) {
       if (!s.administrator && s.userId) {

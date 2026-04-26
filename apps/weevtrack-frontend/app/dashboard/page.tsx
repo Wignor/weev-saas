@@ -118,6 +118,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
   const [notifView, setNotifView] = useState(false);
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
   const [prefsLoading, setPrefsLoading] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!pos) { setResolvedAddress('Sem posição disponível'); return; }
@@ -131,6 +132,31 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
   useEffect(() => {
     fetch('/api/push/preferences').then(r => r.json()).then(d => { if (!d.error) setPrefs(d); }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) { setPushEnabled(false); return; }
+    navigator.serviceWorker.ready
+      .then(reg => reg.pushManager.getSubscription())
+      .then(sub => setPushEnabled(!!sub))
+      .catch(() => setPushEnabled(false));
+  }, []);
+
+  async function activatePush() {
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { setPushEnabled(false); return; }
+      const { key } = await fetch('/api/push/vapid-public').then(r => r.json());
+      const padding = '='.repeat((4 - (key.length % 4)) % 4);
+      const base64 = (key + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const raw = window.atob(base64);
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes.buffer as ArrayBuffer });
+      await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub.toJSON()) });
+      setPushEnabled(true);
+    } catch { setPushEnabled(false); }
+  }
 
   async function togglePref(key: keyof NotifPrefs) {
     const next = { ...prefs, [key]: !prefs[key] };
@@ -196,7 +222,25 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <p className="text-xs mb-4" style={{ color: 'var(--text-lo)' }}>Configurações aplicadas a todos os seus veículos.</p>
+          <p className="text-xs mb-3" style={{ color: 'var(--text-lo)' }}>Configurações aplicadas a todos os seus veículos.</p>
+          {pushEnabled === false && (
+            <div className="rounded-xl px-3 py-2.5 mb-3 flex items-center gap-3" style={{ background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.2)' }}>
+              <span className="text-lg flex-shrink-0">🔔</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-hi)' }}>Push inativo</p>
+                <p className="text-xs" style={{ color: 'var(--text-lo)' }}>Ative para receber alertas neste dispositivo</p>
+              </div>
+              <button onClick={activatePush} className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: '#FF9500', color: 'white' }}>
+                Ativar
+              </button>
+            </div>
+          )}
+          {pushEnabled === true && (
+            <div className="rounded-xl px-3 py-2 mb-3 flex items-center gap-2" style={{ background: 'rgba(52,199,89,0.08)', border: '1px solid rgba(52,199,89,0.15)' }}>
+              <span className="text-sm">✅</span>
+              <p className="text-xs" style={{ color: '#34C759' }}>Push ativo neste dispositivo</p>
+            </div>
+          )}
           <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--bg-border)' }}>
             {NOTIF_ITEMS.map((item, i) => (
               <div key={item.key} className="flex items-center gap-3 px-3 py-3"
@@ -271,7 +315,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
       )}
 
       {/* Action buttons */}
-      <div className="flex gap-2 mb-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(68px, 1fr))', gap: '8px', marginBottom: '12px' }}>
         {onCenter && (
           <button onClick={onCenter} disabled={!pos}
             className="flex flex-col items-center gap-1 rounded-xl py-2 flex-shrink-0 disabled:opacity-40"
@@ -461,6 +505,7 @@ export default function DashboardPage() {
   const [assignments, setAssignments] = useState<Record<number, string>>({});
   const [centerTrigger, setCenterTrigger] = useState(0);
   const [panelMinimized, setPanelMinimized] = useState(false);
+  const [desktopPanelCollapsed, setDesktopPanelCollapsed] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -527,6 +572,7 @@ export default function DashboardPage() {
     setSelectedId(id);
     setMobileView('mapa');
     setPanelMinimized(false);
+    setDesktopPanelCollapsed(false);
   }
 
   function closeDetailMobile() {
@@ -666,7 +712,7 @@ export default function DashboardPage() {
             ) : filteredDevices.map(device => (
               <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
                 isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
-                onSelect={() => setSelectedId(selectedId === device.id ? null : device.id)} />
+                onSelect={() => { const nid = selectedId === device.id ? null : device.id; setSelectedId(nid); if (nid) setDesktopPanelCollapsed(false); }} />
             ))}
           </div>
         </div>
@@ -736,12 +782,32 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Desktop detail panel */}
-        {selectedId && selectedDevice && (
+        {/* Desktop detail panel — collapsed tab */}
+        {selectedId && selectedDevice && desktopPanelCollapsed && (() => {
+          const st = getStatus(selectedDevice, posMap[selectedId]);
+          return (
+            <div className="hidden md:flex flex-col flex-none items-center py-3 gap-3 cursor-pointer"
+              style={{ width: '40px', borderLeft: '1px solid var(--bg-border)', background: 'var(--bg-card)' }}
+              onClick={() => setDesktopPanelCollapsed(false)}>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-border)' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+              </div>
+              <div style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: '160px', overflow: 'hidden', flex: 1 }}>
+                <span className="text-xs font-semibold" style={{ color: 'var(--text-hi)', whiteSpace: 'nowrap' }}>{selectedDevice.name}</span>
+              </div>
+              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: S_COLOR[st] }} />
+            </div>
+          );
+        })()}
+
+        {/* Desktop detail panel — expanded */}
+        {selectedId && selectedDevice && !desktopPanelCollapsed && (
           <div className="hidden md:flex flex-col flex-none overflow-hidden"
             style={{ width: '360px', borderLeft: '1px solid var(--bg-border)', background: 'var(--bg-card)' }}>
             <DeviceDetail device={selectedDevice} pos={posMap[selectedId]}
-              onClose={() => setSelectedId(null)}
+              onClose={() => setDesktopPanelCollapsed(true)}
               onHistory={() => { window.location.href = `/historico?device=${selectedId}`; }}
               onCenter={() => setCenterTrigger(t => t + 1)}
               clientName={assignments[selectedId]} isAdmin={user.administrator} variant="panel" />
