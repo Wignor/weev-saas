@@ -85,10 +85,13 @@ async function getSession() {
 async function sendPush(sub, title, body, url = '/dashboard') {
   try {
     await webpush.sendNotification(sub, JSON.stringify({ title, body, url }));
+    console.log(`[push] OK → ${sub.endpoint.slice(-30)}`);
   } catch (err) {
-    if (err.statusCode === 410) {
+    console.error(`[push] ERRO ${err.statusCode || err.message} → ${sub.endpoint.slice(-30)}`);
+    if (err.statusCode === 410 || err.statusCode === 404) {
       const subs = readSubs();
       writeJSON(SUBS_FILE, subs.filter((s) => s.endpoint !== sub.endpoint));
+      console.log(`[push] Subscrição removida (endpoint inválido)`);
     }
   }
 }
