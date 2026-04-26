@@ -103,6 +103,16 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState(device.name);
   const [deviceName, setDeviceName] = useState(device.name);
+  const [resolvedAddress, setResolvedAddress] = useState('Carregando endereço...');
+
+  useEffect(() => {
+    if (!pos) { setResolvedAddress('Sem posição disponível'); return; }
+    setResolvedAddress('Carregando endereço...');
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.latitude}&lon=${pos.longitude}&format=json`)
+      .then(r => r.json())
+      .then(d => setResolvedAddress(d.display_name || 'Endereço não disponível'))
+      .catch(() => setResolvedAddress('Endereço não disponível'));
+  }, [pos?.latitude, pos?.longitude]);
 
   const status = getStatus(device, pos);
   const speed = pos ? knotsToKmh(pos.speed) : 0;
@@ -246,8 +256,8 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round" className="mt-0.5 flex-shrink-0">
           <circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
         </svg>
-        <p className="flex-1 text-xs leading-relaxed" style={{ color: pos?.address ? 'var(--text-mid)' : 'var(--text-lo)' }}>
-          {pos?.address || 'Endereço não disponível'}
+        <p className="flex-1 text-xs leading-relaxed" style={{ color: resolvedAddress && resolvedAddress !== 'Carregando endereço...' ? 'var(--text-mid)' : 'var(--text-lo)' }}>
+          {resolvedAddress}
         </p>
         {pos && (
           <button onClick={() => window.open(`https://maps.google.com/maps?q=${pos.latitude},${pos.longitude}`, '_blank')}
@@ -445,7 +455,6 @@ export default function DashboardPage() {
 
   function closeDetailMobile() {
     setSelectedId(null);
-    setMobileView('lista');
   }
 
   return (
@@ -599,14 +608,12 @@ export default function DashboardPage() {
 
           {/* Mobile bottom panel — absolute inside map container, shown only in mapa view */}
           {selectedId && selectedDevice && mobileView === 'mapa' && (
-            <div className="md:hidden" style={{
+            <div className="md:hidden flex flex-col" style={{
               position: 'absolute', bottom: '64px', left: 0, right: 0,
               zIndex: 800,
               background: 'var(--bg-card)',
               borderRadius: '20px 20px 0 0',
               maxHeight: '55%',
-              display: 'flex',
-              flexDirection: 'column',
               boxShadow: '0 -8px 32px rgba(0,0,0,0.4)',
             }}>
               <DeviceDetail
