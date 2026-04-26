@@ -158,11 +158,12 @@ async function check() {
 
     function subsForDevice(deviceId) {
       const clientId = assignments[deviceId];
-      if (clientId) {
-        // dispositivo atribuído: notifica só o cliente dono
-        return clientSubsMap[clientId] || [];
+      const clientSubs = clientId ? (clientSubsMap[clientId] || []) : [];
+      if (clientSubs.length > 0) {
+        // cliente tem push ativo: notifica só ele
+        return clientSubs;
       }
-      // dispositivo livre: notifica só admins
+      // sem cliente ativo: notifica admins (dispositivo livre ou cliente sem push)
       return adminSubs;
     }
     const prevState = readJSON(STATE_FILE);
