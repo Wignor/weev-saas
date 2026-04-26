@@ -23,6 +23,12 @@ function todayRange() {
   return { from: start.toISOString().slice(0, 16), to: now.toISOString().slice(0, 16) };
 }
 
+function minDate90() {
+  const d = new Date();
+  d.setDate(d.getDate() - 90);
+  return d.toISOString().slice(0, 16);
+}
+
 function toggleTheme() {
   const next = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
@@ -50,6 +56,34 @@ function HistoricoContent() {
       }
     }).catch(() => null);
   }, [searchParams]);
+
+  function downloadCSV() {
+    if (!route.length) return;
+    const deviceName = devices.find(d => String(d.id) === selectedDevice)?.name || 'veiculo';
+    const headers = ['Data/Hora', 'Latitude', 'Longitude', 'Velocidade (km/h)', 'Curso (°)', 'Ignição', 'Bateria (%)'];
+    const rows = route.map(p => {
+      const dt = new Date(p.fixTime).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+      return [
+        dt,
+        p.latitude.toFixed(6),
+        p.longitude.toFixed(6),
+        knotsToKmh(p.speed),
+        Math.round(p.course),
+        p.attributes?.ignition ? 'Ligado' : 'Desligado',
+        p.attributes?.batteryLevel ?? '',
+      ];
+    });
+    const csv = [headers, ...rows].map(r => r.join(';')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `trajeto-${deviceName}-${from.slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   async function handleSearch() {
     if (!selectedDevice) return;
@@ -107,6 +141,7 @@ function HistoricoContent() {
           <div>
             <label className="block text-xs t-text-lo mb-1">De</label>
             <input type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)}
+              min={minDate90()}
               className="w-full rounded-xl px-3 py-2.5 text-sm focus:outline-none"
               style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
             />
@@ -119,13 +154,30 @@ function HistoricoContent() {
             />
           </div>
         </div>
-        <button
-          onClick={handleSearch}
-          disabled={loading || !selectedDevice}
-          className="w-full bg-primary text-white text-sm font-semibold py-3 rounded-xl transition-all disabled:opacity-60"
-        >
-          {loading ? 'Buscando...' : 'Buscar Trajeto'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSearch}
+            disabled={loading || !selectedDevice}
+            className="flex-1 bg-primary text-white text-sm font-semibold py-3 rounded-xl transition-all disabled:opacity-60"
+          >
+            {loading ? 'Buscando...' : 'Buscar Trajeto'}
+          </button>
+          {route.length > 0 && (
+            <button
+              onClick={downloadCSV}
+              className="flex items-center gap-1.5 px-4 py-3 rounded-xl text-sm font-semibold"
+              style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
+              title="Baixar CSV"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              CSV
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Resultado */}

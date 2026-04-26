@@ -95,7 +95,27 @@ export default function VehicleMap({
   const hasFittedRef = useRef(false);
   const tileLayerRef = useRef<unknown>(null);
   const isDarkRef = useRef(false);
+  const animationsRef = useRef<globalThis.Map<number, number>>(new globalThis.Map());
   const [mapLayer, setMapLayer] = useState<'street' | 'satellite'>('street');
+
+  function animateMarker(
+    marker: Marker, deviceId: number,
+    fromLat: number, fromLng: number,
+    toLat: number, toLng: number,
+    duration: number,
+  ) {
+    const existing = animationsRef.current.get(deviceId);
+    if (existing) cancelAnimationFrame(existing);
+    const start = performance.now();
+    function step(now: number) {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      marker.setLatLng([fromLat + (toLat - fromLat) * ease, fromLng + (toLng - fromLng) * ease]);
+      if (t < 1) animationsRef.current.set(deviceId, requestAnimationFrame(step));
+      else animationsRef.current.delete(deviceId);
+    }
+    animationsRef.current.set(deviceId, requestAnimationFrame(step));
+  }
 
   // Initialize map (no tile layer — added by tile effect below)
   useEffect(() => {
@@ -110,6 +130,8 @@ export default function VehicleMap({
       mapRef.current = null;
       tileLayerRef.current = null;
       markersRef.current.clear();
+      animationsRef.current.forEach(id => cancelAnimationFrame(id));
+      animationsRef.current.clear();
       hasFittedRef.current = false;
     };
   }, []);
@@ -173,7 +195,10 @@ export default function VehicleMap({
 
       if (markersRef.current.has(device.id)) {
         const marker = markersRef.current.get(device.id)!;
-        marker.setLatLng([pos.latitude, pos.longitude]);
+        const from = marker.getLatLng();
+        if (Math.abs(from.lat - pos.latitude) > 0.000005 || Math.abs(from.lng - pos.longitude) > 0.000005) {
+          animateMarker(marker, device.id, from.lat, from.lng, pos.latitude, pos.longitude, 5000);
+        }
         marker.setIcon(icon);
       } else {
         const marker = L.marker([pos.latitude, pos.longitude], { icon })
