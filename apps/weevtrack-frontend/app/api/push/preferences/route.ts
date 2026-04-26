@@ -5,7 +5,7 @@ import path from 'path';
 
 const PREFS_FILE = path.join(process.cwd(), 'data', 'notification-prefs.json');
 
-export const DEFAULT_PREFS = {
+const DEFAULT_PREFS = {
   ignitionOn: true,
   ignitionOff: true,
   moving: false,
