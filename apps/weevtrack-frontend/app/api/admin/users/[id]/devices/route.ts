@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { readLicenses, writeLicenses, createOrRenewLicense } from '@/lib/licenses';
 
 const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
 
@@ -37,6 +38,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
 
   if (!res.ok) return NextResponse.json({ error: 'Erro ao atribuir dispositivo' }, { status: res.status });
+
+  // Auto-create 31-day license
+  const licenses = readLicenses();
+  const key = String(deviceId);
+  if (!licenses[key]) {
+    licenses[key] = createOrRenewLicense(id);
+    writeLicenses(licenses);
+  }
+
   return NextResponse.json({ success: true });
 }
 

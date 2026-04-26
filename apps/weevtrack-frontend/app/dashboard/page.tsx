@@ -692,6 +692,7 @@ export default function DashboardPage() {
   const [vehiclePrefs, setVehiclePrefs] = useState<Record<number, DevicePref>>({});
   const [menuDeviceId, setMenuDeviceId] = useState<number | null>(null);
   const [infoDeviceId, setInfoDeviceId] = useState<number | null>(null);
+  const [licenses, setLicenses] = useState<Record<string, { daysLeft: number; status: string }>>({});
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -717,6 +718,9 @@ export default function DashboardPage() {
         for (const [id, pref] of Object.entries(data)) mapped[Number(id)] = pref;
         setVehiclePrefs(mapped);
       }
+    }).catch(() => {});
+    fetch('/api/licenses').then(r => r.json()).then(data => {
+      if (data && typeof data === 'object') setLicenses(data);
     }).catch(() => {});
   }, []);
 
@@ -745,14 +749,20 @@ export default function DashboardPage() {
     Object.entries(vehiclePrefs).map(([k, v]) => [Number(k), v.vehicleType])
   );
 
+  function getEffectiveStatus(device: TraccarDevice, pos?: TraccarPosition): DeviceStatus {
+    const lic = licenses[String(device.id)];
+    if (lic?.status === 'expired') return 'expirado';
+    return getStatus(device, pos);
+  }
+
   const countByStatus = {
-    online: devices.filter(d => { const s = getStatus(d, posMap[d.id]); return s === 'movendo' || s === 'parado'; }).length,
-    offline: devices.filter(d => getStatus(d, posMap[d.id]) === 'offline').length,
-    expirando: devices.filter(d => getStatus(d, posMap[d.id]) === 'expirado').length,
+    online: devices.filter(d => { const s = getEffectiveStatus(d, posMap[d.id]); return s === 'movendo' || s === 'parado'; }).length,
+    offline: devices.filter(d => getEffectiveStatus(d, posMap[d.id]) === 'offline').length,
+    expirando: devices.filter(d => getEffectiveStatus(d, posMap[d.id]) === 'expirado').length,
   };
 
   const filteredDevices = devices.filter(d => {
-    const st = getStatus(d, posMap[d.id]);
+    const st = getEffectiveStatus(d, posMap[d.id]);
     if (filter === 'online' && st !== 'movendo' && st !== 'parado') return false;
     if (filter === 'offline' && st !== 'offline') return false;
     if (filter === 'expirando' && st !== 'expirado') return false;

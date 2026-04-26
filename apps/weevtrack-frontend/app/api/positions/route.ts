@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { TraccarPosition } from '@/lib/traccar';
+import { readLicenses } from '@/lib/licenses';
 
 const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
 
@@ -61,7 +62,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(positions);
+    // Filter expired licenses for non-admin clients
+    const licenses = readLicenses();
+    const now = Date.now();
+    return NextResponse.json(positions.filter(p => {
+      const lic = licenses[String(p.deviceId)];
+      if (!lic) return true;
+      return new Date(lic.expiresAt).getTime() > now;
+    }));
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Erro ao buscar posições' },

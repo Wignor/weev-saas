@@ -32,6 +32,7 @@ export default function GestaoPage() {
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [renamingDeviceId, setRenamingDeviceId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [licenses, setLicenses] = useState<Record<string, { expiresAt: string; daysLeft: number; status: string }>>({});
 
   useEffect(() => {
     try {
@@ -49,17 +50,19 @@ export default function GestaoPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [usersRes, devicesRes, assignRes] = await Promise.all([
+      const [usersRes, devicesRes, assignRes, licRes] = await Promise.all([
         fetch('/api/admin/users'),
         fetch('/api/devices'),
         fetch('/api/admin/assignments'),
+        fetch('/api/licenses'),
       ]);
-      const [usersData, devicesData, assignData] = await Promise.all([
-        usersRes.json(), devicesRes.json(), assignRes.json(),
+      const [usersData, devicesData, assignData, licData] = await Promise.all([
+        usersRes.json(), devicesRes.json(), assignRes.json(), licRes.json(),
       ]);
       if (Array.isArray(usersData)) setUsers(usersData.filter(u => !u.administrator));
       if (Array.isArray(devicesData)) setAllDevices(devicesData);
       if (assignData && typeof assignData === 'object') setAssignments(assignData);
+      if (licData && typeof licData === 'object') setLicenses(licData);
     } catch { /* silencioso */ }
     setLoading(false);
   }
@@ -105,6 +108,21 @@ export default function GestaoPage() {
       }
     } catch { flash('❌ Erro de conexão'); }
     setCreating(false);
+  }
+
+  async function renewLicense(deviceId: number, userId: number) {
+    const res = await fetch('/api/admin/licenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId, userId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setLicenses(prev => ({ ...prev, [String(deviceId)]: { expiresAt: data.expiresAt, daysLeft: data.daysLeft, status: data.status } }));
+      flash(`✅ Licença renovada — expira em ${data.daysLeft} dias`);
+    } else {
+      flash('❌ Erro ao renovar licença');
+    }
   }
 
   async function resetPassword(userId: number, userName: string) {
@@ -406,20 +424,41 @@ export default function GestaoPage() {
                                   <div key={device.id} className="rounded-xl px-3 py-2.5"
                                     style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
                                     <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
                                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
-                                        <div>
-                                          <p className="text-sm font-medium t-text-hi">{device.name}</p>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium t-text-hi truncate">{device.name}</p>
                                           <p className="text-xs t-text-lo">{device.uniqueId}</p>
                                         </div>
                                       </div>
-                                      <button
-                                        onClick={() => removeDevice(device.id)}
-                                        className="text-xs px-2.5 py-1 rounded-lg font-medium"
-                                        style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}
-                                      >
-                                        Remover
-                                      </button>
+                                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                                        {(() => {
+                                          const lic = licenses[String(device.id)];
+                                          const licColor = !lic ? '#6B7280' : lic.status === 'expired' ? '#FF3B30' : lic.status === 'expiring' ? '#FF9500' : '#34C759';
+                                          const licLabel = !lic ? 'Sem licença' : lic.status === 'expired' ? 'Expirado' : `${lic.daysLeft}d`;
+                                          return (
+                                            <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+                                              style={{ background: `${licColor}18`, color: licColor }}>
+                                              {licLabel}
+                                            </span>
+                                          );
+                                        })()}
+                                        <button
+                                          onClick={() => renewLicense(device.id, selectedUser!.id)}
+                                          className="text-xs px-2 py-1 rounded-lg font-medium"
+                                          style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF' }}
+                                          title="Renovar licença +31 dias"
+                                        >
+                                          Renovar
+                                        </button>
+                                        <button
+                                          onClick={() => removeDevice(device.id)}
+                                          className="text-xs px-2 py-1 rounded-lg font-medium"
+                                          style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}
+                                        >
+                                          Remover
+                                        </button>
+                                      </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                       <button
