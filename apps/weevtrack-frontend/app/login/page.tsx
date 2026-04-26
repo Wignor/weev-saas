@@ -32,8 +32,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#12131A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1.5rem', width: '100%' }}>
+    <div style={{
+      minHeight: '100vh',
+      backgroundImage: 'url(/login-bg.jpg)',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+    }}>
+      {/* overlay escuro para legibilidade */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(10, 14, 30, 0.65)', backdropFilter: 'blur(1px)' }} />
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1.5rem', width: '100%' }}>
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
