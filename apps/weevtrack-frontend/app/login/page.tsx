@@ -55,7 +55,7 @@ export default function LoginPage() {
             <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'white' }} />
           </div>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: '#F0F0F5', margin: 0 }}>WeevTrack</h1>
-          <p style={{ color: '#8E8EA0', fontSize: '0.875rem', marginTop: 4 }}>Rastreamento Veicular Inteligente</p>
+          <p style={{ color: 'white', fontSize: '0.875rem', marginTop: 4, fontWeight: 700 }}>Rastreamento Veicular Inteligente</p>
         </div>
 
         {/* Card */}
