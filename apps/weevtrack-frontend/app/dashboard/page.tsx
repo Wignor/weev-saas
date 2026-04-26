@@ -85,6 +85,17 @@ const S_LABEL: Record<DeviceStatus, string> = {
   movendo: 'Movendo', parado: 'Estático', offline: 'Offline', expirado: 'Expirado',
 };
 
+const NOTIF_ITEMS = [
+  { key: 'ignitionOn',  icon: '🔑', label: 'Motor ligado',        desc: 'Notificar quando o veículo for ligado' },
+  { key: 'ignitionOff', icon: '🔒', label: 'Motor desligado',     desc: 'Notificar quando o veículo for desligado' },
+  { key: 'moving',      icon: '🚗', label: 'Movimento',           desc: 'Veículo começou a se mover ou parou' },
+  { key: 'overspeed',   icon: '🚦', label: 'Excesso de velocidade', desc: 'Velocidade acima do limite configurado' },
+  { key: 'lowBattery',  icon: '🔋', label: 'Bateria fraca',       desc: 'Nível de bateria abaixo do limite' },
+] as const;
+
+type NotifPrefs = { ignitionOn: boolean; ignitionOff: boolean; moving: boolean; overspeed: boolean; lowBattery: boolean };
+const DEFAULT_PREFS: NotifPrefs = { ignitionOn: true, ignitionOff: true, moving: false, overspeed: false, lowBattery: false };
+
 /* ── DeviceDetail ── */
 interface DeviceDetailProps {
   device: TraccarDevice;
@@ -104,6 +115,9 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
   const [renameVal, setRenameVal] = useState(device.name);
   const [deviceName, setDeviceName] = useState(device.name);
   const [resolvedAddress, setResolvedAddress] = useState('Carregando endereço...');
+  const [notifView, setNotifView] = useState(false);
+  const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
+  const [prefsLoading, setPrefsLoading] = useState(false);
 
   useEffect(() => {
     if (!pos) { setResolvedAddress('Sem posição disponível'); return; }
@@ -113,6 +127,18 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
       .then(d => setResolvedAddress(d.display_name || 'Endereço não disponível'))
       .catch(() => setResolvedAddress('Endereço não disponível'));
   }, [pos?.latitude, pos?.longitude]);
+
+  useEffect(() => {
+    fetch('/api/push/preferences').then(r => r.json()).then(d => { if (!d.error) setPrefs(d); }).catch(() => {});
+  }, []);
+
+  async function togglePref(key: keyof NotifPrefs) {
+    const next = { ...prefs, [key]: !prefs[key] };
+    setPrefs(next);
+    setPrefsLoading(true);
+    await fetch('/api/push/preferences', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
+    setPrefsLoading(false);
+  }
 
   const status = getStatus(device, pos);
   const speed = pos ? knotsToKmh(pos.speed) : 0;
@@ -156,6 +182,44 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px', paddingBottom: variant === 'sheet' ? '1.5rem' : '16px' }}>
       {variant === 'sheet' && <div className="w-10 h-1 rounded-full mx-auto mb-3" style={{ background: 'var(--bg-border)' }} />}
+
+      {/* Notif settings view */}
+      {notifView && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <button onClick={() => setNotifView(false)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-border)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <h3 className="font-bold text-base flex-1" style={{ color: 'var(--text-hi)' }}>Notificações</h3>
+            {prefsLoading && <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
+            <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-border)' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-lo)' }}>Configurações aplicadas a todos os seus veículos.</p>
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--bg-border)' }}>
+            {NOTIF_ITEMS.map((item, i) => (
+              <div key={item.key} className="flex items-center gap-3 px-3 py-3"
+                style={{ background: i % 2 === 0 ? 'var(--bg-input)' : 'transparent', borderBottom: i < NOTIF_ITEMS.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
+                <span className="text-lg flex-shrink-0">{item.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-hi)' }}>{item.label}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-lo)' }}>{item.desc}</p>
+                </div>
+                <button onClick={() => togglePref(item.key as keyof NotifPrefs)}
+                  className="flex-shrink-0 w-12 h-6 rounded-full transition-all relative"
+                  style={{ background: prefs[item.key as keyof NotifPrefs] ? '#34C759' : 'var(--bg-border)' }}>
+                  <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+                    style={{ left: prefs[item.key as keyof NotifPrefs] ? '26px' : '2px', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Device info view */}
+      {!notifView && <>
 
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
@@ -207,11 +271,11 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
       )}
 
       {/* Action buttons */}
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2 mb-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
         {onCenter && (
           <button onClick={onCenter} disabled={!pos}
-            className="flex flex-col items-center gap-1 rounded-xl py-2 flex-1 disabled:opacity-40"
-            style={{ background: 'rgba(0,122,255,0.12)', border: '1px solid rgba(0,122,255,0.2)' }}>
+            className="flex flex-col items-center gap-1 rounded-xl py-2 flex-shrink-0 disabled:opacity-40"
+            style={{ background: 'rgba(0,122,255,0.12)', border: '1px solid rgba(0,122,255,0.2)', minWidth: '68px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
             </svg>
@@ -220,8 +284,8 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
         )}
         {canControl && (
           <button onClick={() => sendCommand('engineStop', 'Bloqueio')} disabled={!!cmdLoading}
-            className="flex flex-col items-center gap-1 rounded-xl py-2 flex-1 disabled:opacity-50"
-            style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.2)' }}>
+            className="flex flex-col items-center gap-1 rounded-xl py-2 flex-shrink-0 disabled:opacity-50"
+            style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.2)', minWidth: '68px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round">
               <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
@@ -230,8 +294,8 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
         )}
         {canControl && (
           <button onClick={() => sendCommand('engineResume', 'Desbloqueio')} disabled={!!cmdLoading}
-            className="flex flex-col items-center gap-1 rounded-xl py-2 flex-1 disabled:opacity-50"
-            style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)' }}>
+            className="flex flex-col items-center gap-1 rounded-xl py-2 flex-shrink-0 disabled:opacity-50"
+            style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)', minWidth: '68px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
               <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
               <polyline points="16 5 19 8 22 5"/>
@@ -240,14 +304,23 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
           </button>
         )}
         <button onClick={shareLocation} disabled={!pos}
-          className="flex flex-col items-center gap-1 rounded-xl py-2 flex-1 disabled:opacity-40"
-          style={{ background: 'rgba(0,122,255,0.08)', border: '1px solid rgba(0,122,255,0.15)' }}>
+          className="flex flex-col items-center gap-1 rounded-xl py-2 disabled:opacity-40 flex-shrink-0"
+          style={{ background: 'rgba(0,122,255,0.08)', border: '1px solid rgba(0,122,255,0.15)', minWidth: '68px' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
             <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
           </svg>
           <span className="font-medium" style={{ color: '#007AFF', fontSize: '10px' }}>Compartilhar</span>
+        </button>
+        <button onClick={() => setNotifView(true)}
+          className="flex flex-col items-center gap-1 rounded-xl py-2 flex-shrink-0"
+          style={{ background: 'rgba(52,199,89,0.1)', border: '1px solid rgba(52,199,89,0.2)', minWidth: '68px' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span className="font-medium" style={{ color: '#34C759', fontSize: '10px' }}>Notificações</span>
         </button>
       </div>
 
@@ -297,6 +370,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
       )}
 
       {pos && <p className="text-xs text-center mt-1" style={{ color: 'var(--text-lo)' }}>{pos.latitude.toFixed(6)}, {pos.longitude.toFixed(6)}</p>}
+      </>}
     </div>
   );
 }
@@ -386,6 +460,7 @@ export default function DashboardPage() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [assignments, setAssignments] = useState<Record<number, string>>({});
   const [centerTrigger, setCenterTrigger] = useState(0);
+  const [panelMinimized, setPanelMinimized] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -451,10 +526,11 @@ export default function DashboardPage() {
   function selectDevice(id: number) {
     setSelectedId(id);
     setMobileView('mapa');
+    setPanelMinimized(false);
   }
 
   function closeDetailMobile() {
-    setSelectedId(null);
+    setPanelMinimized(true);
   }
 
   return (
@@ -606,8 +682,40 @@ export default function DashboardPage() {
             centerTrigger={centerTrigger}
           />
 
-          {/* Mobile bottom panel — absolute inside map container, shown only in mapa view */}
-          {selectedId && selectedDevice && mobileView === 'mapa' && (
+          {/* Mobile — barra minimizada */}
+          {selectedId && selectedDevice && mobileView === 'mapa' && panelMinimized && (() => {
+            const st = getStatus(selectedDevice, posMap[selectedId]);
+            return (
+              <div className="md:hidden flex items-center gap-3 px-4" style={{
+                position: 'absolute', bottom: '64px', left: 0, right: 0,
+                zIndex: 800, height: '52px',
+                background: 'var(--bg-card)',
+                borderRadius: '16px 16px 0 0',
+                borderTop: '2px solid var(--bg-border)',
+                boxShadow: '0 -4px 16px rgba(0,0,0,0.3)',
+              }}>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: S_BG[st] }}>
+                  <svg width="18" height="18" viewBox="0 0 48 48" fill="none">
+                    <path d="M10 30L12 22H36L38 30H10Z" fill={S_COLOR[st]}/>
+                    <circle cx="17" cy="32" r="3.5" fill={S_COLOR[st]}/>
+                    <circle cx="31" cy="32" r="3.5" fill={S_COLOR[st]}/>
+                  </svg>
+                </div>
+                <span className="flex-1 font-semibold text-sm truncate" style={{ color: 'var(--text-hi)' }}>{selectedDevice.name}</span>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                  style={{ background: S_BG[st], color: S_COLOR[st] }}>{S_LABEL[st]}</span>
+                <button onClick={() => setPanelMinimized(false)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'var(--bg-border)' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Mobile — painel expandido */}
+          {selectedId && selectedDevice && mobileView === 'mapa' && !panelMinimized && (
             <div className="md:hidden flex flex-col" style={{
               position: 'absolute', bottom: '64px', left: 0, right: 0,
               zIndex: 800,

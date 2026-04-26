@@ -12,6 +12,21 @@ const LOW_BATTERY_THRESHOLD = Number(process.env.LOW_BATTERY_THRESHOLD) || 20;
 
 const SUBS_FILE = path.join(__dirname, '..', 'data', 'subscriptions.json');
 const STATE_FILE = path.join(__dirname, '..', 'data', 'monitor-state.json');
+const PREFS_FILE = path.join(__dirname, '..', 'data', 'notification-prefs.json');
+
+const DEFAULT_PREFS = { ignitionOn: true, ignitionOff: true, moving: false, overspeed: false, lowBattery: false };
+
+function readPrefs() {
+  try {
+    if (!fs.existsSync(PREFS_FILE)) return {};
+    return JSON.parse(fs.readFileSync(PREFS_FILE, 'utf-8'));
+  } catch { return {}; }
+}
+
+function getPrefsForUser(userId) {
+  const prefs = readPrefs();
+  return prefs[String(userId)] || DEFAULT_PREFS;
+}
 
 if (!TRACCAR_EMAIL || !TRACCAR_PASSWORD) {
   console.error('TRACCAR_EMAIL e TRACCAR_PASSWORD são obrigatórios');
@@ -78,9 +93,11 @@ async function sendPush(sub, title, body, url = '/dashboard') {
   }
 }
 
-async function broadcastPush(subscriptions, title, body, url = '/dashboard') {
+async function broadcastPush(subscriptions, eventType, title, body, url = '/dashboard') {
   console.log(`[${new Date().toLocaleTimeString('pt-BR')}] ALERTA: ${title} — ${body}`);
   for (const sub of subscriptions) {
+    const prefs = getPrefsForUser(sub.userId);
+    if (!prefs[eventType]) continue;
     await sendPush(sub, title, body, url);
   }
 }
@@ -174,38 +191,23 @@ async function check() {
       if (ignition !== undefined && prev.ignition !== undefined && prev.ignition !== ignition) {
         const title = ignition ? '🔑 Motor Ligado' : '🔒 Motor Desligado';
         const body = `${device.name} — ${ignition ? 'Veículo foi ligado' : 'Veículo foi desligado'}`;
-        await broadcastPush(targetSubs, title, body, `/historico?device=${pos.deviceId}`);
+        await broadcastPush(targetSubs, ignition ? 'ignitionOn' : 'ignitionOff', title, body, `/historico?device=${pos.deviceId}`);
         newState[id].lowBatteryNotified = false;
       }
 
       // --- Movimento ---
       if (prev.moving !== undefined && prev.moving !== moving) {
         if (moving) {
-          await broadcastPush(
-            targetSubs,
-            '🚗 Veículo em movimento',
-            `${device.name} — começou a se mover (${speedKmh} km/h)`,
-            `/historico?device=${pos.deviceId}`
-          );
+          await broadcastPush(targetSubs, 'moving', '🚗 Veículo em movimento', `${device.name} — começou a se mover (${speedKmh} km/h)`, `/historico?device=${pos.deviceId}`);
         } else if (prev.moving && !moving) {
-          await broadcastPush(
-            targetSubs,
-            '🛑 Veículo parou',
-            `${device.name} — parou`,
-            `/dashboard`
-          );
+          await broadcastPush(targetSubs, 'moving', '🛑 Veículo parou', `${device.name} — parou`, `/dashboard`);
         }
       }
 
       // --- Excesso de velocidade ---
       const overSpeed = speedKmh > SPEED_LIMIT_KMH;
       if (overSpeed && !prev.overspeedActive) {
-        await broadcastPush(
-          targetSubs,
-          `🚦 Excesso de velocidade`,
-          `${device.name} — ${speedKmh} km/h (limite: ${SPEED_LIMIT_KMH} km/h)`,
-          `/dashboard`
-        );
+        await broadcastPush(targetSubs, 'overspeed', `🚦 Excesso de velocidade`, `${device.name} — ${speedKmh} km/h (limite: ${SPEED_LIMIT_KMH} km/h)`, `/dashboard`);
         newState[id].overspeedActive = true;
       } else if (!overSpeed) {
         newState[id].overspeedActive = false;
@@ -213,12 +215,7 @@ async function check() {
 
       // --- Bateria fraca (apenas uma vez por ciclo de ignição) ---
       if (battery !== undefined && battery <= LOW_BATTERY_THRESHOLD && !prev.lowBatteryNotified) {
-        await broadcastPush(
-          targetSubs,
-          `🔋 Bateria fraca`,
-          `${device.name} — bateria em ${battery}%`,
-          `/dashboard`
-        );
+        await broadcastPush(targetSubs, 'lowBattery', `🔋 Bateria fraca`, `${device.name} — bateria em ${battery}%`, `/dashboard`);
         newState[id].lowBatteryNotified = true;
       }
     }
@@ -231,4 +228,4 @@ async function check() {
 
 console.log(`WeevTrack — Monitor iniciado (limite velocidade: ${SPEED_LIMIT_KMH} km/h, bateria: ${LOW_BATTERY_THRESHOLD}%)`);
 check();
-setInterval(check, 30000);
+setInterval(check, 10000);
