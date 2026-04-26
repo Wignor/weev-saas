@@ -99,9 +99,8 @@ export default function GestaoPage() {
       });
       if (res.ok) {
         flash('✅ Cliente criado com sucesso');
-        setNewUser({ name: '', email: '', password: '' });
-        setShowCreate(false);
         setNewUser({ name: '', email: '', password: '', phone: '', cpfCnpj: '' });
+        setShowCreate(false);
         await loadData();
       } else {
         const err = await res.json();
