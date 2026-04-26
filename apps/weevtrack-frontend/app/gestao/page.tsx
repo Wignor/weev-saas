@@ -24,8 +24,8 @@ export default function GestaoPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showCreateDevice, setShowCreateDevice] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', password: '' });
-  const [newDevice, setNewDevice] = useState({ name: '', uniqueId: '' });
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', phone: '', cpfCnpj: '' });
+  const [newDevice, setNewDevice] = useState({ name: '', uniqueId: '', modelo: '', iccid: '', chip: '' });
   const [creating, setCreating] = useState(false);
   const [creatingDevice, setCreatingDevice] = useState(false);
   const [msg, setMsg] = useState('');
@@ -101,6 +101,7 @@ export default function GestaoPage() {
         flash('✅ Cliente criado com sucesso');
         setNewUser({ name: '', email: '', password: '' });
         setShowCreate(false);
+        setNewUser({ name: '', email: '', password: '', phone: '', cpfCnpj: '' });
         await loadData();
       } else {
         const err = await res.json();
@@ -199,7 +200,7 @@ export default function GestaoPage() {
       });
       if (res.ok) {
         flash('✅ Dispositivo cadastrado com sucesso');
-        setNewDevice({ name: '', uniqueId: '' });
+        setNewDevice({ name: '', uniqueId: '', modelo: '', iccid: '', chip: '' });
         setShowCreateDevice(false);
         await loadData();
       } else {
@@ -645,6 +646,8 @@ export default function GestaoPage() {
                 { label: 'Nome completo', key: 'name', type: 'text', placeholder: 'Ex: João Silva' },
                 { label: 'E-mail de acesso', key: 'email', type: 'email', placeholder: 'joao@email.com' },
                 { label: 'Senha inicial', key: 'password', type: 'password', placeholder: '••••••••' },
+                { label: 'Telefone', key: 'phone', type: 'tel', placeholder: 'Ex: (11) 99999-9999' },
+                { label: 'CPF ou CNPJ', key: 'cpfCnpj', type: 'text', placeholder: 'Ex: 123.456.789-00' },
               ] as const).map(field => (
                 <div key={field.key}>
                   <label className="block text-xs font-medium t-text-lo mb-1.5">{field.label}</label>
@@ -705,6 +708,40 @@ export default function GestaoPage() {
                   style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
                 />
                 <p className="text-xs t-text-lo mt-1.5">📦 Consulte a etiqueta ou embalagem do aparelho</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium t-text-lo mb-1.5">Modelo do aparelho</label>
+                <input
+                  type="text"
+                  placeholder="Ex: ST-340, TK303G"
+                  value={newDevice.modelo}
+                  onChange={e => setNewDevice(prev => ({ ...prev, modelo: e.target.value }))}
+                  className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+                  style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium t-text-lo mb-1.5">ICCID do chip</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Ex: 89550177..."
+                  value={newDevice.iccid}
+                  onChange={e => setNewDevice(prev => ({ ...prev, iccid: e.target.value.replace(/\s/g, '') }))}
+                  className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none font-mono tracking-wide"
+                  style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium t-text-lo mb-1.5">Número do chip</label>
+                <input
+                  type="tel"
+                  placeholder="Ex: (11) 98765-4321"
+                  value={newDevice.chip}
+                  onChange={e => setNewDevice(prev => ({ ...prev, chip: e.target.value }))}
+                  className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+                  style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
+                />
               </div>
               <button
                 onClick={createDevice}

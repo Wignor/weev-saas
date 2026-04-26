@@ -12,13 +12,19 @@ export async function POST(req: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
-  const { name, uniqueId } = await req.json();
+  const { name, uniqueId, modelo, iccid, chip } = await req.json();
   if (!name || !uniqueId) return NextResponse.json({ error: 'Nome e IMEI obrigatórios' }, { status: 400 });
 
   const res = await fetch(`${TRACCAR_URL}/api/devices`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Cookie: `JSESSIONID=${session}` },
-    body: JSON.stringify({ name, uniqueId }),
+    body: JSON.stringify({
+      name,
+      uniqueId,
+      model: modelo || '',
+      contact: chip || '',
+      attributes: { iccid: iccid || '' },
+    }),
   });
 
   const data = await res.json();

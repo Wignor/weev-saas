@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const session = cookieStore.get('wt_session')?.value;
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
-  const { name, email, password } = await req.json();
+  const { name, email, password, phone, cpfCnpj } = await req.json();
   if (!name || !email || !password) {
     return NextResponse.json({ error: 'Nome, e-mail e senha são obrigatórios' }, { status: 400 });
   }
@@ -32,7 +32,14 @@ export async function POST(req: Request) {
   const res = await fetch(`${TRACCAR_URL}/api/users`, {
     method: 'POST',
     headers: { Cookie: `JSESSIONID=${session}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password, administrator: false }),
+    body: JSON.stringify({
+      name,
+      email,
+      password,
+      administrator: false,
+      phone: phone || '',
+      attributes: { cpfCnpj: cpfCnpj || '' },
+    }),
   });
 
   if (!res.ok) {

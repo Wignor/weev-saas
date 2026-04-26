@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { readLicenses, writeLicenses, createOrRenewLicense } from '@/lib/licenses';
+import { appendClientRow } from '@/lib/sheets';
 
 const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
 
@@ -46,6 +47,28 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     licenses[key] = createOrRenewLicense(id);
     writeLicenses(licenses);
   }
+
+  // Write to Google Sheets asynchronously (don't block response)
+  try {
+    const [userRes, deviceRes] = await Promise.all([
+      fetch(`${TRACCAR_URL}/api/users/${id}`, { headers: { Cookie: `JSESSIONID=${session}` }, cache: 'no-store' }),
+      fetch(`${TRACCAR_URL}/api/devices/${deviceId}`, { headers: { Cookie: `JSESSIONID=${session}` }, cache: 'no-store' }),
+    ]);
+    if (userRes.ok && deviceRes.ok) {
+      const [user, device] = await Promise.all([userRes.json(), deviceRes.json()]);
+      appendClientRow({
+        nome: user.name || '',
+        email: user.email || '',
+        cpfCnpj: user.attributes?.cpfCnpj || '',
+        telefone: user.phone || '',
+        veiculo: device.name || '',
+        imei: device.uniqueId || '',
+        modelo: device.model || '',
+        iccid: device.attributes?.iccid || '',
+        chip: device.contact || '',
+      });
+    }
+  } catch { /* silencioso — planilha não bloqueia atribuição */ }
 
   return NextResponse.json({ success: true });
 }
