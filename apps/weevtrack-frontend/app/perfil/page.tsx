@@ -25,6 +25,13 @@ export default function PerfilPage() {
   const [user, setUser] = useState({ name: '', email: '', administrator: false });
   const [notifStatus, setNotifStatus] = useState<'idle' | 'active' | 'denied' | 'unsupported'>('idle');
 
+  const [showPwModal, setShowPwModal] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwMsg, setPwMsg] = useState('');
+
   useEffect(() => {
     setUser(getUserFromCookie());
     if (!('Notification' in window)) { setNotifStatus('unsupported'); return; }
@@ -37,40 +44,40 @@ export default function PerfilPage() {
     router.push('/login');
   }
 
+  function openPwModal() {
+    setPwCurrent(''); setPwNew(''); setPwConfirm(''); setPwMsg('');
+    setShowPwModal(true);
+  }
+
+  async function handleChangePassword() {
+    if (!pwCurrent || !pwNew || !pwConfirm) { setPwMsg('❌ Preencha todos os campos'); return; }
+    if (pwNew !== pwConfirm) { setPwMsg('❌ As senhas não conferem'); return; }
+    if (pwNew.length < 6) { setPwMsg('❌ A nova senha deve ter pelo menos 6 caracteres'); return; }
+    setPwLoading(true);
+    setPwMsg('');
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPwMsg('✅ Senha alterada com sucesso!');
+        setTimeout(() => setShowPwModal(false), 1500);
+      } else {
+        setPwMsg(`❌ ${data.error || 'Erro ao alterar senha'}`);
+      }
+    } catch { setPwMsg('❌ Erro de conexão'); }
+    setPwLoading(false);
+  }
+
   const notifLabel: Record<string, string> = {
     active: '✅ Ativadas',
     denied: '❌ Bloqueadas',
     idle: '⚪ Não ativadas',
     unsupported: '⚠️ Não suportado',
   };
-
-  const menuItems = [
-    {
-      section: 'Conta',
-      items: [
-        { icon: '👤', label: 'Nome', value: user.name },
-        { icon: '📧', label: 'E-mail', value: user.email },
-        { icon: '🔑', label: 'Perfil', value: user.administrator ? 'Administrador' : 'Usuário' },
-      ],
-    },
-    {
-      section: 'Notificações',
-      items: [
-        { icon: '🔔', label: 'Push notifications', value: notifLabel[notifStatus] },
-        { icon: '🔑', label: 'Ignição liga/desliga', value: 'Ativo' },
-        { icon: '🚦', label: 'Excesso de velocidade', value: 'Via Traccar' },
-        { icon: '🔋', label: 'Bateria fraca', value: 'Via Traccar' },
-      ],
-    },
-    {
-      section: 'Sobre',
-      items: [
-        { icon: '📱', label: 'Versão do app', value: '1.0.0' },
-        { icon: '🌐', label: 'Servidor', value: 'app.weevtrack.com' },
-        { icon: '⚙️', label: 'Protocolo', value: 'GT06 / Traccar' },
-      ],
-    },
-  ];
 
   return (
     <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
@@ -105,29 +112,83 @@ export default function PerfilPage() {
           <p className="t-text-lo text-sm">{user.email}</p>
         </div>
 
-        {/* Seções */}
-        {menuItems.map((section) => (
-          <div key={section.section} className="mb-4">
-            <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">
-              {section.section}
-            </p>
-            <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
-              {section.items.map((item, i) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between px-4 py-3"
-                  style={{ borderBottom: i < section.items.length - 1 ? '1px solid var(--bg-border)' : 'none' }}
-                >
-                  <div className="flex items-center gap-3">
-                    <span>{item.icon}</span>
-                    <span className="text-sm t-text-hi">{item.label}</span>
-                  </div>
-                  <span className="text-sm t-text-lo truncate max-w-[160px] text-right">{item.value}</span>
+        {/* Conta */}
+        <div className="mb-4">
+          <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Conta</p>
+          <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
+            {[
+              { icon: '👤', label: 'Nome', value: user.name },
+              { icon: '📧', label: 'E-mail', value: user.email },
+              { icon: '🔑', label: 'Perfil', value: user.administrator ? 'Administrador' : 'Usuário' },
+            ].map((item, i) => (
+              <div key={item.label} className="flex items-center justify-between px-4 py-3"
+                style={{ borderBottom: i < 2 ? '1px solid var(--bg-border)' : 'none' }}>
+                <div className="flex items-center gap-3">
+                  <span>{item.icon}</span>
+                  <span className="text-sm t-text-hi">{item.label}</span>
                 </div>
-              ))}
+                <span className="text-sm t-text-lo truncate max-w-[160px] text-right">{item.value}</span>
+              </div>
+            ))}
+            <div style={{ borderTop: '1px solid var(--bg-border)' }}>
+              <button
+                onClick={openPwModal}
+                className="w-full flex items-center justify-between px-4 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  <span>🔒</span>
+                  <span className="text-sm t-text-hi">Alterar senha</span>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
             </div>
           </div>
-        ))}
+        </div>
+
+        {/* Notificações */}
+        <div className="mb-4">
+          <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Notificações</p>
+          <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
+            {[
+              { icon: '🔔', label: 'Push notifications', value: notifLabel[notifStatus] },
+              { icon: '🔑', label: 'Ignição liga/desliga', value: 'Ativo' },
+              { icon: '🚦', label: 'Excesso de velocidade', value: 'Via Traccar' },
+              { icon: '🔋', label: 'Bateria fraca', value: 'Via Traccar' },
+            ].map((item, i, arr) => (
+              <div key={item.label} className="flex items-center justify-between px-4 py-3"
+                style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
+                <div className="flex items-center gap-3">
+                  <span>{item.icon}</span>
+                  <span className="text-sm t-text-hi">{item.label}</span>
+                </div>
+                <span className="text-sm t-text-lo truncate max-w-[160px] text-right">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Sobre */}
+        <div className="mb-4">
+          <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Sobre</p>
+          <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
+            {[
+              { icon: '📱', label: 'Versão do app', value: '1.0.0' },
+              { icon: '🌐', label: 'Servidor', value: 'app.weevtrack.com' },
+              { icon: '⚙️', label: 'Protocolo', value: 'GT06 / Traccar' },
+            ].map((item, i, arr) => (
+              <div key={item.label} className="flex items-center justify-between px-4 py-3"
+                style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
+                <div className="flex items-center gap-3">
+                  <span>{item.icon}</span>
+                  <span className="text-sm t-text-hi">{item.label}</span>
+                </div>
+                <span className="text-sm t-text-lo truncate max-w-[160px] text-right">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Logout */}
         <div className="px-4 mt-4 mb-8">
@@ -142,6 +203,56 @@ export default function PerfilPage() {
       </div>
 
       <BottomNav />
+
+      {/* Modal: Alterar senha */}
+      {showPwModal && (
+        <div className="fixed inset-0 z-50 flex items-end"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
+          onClick={() => setShowPwModal(false)}>
+          <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
+            style={{ background: 'var(--bg-card)' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--bg-border)' }} />
+            <h3 className="font-bold t-text-hi text-lg mb-1">Alterar senha</h3>
+            <p className="text-xs t-text-lo mb-5">A nova senha deve ter pelo menos 6 caracteres</p>
+            <div className="space-y-3">
+              {[
+                { label: 'Senha atual', value: pwCurrent, setter: setPwCurrent },
+                { label: 'Nova senha', value: pwNew, setter: setPwNew },
+                { label: 'Confirmar nova senha', value: pwConfirm, setter: setPwConfirm },
+              ].map(field => (
+                <div key={field.label}>
+                  <label className="block text-xs font-medium t-text-lo mb-1.5">{field.label}</label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={field.value}
+                    onChange={e => field.setter(e.target.value)}
+                    className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+                    style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
+                  />
+                </div>
+              ))}
+              {pwMsg && (
+                <p className="text-sm text-center font-medium px-2 py-2 rounded-xl"
+                  style={{
+                    background: pwMsg.startsWith('✅') ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)',
+                    color: pwMsg.startsWith('✅') ? '#34C759' : '#FF3B30',
+                  }}>
+                  {pwMsg}
+                </p>
+              )}
+              <button
+                onClick={handleChangePassword}
+                disabled={pwLoading}
+                className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl mt-2 disabled:opacity-60 transition-all"
+              >
+                {pwLoading ? 'Alterando...' : 'Salvar nova senha'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

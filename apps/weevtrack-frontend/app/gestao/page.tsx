@@ -107,6 +107,13 @@ export default function GestaoPage() {
     setCreating(false);
   }
 
+  async function resetPassword(userId: number, userName: string) {
+    if (!confirm(`Resetar a senha de "${userName}" para a senha padrão (as123456)?`)) return;
+    const res = await fetch(`/api/admin/users/${userId}/reset-password`, { method: 'POST' });
+    if (res.ok) flash('✅ Senha resetada para: as123456');
+    else flash('❌ Erro ao resetar senha');
+  }
+
   async function deleteUser(userId: number) {
     if (!confirm('Excluir este cliente?')) return;
     const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
@@ -355,6 +362,17 @@ export default function GestaoPage() {
                           }}
                         >
                           {selectedUser?.id === user.id ? 'Fechar' : 'Dispositivos'}
+                        </button>
+                        <button
+                          onClick={() => resetPassword(user.id, user.name)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: 'rgba(255,149,0,0.12)' }}
+                          title="Resetar senha para padrão"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF9500" strokeWidth="2" strokeLinecap="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+                          </svg>
                         </button>
                         <button
                           onClick={() => deleteUser(user.id)}
