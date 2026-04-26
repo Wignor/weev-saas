@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import dynamic from 'next/dynamic';
 import BottomNav from '@/components/BottomNav';
 import PushNotificationSetup from '@/components/PushNotificationSetup';
@@ -96,15 +96,22 @@ const VEHICLE_TYPES = [
 ];
 
 const NOTIF_ITEMS = [
-  { key: 'ignitionOn',  icon: '🔑', label: 'Motor ligado',        desc: 'Notificar quando o veículo for ligado' },
-  { key: 'ignitionOff', icon: '🔒', label: 'Motor desligado',     desc: 'Notificar quando o veículo for desligado' },
-  { key: 'moving',      icon: '🚗', label: 'Movimento',           desc: 'Veículo começou a se mover ou parou' },
-  { key: 'overspeed',   icon: '🚦', label: 'Excesso de velocidade', desc: 'Velocidade acima do limite configurado' },
-  { key: 'lowBattery',  icon: '🔋', label: 'Bateria fraca',       desc: 'Nível de bateria abaixo do limite' },
+  { key: 'ignitionOn',  icon: '🔑', label: 'Motor ligado',           desc: 'Notificar quando o veículo for ligado' },
+  { key: 'ignitionOff', icon: '🔒', label: 'Motor desligado',        desc: 'Notificar quando o veículo for desligado' },
+  { key: 'moving',      icon: '🚗', label: 'Movimento',              desc: 'Veículo começou a se mover ou parou' },
+  { key: 'overspeed',   icon: '🚦', label: 'Excesso de velocidade',  desc: 'Velocidade acima do limite configurado' },
+  { key: 'parking',     icon: '🅿️', label: 'Estacionamento',         desc: 'Veículo parado no mesmo local por +5 min' },
+  { key: 'lowBattery',  icon: '🔋', label: 'Bateria do aparelho',    desc: 'Bateria interna do rastreador está fraca' },
+  { key: 'sos',         icon: '🆘', label: 'Botão de pânico (SOS)',  desc: 'Alerta quando o botão SOS for acionado' },
+  { key: 'collision',   icon: '💥', label: 'Colisão / vibração',     desc: 'Impacto ou vibração forte detectado' },
 ] as const;
 
-type NotifPrefs = { ignitionOn: boolean; ignitionOff: boolean; moving: boolean; overspeed: boolean; lowBattery: boolean };
-const DEFAULT_PREFS: NotifPrefs = { ignitionOn: true, ignitionOff: true, moving: false, overspeed: false, lowBattery: false };
+type BoolPrefKey = 'ignitionOn' | 'ignitionOff' | 'moving' | 'overspeed' | 'parking' | 'lowBattery' | 'sos' | 'collision';
+type NotifPrefs = Record<BoolPrefKey, boolean> & { speedLimit: number };
+const DEFAULT_PREFS: NotifPrefs = {
+  ignitionOn: true, ignitionOff: true, moving: false, overspeed: false,
+  parking: false, lowBattery: false, sos: true, collision: true, speedLimit: 100,
+};
 
 /* ── DeviceInfoSheet ── */
 function DeviceInfoSheet({ device, pos, currentPrefs, onClose, onSave }: {
@@ -284,8 +291,17 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
     } catch { setPushEnabled(false); }
   }
 
-  async function togglePref(key: keyof NotifPrefs) {
+  async function togglePref(key: BoolPrefKey) {
     const next = { ...prefs, [key]: !prefs[key] };
+    setPrefs(next);
+    setPrefsLoading(true);
+    await fetch('/api/push/preferences', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
+    setPrefsLoading(false);
+  }
+
+  async function saveSpeedLimit(value: number) {
+    const limit = Math.max(30, Math.min(300, value || 100));
+    const next = { ...prefs, speedLimit: limit };
     setPrefs(next);
     setPrefsLoading(true);
     await fetch('/api/push/preferences', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(next) });
@@ -369,20 +385,39 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
           )}
           <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--bg-border)' }}>
             {NOTIF_ITEMS.map((item, i) => (
-              <div key={item.key} className="flex items-center gap-3 px-3 py-3"
-                style={{ background: i % 2 === 0 ? 'var(--bg-input)' : 'transparent', borderBottom: i < NOTIF_ITEMS.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
-                <span className="text-lg flex-shrink-0">{item.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium" style={{ color: 'var(--text-hi)' }}>{item.label}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-lo)' }}>{item.desc}</p>
+              <Fragment key={item.key}>
+                <div className="flex items-center gap-3 px-3 py-3"
+                  style={{ background: i % 2 === 0 ? 'var(--bg-input)' : 'transparent', borderBottom: '1px solid var(--bg-border)' }}>
+                  <span className="text-lg flex-shrink-0">{item.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-hi)' }}>{item.label}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-lo)' }}>{item.desc}</p>
+                  </div>
+                  <button onClick={() => togglePref(item.key as BoolPrefKey)}
+                    className="flex-shrink-0 w-12 h-6 rounded-full transition-all relative"
+                    style={{ background: prefs[item.key as BoolPrefKey] ? '#34C759' : 'var(--bg-border)' }}>
+                    <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+                      style={{ left: prefs[item.key as BoolPrefKey] ? '26px' : '2px', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                  </button>
                 </div>
-                <button onClick={() => togglePref(item.key as keyof NotifPrefs)}
-                  className="flex-shrink-0 w-12 h-6 rounded-full transition-all relative"
-                  style={{ background: prefs[item.key as keyof NotifPrefs] ? '#34C759' : 'var(--bg-border)' }}>
-                  <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
-                    style={{ left: prefs[item.key as keyof NotifPrefs] ? '26px' : '2px', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
-                </button>
-              </div>
+                {item.key === 'overspeed' && (
+                  <div className="flex items-center justify-between px-3 py-2.5"
+                    style={{ background: 'rgba(255,149,0,0.06)', borderBottom: '1px solid var(--bg-border)' }}>
+                    <div className="flex items-center gap-2 ml-7">
+                      <span className="text-xs" style={{ color: 'var(--text-lo)' }}>Limite de velocidade</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input type="number" min="30" max="300"
+                        value={prefs.speedLimit ?? 100}
+                        onChange={e => setPrefs(p => ({ ...p, speedLimit: Number(e.target.value) }))}
+                        onBlur={e => saveSpeedLimit(Number(e.target.value))}
+                        className="w-16 text-xs text-center rounded-lg px-2 py-1 focus:outline-none"
+                        style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }} />
+                      <span className="text-xs" style={{ color: 'var(--text-lo)' }}>km/h</span>
+                    </div>
+                  </div>
+                )}
+              </Fragment>
             ))}
           </div>
         </div>

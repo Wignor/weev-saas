@@ -10,7 +10,11 @@ const DEFAULT_PREFS = {
   ignitionOff: true,
   moving: false,
   overspeed: false,
+  speedLimit: 100,
+  parking: false,
   lowBattery: false,
+  sos: true,
+  collision: true,
 };
 
 function readPrefs(): Record<string, typeof DEFAULT_PREFS> {
