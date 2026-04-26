@@ -601,7 +601,7 @@ export default function DashboardPage() {
           {selectedId && selectedDevice && mobileView === 'mapa' && (
             <div className="md:hidden" style={{
               position: 'absolute', bottom: '64px', left: 0, right: 0,
-              zIndex: 20,
+              zIndex: 800,
               background: 'var(--bg-card)',
               borderRadius: '20px 20px 0 0',
               maxHeight: '55%',
