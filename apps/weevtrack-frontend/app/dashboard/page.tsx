@@ -91,7 +91,7 @@ const VEHICLE_TYPES = [
   { type: 'motorcycle', label: 'Moto',      emoji: '🏍️' },
   { type: 'truck',      label: 'Caminhão',  emoji: '🚚' },
   { type: 'bus',        label: 'Ônibus',    emoji: '🚌' },
-  { type: 'pickup',     label: 'Caminhonete', emoji: '🛻' },
+  { type: 'pickup',     label: 'Caminhonete', emoji: '🚙' },
   { type: 'boat',       label: 'Barco',     emoji: '⛵' },
 ];
 
