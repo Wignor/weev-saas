@@ -197,52 +197,47 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
       )}
 
       {/* Action buttons */}
-      <div className="flex gap-2 overflow-x-auto mb-3 pb-1" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex gap-2 mb-3">
         {onCenter && (
           <button onClick={onCenter} disabled={!pos}
-            className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40"
-            style={{ background: 'rgba(0,122,255,0.12)', border: '1px solid rgba(0,122,255,0.2)', minWidth: '64px' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+            className="flex flex-col items-center gap-1 rounded-xl py-2 flex-1 disabled:opacity-40"
+            style={{ background: 'rgba(0,122,255,0.12)', border: '1px solid rgba(0,122,255,0.2)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
             </svg>
-            <span className="text-xs font-medium" style={{ color: '#007AFF' }}>Rastrear</span>
+            <span className="text-xs font-medium" style={{ color: '#007AFF', fontSize: '10px' }}>Rastrear</span>
           </button>
         )}
-        <button onClick={onHistory}
-          className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0"
-          style={{ background: 'rgba(88,86,214,0.12)', border: '1px solid rgba(88,86,214,0.2)', minWidth: '64px' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5856D6" strokeWidth="2" strokeLinecap="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-          <span className="text-xs font-medium" style={{ color: '#5856D6' }}>Trajetos</span>
-        </button>
-        <button className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0"
-          style={{ background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.2)', minWidth: '64px' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF9500" strokeWidth="2" strokeLinecap="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
-          <span className="text-xs font-medium" style={{ color: '#FF9500' }}>Alarme</span>
-        </button>
         {canControl && (
           <button onClick={() => sendCommand('engineStop', 'Bloqueio')} disabled={!!cmdLoading}
-            className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-50"
-            style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.2)', minWidth: '64px' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round">
+            className="flex flex-col items-center gap-1 rounded-xl py-2 flex-1 disabled:opacity-50"
+            style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.2)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round">
               <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
-            <span className="text-xs font-medium" style={{ color: '#FF3B30' }}>{cmdLoading === 'engineStop' ? '...' : 'Bloquear'}</span>
+            <span className="font-medium" style={{ color: '#FF3B30', fontSize: '10px' }}>{cmdLoading === 'engineStop' ? '...' : 'Bloquear'}</span>
+          </button>
+        )}
+        {canControl && (
+          <button onClick={() => sendCommand('engineResume', 'Desbloqueio')} disabled={!!cmdLoading}
+            className="flex flex-col items-center gap-1 rounded-xl py-2 flex-1 disabled:opacity-50"
+            style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+              <polyline points="16 5 19 8 22 5"/>
+            </svg>
+            <span className="font-medium" style={{ color: '#34C759', fontSize: '10px' }}>{cmdLoading === 'engineResume' ? '...' : 'Desbloquear'}</span>
           </button>
         )}
         <button onClick={shareLocation} disabled={!pos}
-          className="flex flex-col items-center gap-1.5 rounded-xl py-2.5 px-3 flex-shrink-0 disabled:opacity-40"
-          style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)', minWidth: '64px' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
+          className="flex flex-col items-center gap-1 rounded-xl py-2 flex-1 disabled:opacity-40"
+          style={{ background: 'rgba(0,122,255,0.08)', border: '1px solid rgba(0,122,255,0.15)' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
             <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
           </svg>
-          <span className="text-xs font-medium" style={{ color: '#34C759' }}>Compartilhar</span>
+          <span className="font-medium" style={{ color: '#007AFF', fontSize: '10px' }}>Compartilhar</span>
         </button>
       </div>
 
@@ -605,11 +600,11 @@ export default function DashboardPage() {
           {/* Mobile bottom panel — absolute inside map container, shown only in mapa view */}
           {selectedId && selectedDevice && mobileView === 'mapa' && (
             <div className="md:hidden" style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0,
+              position: 'absolute', bottom: '64px', left: 0, right: 0,
               zIndex: 20,
               background: 'var(--bg-card)',
               borderRadius: '20px 20px 0 0',
-              maxHeight: '52%',
+              maxHeight: '55%',
               display: 'flex',
               flexDirection: 'column',
               boxShadow: '0 -8px 32px rgba(0,0,0,0.4)',
