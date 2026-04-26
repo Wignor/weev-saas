@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weevtrack-v1';
+const CACHE_NAME = 'weevtrack-v2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -15,15 +15,18 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? {};
+  const sound = data.sound !== false;
+  const vibrate = data.vibrate !== false;
   event.waitUntil(
     self.registration.showNotification(data.title || 'WeevTrack', {
       body: data.body || '',
       icon: '/api/pwa-icon?size=192',
       badge: '/api/pwa-icon?size=72',
       data: { url: data.url || '/dashboard' },
-      vibrate: [200, 100, 200],
       tag: data.tag || 'weevtrack',
       renotify: true,
+      silent: !sound,
+      vibrate: vibrate ? [200, 100, 200] : [0],
     })
   );
 });

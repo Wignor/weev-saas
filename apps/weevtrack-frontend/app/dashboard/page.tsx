@@ -106,11 +106,12 @@ const NOTIF_ITEMS = [
   { key: 'collision',   icon: '💥', label: 'Colisão / vibração',     desc: 'Impacto ou vibração forte detectado' },
 ] as const;
 
-type BoolPrefKey = 'ignitionOn' | 'ignitionOff' | 'moving' | 'overspeed' | 'parking' | 'lowBattery' | 'sos' | 'collision';
+type BoolPrefKey = 'ignitionOn' | 'ignitionOff' | 'moving' | 'overspeed' | 'parking' | 'lowBattery' | 'sos' | 'collision' | 'notifSound' | 'notifVibrate';
 type NotifPrefs = Record<BoolPrefKey, boolean> & { speedLimit: number };
 const DEFAULT_PREFS: NotifPrefs = {
   ignitionOn: true, ignitionOff: true, moving: false, overspeed: false,
   parking: false, lowBattery: false, sos: true, collision: true, speedLimit: 100,
+  notifSound: true, notifVibrate: true,
 };
 
 /* ── DeviceInfoSheet ── */
@@ -418,6 +419,30 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
                   </div>
                 )}
               </Fragment>
+            ))}
+          </div>
+
+          {/* Modo de entrega */}
+          <p className="text-xs font-semibold uppercase tracking-wide mt-4 mb-2" style={{ color: 'var(--text-lo)' }}>Modo de entrega</p>
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--bg-border)' }}>
+            {([
+              { key: 'notifSound' as BoolPrefKey, icon: '🔊', label: 'Som', desc: 'Toca um som ao receber o alerta' },
+              { key: 'notifVibrate' as BoolPrefKey, icon: '📳', label: 'Vibração', desc: 'Vibra o dispositivo ao receber o alerta' },
+            ]).map((item, i) => (
+              <div key={item.key} className="flex items-center gap-3 px-3 py-3"
+                style={{ background: i === 0 ? 'var(--bg-input)' : 'transparent', borderTop: i > 0 ? '1px solid var(--bg-border)' : 'none' }}>
+                <span className="text-lg flex-shrink-0">{item.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-hi)' }}>{item.label}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-lo)' }}>{item.desc}</p>
+                </div>
+                <button onClick={() => togglePref(item.key)}
+                  className="flex-shrink-0 w-12 h-6 rounded-full transition-all relative"
+                  style={{ background: prefs[item.key] ? '#34C759' : 'var(--bg-border)' }}>
+                  <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+                    style={{ left: prefs[item.key] ? '26px' : '2px', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                </button>
+              </div>
             ))}
           </div>
         </div>

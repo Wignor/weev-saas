@@ -15,6 +15,8 @@ const DEFAULT_PREFS = {
   lowBattery: false,
   sos: true,
   collision: true,
+  notifSound: true,
+  notifVibrate: true,
 };
 
 function readPrefs(): Record<string, typeof DEFAULT_PREFS> {

@@ -7,18 +7,20 @@ const TRACCAR_PASSWORD = process.env.TRACCAR_PASSWORD;
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@weevtrack.com';
-const SPEED_LIMIT_KMH = Number(process.env.SPEED_LIMIT_KMH) || 100; // fallback global
+const SPEED_LIMIT_KMH = Number(process.env.SPEED_LIMIT_KMH) || 100;
 const LOW_BATTERY_THRESHOLD = Number(process.env.LOW_BATTERY_THRESHOLD) || 20;
 const PARKING_MINUTES = Number(process.env.PARKING_MINUTES) || 5;
 
 const SUBS_FILE = path.join(__dirname, '..', 'data', 'subscriptions.json');
 const STATE_FILE = path.join(__dirname, '..', 'data', 'monitor-state.json');
 const PREFS_FILE = path.join(__dirname, '..', 'data', 'notification-prefs.json');
+const ALERTS_LOG_FILE = path.join(__dirname, '..', 'data', 'alerts-log.json');
 
 const DEFAULT_PREFS = {
   ignitionOn: true, ignitionOff: true, moving: false,
   overspeed: false, speedLimit: 100,
   parking: false, lowBattery: false, sos: true, collision: true,
+  notifSound: true, notifVibrate: true,
 };
 
 function readPrefs() {
@@ -71,6 +73,28 @@ function readSubs() {
   } catch { return []; }
 }
 
+function logAlert(deviceId, deviceName, type, title, body, userIds) {
+  try {
+    const entry = {
+      id: Date.now(),
+      deviceId,
+      deviceName,
+      type,
+      title,
+      body,
+      timestamp: new Date().toISOString(),
+      userIds: userIds || [],
+    };
+    let log = [];
+    if (fs.existsSync(ALERTS_LOG_FILE)) {
+      try { log = JSON.parse(fs.readFileSync(ALERTS_LOG_FILE, 'utf-8')); } catch { /**/ }
+    }
+    if (!Array.isArray(log)) log = [];
+    log.unshift(entry);
+    writeJSON(ALERTS_LOG_FILE, log.slice(0, 1000));
+  } catch { /**/ }
+}
+
 async function getSession() {
   const res = await fetch(`${TRACCAR_URL}/api/session`, {
     method: 'POST',
@@ -83,9 +107,9 @@ async function getSession() {
   return match?.[1] || '';
 }
 
-async function sendPush(sub, title, body, url = '/dashboard') {
+async function sendPush(sub, payload) {
   try {
-    await webpush.sendNotification(sub, JSON.stringify({ title, body, url }));
+    await webpush.sendNotification(sub, JSON.stringify(payload));
     console.log(`[push] OK → ${sub.endpoint.slice(-30)}`);
   } catch (err) {
     console.error(`[push] ERRO ${err.statusCode || err.message} → ${sub.endpoint.slice(-30)}`);
@@ -97,9 +121,10 @@ async function sendPush(sub, title, body, url = '/dashboard') {
   }
 }
 
-// meta: { speedKmh } para overspeed com limite por usuário
+// meta: { speedKmh, deviceId, deviceName }
 async function broadcastPush(subscriptions, eventType, title, body, url = '/dashboard', meta = {}) {
   console.log(`[${new Date().toLocaleTimeString('pt-BR')}] ALERTA: ${title} — ${body}`);
+  const notifiedUserIds = [];
   for (const sub of subscriptions) {
     const prefs = getPrefsForUser(sub.userId);
     if (!prefs[eventType]) continue;
@@ -107,7 +132,15 @@ async function broadcastPush(subscriptions, eventType, title, body, url = '/dash
       const userLimit = Number(prefs.speedLimit) || SPEED_LIMIT_KMH;
       if (meta.speedKmh <= userLimit) continue;
     }
-    await sendPush(sub, title, body, url);
+    await sendPush(sub, {
+      title, body, url,
+      sound: prefs.notifSound !== false,
+      vibrate: prefs.notifVibrate !== false,
+    });
+    if (sub.userId) notifiedUserIds.push(String(sub.userId));
+  }
+  if (meta.deviceId) {
+    logAlert(meta.deviceId, meta.deviceName || '', eventType, title, body, notifiedUserIds);
   }
 }
 
@@ -143,7 +176,6 @@ async function getRecentEvents(headers, fromTime) {
   } catch { return []; }
 }
 
-// Dedup de eventos já processados
 const processedEventIds = new Set();
 let lastEventsCheck = Date.now();
 
@@ -193,19 +225,16 @@ async function check() {
       const ignition = pos.attributes?.ignition;
       const battery = pos.attributes?.batteryLevel;
       const moving = speedKmh > 2;
-
-      // Calcula menor limite de velocidade entre as subs do dispositivo para detecção de estado
       const targetSubs = subsForDevice(pos.deviceId);
+      const meta = { deviceId: pos.deviceId, deviceName: device.name };
+
       const enabledOvSubs = targetSubs.filter(s => getPrefsForUser(s.userId).overspeed);
       const minSpeedLimit = enabledOvSubs.length > 0
         ? Math.min(...enabledOvSubs.map(s => Number(getPrefsForUser(s.userId).speedLimit) || SPEED_LIMIT_KMH))
         : SPEED_LIMIT_KMH;
 
       newState[id] = {
-        ignition,
-        moving,
-        speedKmh,
-        battery,
+        ignition, moving, speedKmh, battery,
         overspeedActive: prev.overspeedActive || false,
         lowBatteryNotified: prev.lowBatteryNotified || false,
         stoppedAt: prev.stoppedAt || null,
@@ -216,16 +245,20 @@ async function check() {
       if (ignition !== undefined && prev.ignition !== undefined && prev.ignition !== ignition) {
         const title = ignition ? '🔑 Motor Ligado' : '🔒 Motor Desligado';
         const body = `${device.name} — ${ignition ? 'Veículo foi ligado' : 'Veículo foi desligado'}`;
-        await broadcastPush(targetSubs, ignition ? 'ignitionOn' : 'ignitionOff', title, body, `/historico?device=${pos.deviceId}`);
+        await broadcastPush(targetSubs, ignition ? 'ignitionOn' : 'ignitionOff', title, body,
+          `/historico?device=${pos.deviceId}`, meta);
         newState[id].lowBatteryNotified = false;
       }
 
       // --- Movimento ---
       if (prev.moving !== undefined && prev.moving !== moving) {
         if (moving) {
-          await broadcastPush(targetSubs, 'moving', '🚗 Veículo em movimento', `${device.name} — começou a se mover (${speedKmh} km/h)`, `/historico?device=${pos.deviceId}`);
+          await broadcastPush(targetSubs, 'moving', '🚗 Veículo em movimento',
+            `${device.name} — começou a se mover (${speedKmh} km/h)`,
+            `/historico?device=${pos.deviceId}`, meta);
         } else {
-          await broadcastPush(targetSubs, 'moving', '🛑 Veículo parou', `${device.name} — parou`, `/dashboard`);
+          await broadcastPush(targetSubs, 'moving', '🛑 Veículo parou',
+            `${device.name} — parou`, `/dashboard`, meta);
         }
       }
 
@@ -235,7 +268,6 @@ async function check() {
         newState[id].parkingNotified = false;
       } else {
         if (prev.moving === true) {
-          // Acabou de parar
           newState[id].stoppedAt = Date.now();
           newState[id].parkingNotified = false;
         } else {
@@ -246,7 +278,8 @@ async function check() {
         const parkingMs = PARKING_MINUTES * 60 * 1000;
         if (stoppedAt && !newState[id].parkingNotified && (Date.now() - stoppedAt) >= parkingMs) {
           await broadcastPush(targetSubs, 'parking', '🅿️ Veículo estacionado',
-            `${device.name} — parado há mais de ${PARKING_MINUTES} minutos`, `/historico?device=${pos.deviceId}`);
+            `${device.name} — parado há mais de ${PARKING_MINUTES} minutos`,
+            `/historico?device=${pos.deviceId}`, meta);
           newState[id].parkingNotified = true;
         }
       }
@@ -255,16 +288,17 @@ async function check() {
       const overSpeed = speedKmh > minSpeedLimit;
       if (overSpeed && !prev.overspeedActive) {
         await broadcastPush(targetSubs, 'overspeed', `🚦 Excesso de velocidade`,
-          `${device.name} — ${speedKmh} km/h`, `/dashboard`, { speedKmh });
+          `${device.name} — ${speedKmh} km/h`, `/dashboard`,
+          { ...meta, speedKmh });
         newState[id].overspeedActive = true;
       } else if (!overSpeed) {
         newState[id].overspeedActive = false;
       }
 
-      // --- Bateria fraca do aparelho (batteryLevel = bateria interna do rastreador) ---
+      // --- Bateria fraca do aparelho ---
       if (battery !== undefined && battery <= LOW_BATTERY_THRESHOLD && !prev.lowBatteryNotified) {
         await broadcastPush(targetSubs, 'lowBattery', `🔋 Bateria do aparelho fraca`,
-          `${device.name} — bateria interna em ${battery}%`, `/dashboard`);
+          `${device.name} — bateria interna em ${battery}%`, `/dashboard`, meta);
         newState[id].lowBatteryNotified = true;
       }
     }
@@ -272,31 +306,29 @@ async function check() {
     writeJSON(STATE_FILE, { ...prevState, ...newState });
 
     // --- Eventos de alarme: SOS e Colisão ---
-    const eventsFrom = lastEventsCheck - 2000; // 2s de overlap para evitar gaps
+    const eventsFrom = lastEventsCheck - 2000;
     lastEventsCheck = Date.now();
     const events = await getRecentEvents(headers, eventsFrom);
 
     for (const ev of events) {
       if (processedEventIds.has(ev.id)) continue;
       processedEventIds.add(ev.id);
-
       const evDevice = devices.find(d => d.id === ev.deviceId);
       if (!evDevice) continue;
       const evSubs = subsForDevice(ev.deviceId);
+      const evMeta = { deviceId: ev.deviceId, deviceName: evDevice.name };
       const alarm = ev.attributes?.alarm;
 
       if (alarm === 'sos') {
         await broadcastPush(evSubs, 'sos', '🆘 SOS — Botão de pânico!',
-          `${evDevice.name} — botão de pânico acionado`, `/dashboard`);
+          `${evDevice.name} — botão de pânico acionado`, `/dashboard`, evMeta);
       }
-
       if (['vibration', 'hardBraking', 'hardAcceleration', 'hardCornering'].includes(alarm)) {
         await broadcastPush(evSubs, 'collision', '💥 Possível colisão detectada',
-          `${evDevice.name} — impacto ou vibração forte (${alarm})`, `/dashboard`);
+          `${evDevice.name} — impacto ou vibração forte (${alarm})`, `/dashboard`, evMeta);
       }
     }
 
-    // Limpa IDs antigos para não crescer indefinidamente
     if (processedEventIds.size > 500) processedEventIds.clear();
 
   } catch (err) {
