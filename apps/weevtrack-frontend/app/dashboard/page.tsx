@@ -85,6 +85,15 @@ const S_LABEL: Record<DeviceStatus, string> = {
   movendo: 'Movendo', parado: 'Estático', offline: 'Offline', expirado: 'Expirado',
 };
 
+const VEHICLE_TYPES = [
+  { type: 'car',        label: 'Carro',     emoji: '🚗' },
+  { type: 'motorcycle', label: 'Moto',      emoji: '🏍️' },
+  { type: 'truck',      label: 'Caminhão',  emoji: '🚚' },
+  { type: 'bus',        label: 'Ônibus',    emoji: '🚌' },
+  { type: 'bicycle',    label: 'Bicicleta', emoji: '🚲' },
+  { type: 'boat',       label: 'Barco',     emoji: '⛵' },
+];
+
 const NOTIF_ITEMS = [
   { key: 'ignitionOn',  icon: '🔑', label: 'Motor ligado',        desc: 'Notificar quando o veículo for ligado' },
   { key: 'ignitionOff', icon: '🔒', label: 'Motor desligado',     desc: 'Notificar quando o veículo for desligado' },
@@ -95,6 +104,104 @@ const NOTIF_ITEMS = [
 
 type NotifPrefs = { ignitionOn: boolean; ignitionOff: boolean; moving: boolean; overspeed: boolean; lowBattery: boolean };
 const DEFAULT_PREFS: NotifPrefs = { ignitionOn: true, ignitionOff: true, moving: false, overspeed: false, lowBattery: false };
+
+/* ── DeviceInfoSheet ── */
+function DeviceInfoSheet({ device, pos, currentType, onClose, onSave }: {
+  device: TraccarDevice; pos?: TraccarPosition; currentType: string;
+  onClose: () => void; onSave: (deviceId: number, vehicleType: string) => void;
+}) {
+  const [selectedType, setSelectedType] = useState(currentType || 'car');
+  const [saving, setSaving] = useState(false);
+  const status = getStatus(device, pos);
+  const speed = pos ? knotsToKmh(pos.speed) : 0;
+  const battery = pos?.attributes?.batteryLevel as number | undefined;
+  const voltage = pos?.attributes?.power as number | undefined;
+
+  async function save() {
+    setSaving(true);
+    await fetch('/api/devices/prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device.id, vehicleType: selectedType }) }).catch(() => {});
+    onSave(device.id, selectedType);
+    setSaving(false);
+    onClose();
+  }
+
+  const rows = [
+    { label: 'IMEI', value: device.uniqueId },
+    { label: 'Status', value: S_LABEL[status] },
+    { label: 'Último contato', value: fmtDateTime(device.lastUpdate) },
+    { label: 'Velocidade', value: `${speed} km/h` },
+    ...(battery !== undefined ? [{ label: 'Bateria', value: `${battery}%` }] : []),
+    ...(voltage !== undefined ? [{ label: 'Tensão', value: `${(voltage as number).toFixed(1)}V` }] : []),
+  ];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', flexDirection: 'column', background: 'var(--bg-page)' }}>
+      <header className="flex-shrink-0 flex items-center gap-3 px-4 h-14"
+        style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
+        <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-border)' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h2 className="font-bold text-base flex-1 truncate" style={{ color: 'var(--text-hi)' }}>{device.name}</h2>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0" style={{ background: S_BG[status], color: S_COLOR[status] }}>{S_LABEL[status]}</span>
+      </header>
+      <div className="flex-1 overflow-y-auto p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-lo)' }}>Informações técnicas</p>
+        <div className="rounded-xl overflow-hidden mb-5" style={{ border: '1px solid var(--bg-border)' }}>
+          {rows.map((row, i) => (
+            <div key={row.label} className="flex items-center justify-between px-3 py-2.5"
+              style={{ background: i % 2 === 0 ? 'var(--bg-input)' : 'transparent', borderBottom: i < rows.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
+              <span className="text-xs" style={{ color: 'var(--text-lo)' }}>{row.label}</span>
+              <span className="text-xs font-mono font-semibold" style={{ color: 'var(--text-mid)' }}>{row.value}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-lo)' }}>Tipo de veículo</p>
+        <p className="text-xs mb-3" style={{ color: 'var(--text-lo)' }}>O ícone aparecerá no mapa e na lista de veículos.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '24px' }}>
+          {VEHICLE_TYPES.map(vt => (
+            <button key={vt.type} onClick={() => setSelectedType(vt.type)}
+              className="flex flex-col items-center gap-2 py-4 rounded-xl transition-all"
+              style={{ background: selectedType === vt.type ? 'rgba(0,122,255,0.15)' : 'var(--bg-input)', border: `2px solid ${selectedType === vt.type ? '#007AFF' : 'transparent'}` }}>
+              <span className="text-2xl">{vt.emoji}</span>
+              <span className="text-xs font-semibold" style={{ color: selectedType === vt.type ? '#007AFF' : 'var(--text-mid)' }}>{vt.label}</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={save} disabled={saving} className="w-full py-3.5 rounded-xl font-semibold text-sm disabled:opacity-60" style={{ background: '#007AFF', color: 'white' }}>
+          {saving ? 'Salvando...' : 'Salvar'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── ActionSheet ── */
+function ActionSheet({ device, onClose, onSelect, onInfo }: { device: TraccarDevice; onClose: () => void; onSelect: () => void; onInfo: () => void; }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2000 }}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'var(--bg-card)', borderRadius: '20px 20px 0 0', padding: '16px', boxShadow: '0 -8px 32px rgba(0,0,0,0.4)' }}>
+        <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'var(--bg-border)' }} />
+        <p className="font-bold text-base text-center mb-4 truncate px-8" style={{ color: 'var(--text-hi)' }}>{device.name}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {([
+            { icon: '🗺️', label: 'Rastrear no mapa', action: () => { onSelect(); onClose(); } },
+            { icon: '🛣️', label: 'Ver trajetos', action: () => { window.location.href = `/historico?device=${device.id}`; } },
+            { icon: 'ℹ️', label: 'Informações do veículo', action: () => { onInfo(); onClose(); } },
+          ] as const).map(a => (
+            <button key={a.label} onClick={a.action} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left" style={{ background: 'var(--bg-input)' }}>
+              <span className="text-xl flex-shrink-0">{a.icon}</span>
+              <span className="font-medium text-sm" style={{ color: 'var(--text-hi)' }}>{a.label}</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} className="w-full mt-3 py-3 rounded-xl font-semibold text-sm" style={{ background: 'var(--bg-input)', color: 'var(--text-lo)' }}>
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /* ── DeviceDetail ── */
 interface DeviceDetailProps {
@@ -425,10 +532,12 @@ interface ListItemProps {
   pos?: TraccarPosition;
   isSelected: boolean;
   clientName: string;
+  vehicleType?: string;
   onSelect: () => void;
+  onMenu: () => void;
 }
 
-function DeviceListItem({ device, pos, isSelected, clientName, onSelect }: ListItemProps) {
+function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, onSelect, onMenu }: ListItemProps) {
   const status = getStatus(device, pos);
   const speed = pos ? knotsToKmh(pos.speed) : 0;
   const isOffline = status === 'offline' || status === 'expirado';
@@ -442,14 +551,9 @@ function DeviceListItem({ device, pos, isSelected, clientName, onSelect }: ListI
         {/* Avatar column */}
         <div className="flex flex-col items-center flex-shrink-0" style={{ width: '52px' }}>
           <div className="relative">
-            <div className="w-11 h-11 rounded-full flex items-center justify-center"
+            <div className="w-11 h-11 rounded-full flex items-center justify-center text-2xl"
               style={{ background: isSelected ? 'rgba(0,122,255,0.2)' : S_BG[status] }}>
-              <svg width="24" height="24" viewBox="0 0 48 48" fill="none">
-                <path d="M10 30L12 22H36L38 30H10Z" fill={isSelected ? '#007AFF' : S_COLOR[status]}/>
-                <path d="M12 22L14.5 14H33.5L36 22" fill={isSelected ? '#007AFF' : S_COLOR[status]} opacity="0.55"/>
-                <circle cx="17" cy="32" r="3.5" fill={isSelected ? '#007AFF' : S_COLOR[status]}/>
-                <circle cx="31" cy="32" r="3.5" fill={isSelected ? '#007AFF' : S_COLOR[status]}/>
-              </svg>
+              {VEHICLE_TYPES.find(v => v.type === (vehicleType || 'car'))?.emoji ?? '🚗'}
             </div>
             {/* Signal dot */}
             <div className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full"
@@ -477,9 +581,9 @@ function DeviceListItem({ device, pos, isSelected, clientName, onSelect }: ListI
         </div>
 
         {/* Three-dots */}
-        <button onClick={e => { e.stopPropagation(); onSelect(); }}
+        <button onClick={e => { e.stopPropagation(); onMenu(); }}
           className="w-7 h-7 flex-shrink-0 flex items-center justify-center"
-          style={{ background: 'transparent', opacity: 0.4 }}>
+          style={{ background: 'transparent', opacity: 0.6 }}>
           <svg width="4" height="18" viewBox="0 0 4 18" fill="var(--text-lo)">
             <circle cx="2" cy="2" r="2"/><circle cx="2" cy="9" r="2"/><circle cx="2" cy="16" r="2"/>
           </svg>
@@ -506,6 +610,9 @@ export default function DashboardPage() {
   const [centerTrigger, setCenterTrigger] = useState(0);
   const [panelMinimized, setPanelMinimized] = useState(false);
   const [desktopPanelCollapsed, setDesktopPanelCollapsed] = useState(false);
+  const [vehiclePrefs, setVehiclePrefs] = useState<Record<number, string>>({});
+  const [menuDeviceId, setMenuDeviceId] = useState<number | null>(null);
+  const [infoDeviceId, setInfoDeviceId] = useState<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -523,6 +630,16 @@ export default function DashboardPage() {
       }).catch(() => {});
     }
   }, [asUser]);
+
+  useEffect(() => {
+    fetch('/api/devices/prefs').then(r => r.json()).then((data: Record<string, { vehicleType: string }>) => {
+      if (data && typeof data === 'object') {
+        const mapped: Record<number, string> = {};
+        for (const [id, pref] of Object.entries(data)) mapped[Number(id)] = pref.vehicleType;
+        setVehiclePrefs(mapped);
+      }
+    }).catch(() => {});
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -712,7 +829,9 @@ export default function DashboardPage() {
             ) : filteredDevices.map(device => (
               <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
                 isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
-                onSelect={() => { const nid = selectedId === device.id ? null : device.id; setSelectedId(nid); if (nid) setDesktopPanelCollapsed(false); }} />
+                vehicleType={vehiclePrefs[device.id]}
+                onSelect={() => { const nid = selectedId === device.id ? null : device.id; setSelectedId(nid); if (nid) setDesktopPanelCollapsed(false); }}
+                onMenu={() => setMenuDeviceId(device.id)} />
             ))}
           </div>
         </div>
@@ -726,6 +845,7 @@ export default function DashboardPage() {
             onDeviceSelect={(id) => selectDevice(id)}
             visible={mobileView === 'mapa'}
             centerTrigger={centerTrigger}
+            vehiclePrefs={vehiclePrefs}
           />
 
           {/* Mobile — barra minimizada */}
@@ -857,11 +977,32 @@ export default function DashboardPage() {
             ) : filteredDevices.map(device => (
               <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
                 isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
-                onSelect={() => selectDevice(device.id)} />
+                vehicleType={vehiclePrefs[device.id]}
+                onSelect={() => selectDevice(device.id)}
+                onMenu={() => setMenuDeviceId(device.id)} />
             ))}
           </div>
         </div>
       </div>
+
+      {menuDeviceId !== null && (() => {
+        const md = devices.find(d => d.id === menuDeviceId);
+        return md ? (
+          <ActionSheet device={md} onClose={() => setMenuDeviceId(null)}
+            onSelect={() => { selectDevice(md.id); setMenuDeviceId(null); }}
+            onInfo={() => { setInfoDeviceId(md.id); setMenuDeviceId(null); }} />
+        ) : null;
+      })()}
+
+      {infoDeviceId !== null && (() => {
+        const id = devices.find(d => d.id === infoDeviceId);
+        return id ? (
+          <DeviceInfoSheet device={id} pos={posMap[infoDeviceId]}
+            currentType={vehiclePrefs[infoDeviceId] || 'car'}
+            onClose={() => setInfoDeviceId(null)}
+            onSave={(deviceId, vType) => setVehiclePrefs(prev => ({ ...prev, [deviceId]: vType }))} />
+        ) : null;
+      })()}
 
       <BottomNav />
     </div>
