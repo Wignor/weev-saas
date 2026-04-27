@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
+import ContratoModal from '@/components/ContratoModal';
+import FaturaModal from '@/components/FaturaModal';
 
 interface TUser { id: number; name: string; email: string; administrator: boolean; }
 interface TDevice { id: number; name: string; uniqueId: string; status: string; }
@@ -33,6 +35,8 @@ export default function GestaoPage() {
   const [renamingDeviceId, setRenamingDeviceId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [licenses, setLicenses] = useState<Record<string, { expiresAt: string; daysLeft: number; status: string }>>({});
+  const [contratoModalUser, setContratoModalUser] = useState<TUser | null>(null);
+  const [faturaModalUser, setFaturaModalUser] = useState<TUser | null>(null);
 
   useEffect(() => {
     try {
@@ -407,6 +411,24 @@ export default function GestaoPage() {
 
                     {selectedUser?.id === user.id && (
                       <div className="px-4 py-4" style={{ background: 'var(--bg-page)', borderBottom: '1px solid var(--bg-border)' }}>
+                        {/* Contrato + Faturas buttons */}
+                        <div className="flex gap-2 mb-4">
+                          <button
+                            onClick={() => setContratoModalUser(user)}
+                            className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5"
+                            style={{ background: 'rgba(0,122,255,0.1)', color: '#007AFF', border: '1px solid rgba(0,122,255,0.2)' }}
+                          >
+                            📄 Contrato
+                          </button>
+                          <button
+                            onClick={() => setFaturaModalUser(user)}
+                            className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5"
+                            style={{ background: 'rgba(52,199,89,0.1)', color: '#34C759', border: '1px solid rgba(52,199,89,0.2)' }}
+                          >
+                            💰 Faturas
+                          </button>
+                        </div>
+
                         {loadingDevices ? (
                           <div className="flex justify-center py-4">
                             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -752,6 +774,14 @@ export default function GestaoPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {contratoModalUser && (
+        <ContratoModal user={contratoModalUser} onClose={() => setContratoModalUser(null)} />
+      )}
+
+      {faturaModalUser && (
+        <FaturaModal user={faturaModalUser} onClose={() => setFaturaModalUser(null)} />
       )}
 
       <BottomNav />

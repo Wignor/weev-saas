@@ -7,8 +7,9 @@ export function middleware(request: NextRequest) {
 
   const isLoginPage = pathname === '/login';
   const isApiRoute = pathname.startsWith('/api');
+  const isPublicPage = pathname.startsWith('/contrato');
 
-  if (isApiRoute) return NextResponse.next();
+  if (isApiRoute || isPublicPage) return NextResponse.next();
 
   if (!session && !isLoginPage) {
     return NextResponse.redirect(new URL('/login', request.url));
