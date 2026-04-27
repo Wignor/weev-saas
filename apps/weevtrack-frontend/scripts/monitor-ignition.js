@@ -20,6 +20,7 @@ const DEFAULT_PREFS = {
   ignitionOn: true, ignitionOff: true, moving: false,
   overspeed: false, speedLimit: 100,
   parking: false, lowBattery: false, sos: true, collision: true,
+  geofenceExit: true,
   notifSound: true, notifVibrate: true,
 };
 
@@ -91,6 +92,8 @@ function logAlert(deviceId, deviceName, type, title, body, userIds) {
     }
     if (!Array.isArray(log)) log = [];
     log.unshift(entry);
+    const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
+    log = log.filter(e => new Date(e.timestamp).getTime() > sixtyDaysAgo);
     writeJSON(ALERTS_LOG_FILE, log.slice(0, 1000));
   } catch { /**/ }
 }
@@ -169,7 +172,7 @@ async function getRecentEvents(headers, fromTime) {
   try {
     const from = new Date(fromTime).toISOString();
     const to = new Date().toISOString();
-    const url = `${TRACCAR_URL}/api/reports/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&type=alarm`;
+    const url = `${TRACCAR_URL}/api/reports/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&type=alarm&type=geofenceExit`;
     const res = await fetch(url, { headers });
     if (!res.ok) return [];
     return await res.json();
@@ -326,6 +329,10 @@ async function check() {
       if (['vibration', 'hardBraking', 'hardAcceleration', 'hardCornering'].includes(alarm)) {
         await broadcastPush(evSubs, 'collision', '💥 Possível colisão detectada',
           `${evDevice.name} — impacto ou vibração forte (${alarm})`, `/dashboard`, evMeta);
+      }
+      if (ev.type === 'geofenceExit') {
+        await broadcastPush(evSubs, 'geofenceExit', '🚧 Cerca virtual — Saída detectada!',
+          `${evDevice.name} — saiu da área configurada`, `/dashboard`, evMeta);
       }
     }
 

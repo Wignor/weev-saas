@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import dynamic from 'next/dynamic';
 import BottomNav from '@/components/BottomNav';
 import PushNotificationSetup from '@/components/PushNotificationSetup';
+import GeofenceModal from '@/components/GeofenceModal';
 import { TraccarDevice, TraccarPosition, knotsToKmh } from '@/lib/traccar';
 
 const VehicleMap = dynamic(() => import('@/components/Map'), {
@@ -104,13 +105,14 @@ const NOTIF_ITEMS = [
   { key: 'lowBattery',  icon: '🔋', label: 'Bateria do aparelho',    desc: 'Bateria interna do rastreador está fraca' },
   { key: 'sos',         icon: '🆘', label: 'Botão de pânico (SOS)',  desc: 'Alerta quando o botão SOS for acionado' },
   { key: 'collision',   icon: '💥', label: 'Colisão / vibração',     desc: 'Impacto ou vibração forte detectado' },
+  { key: 'geofenceExit', icon: '🚧', label: 'Cerca virtual',          desc: 'Notificar quando o veículo sair da área configurada' },
 ] as const;
 
-type BoolPrefKey = 'ignitionOn' | 'ignitionOff' | 'moving' | 'overspeed' | 'parking' | 'lowBattery' | 'sos' | 'collision' | 'notifSound' | 'notifVibrate';
+type BoolPrefKey = 'ignitionOn' | 'ignitionOff' | 'moving' | 'overspeed' | 'parking' | 'lowBattery' | 'sos' | 'collision' | 'geofenceExit' | 'notifSound' | 'notifVibrate';
 type NotifPrefs = Record<BoolPrefKey, boolean> & { speedLimit: number };
 const DEFAULT_PREFS: NotifPrefs = {
   ignitionOn: true, ignitionOff: true, moving: false, overspeed: false,
-  parking: false, lowBattery: false, sos: true, collision: true, speedLimit: 100,
+  parking: false, lowBattery: false, sos: true, collision: true, geofenceExit: true, speedLimit: 100,
   notifSound: true, notifVibrate: true,
 };
 
@@ -237,12 +239,14 @@ interface DeviceDetailProps {
   onClose: () => void;
   onHistory: () => void;
   onCenter?: () => void;
+  onGeofence?: () => void;
   clientName?: string;
   isAdmin?: boolean;
   variant?: 'sheet' | 'panel';
+  licenseInfo?: { daysLeft: number; status: string };
 }
 
-function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, isAdmin, variant = 'sheet' }: DeviceDetailProps) {
+function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, clientName, isAdmin, variant = 'sheet', licenseInfo }: DeviceDetailProps) {
   const [cmdLoading, setCmdLoading] = useState<string | null>(null);
   const [cmdMsg, setCmdMsg] = useState('');
   const [renaming, setRenaming] = useState(false);
@@ -552,6 +556,17 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
           </svg>
           <span className="font-medium" style={{ color: '#34C759', fontSize: '10px' }}>Notificações</span>
         </button>
+        {onGeofence && (
+          <button onClick={onGeofence}
+            className="flex flex-col items-center gap-1 rounded-xl py-2 flex-shrink-0"
+            style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)', minWidth: '68px' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+              <circle cx="12" cy="9" r="3"/>
+            </svg>
+            <span className="font-medium" style={{ color: '#FF3B30', fontSize: '10px' }}>Cerca</span>
+          </button>
+        )}
       </div>
 
       {/* Address */}
@@ -582,9 +597,10 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, clientName, i
           { label: 'Ignição', value: ignition === true ? 'Ligada' : ignition === false ? `Desligada ${fmtDuration(statusSince)}` : '—', valueColor: ignition === true ? '#34C759' : ignition === false ? '#FF3B30' : undefined },
           { label: 'Odômetro', value: odometerKm },
           { label: 'Velocidade', value: `${speed} km/h`, valueColor: speed > 0 ? '#007AFF' : undefined },
-        ].map((item, i) => (
+          ...(licenseInfo ? [{ label: 'Licença', value: licenseInfo.status === 'expired' ? 'Expirada' : licenseInfo.daysLeft <= 7 ? `Expira em ${licenseInfo.daysLeft}d` : `${licenseInfo.daysLeft}d restantes`, valueColor: licenseInfo.status === 'expired' ? '#FF3B30' : licenseInfo.daysLeft <= 7 ? '#FF9500' : '#34C759' }] : []),
+        ].map((item, i, arr) => (
           <div key={item.label} className="flex items-center justify-between px-3 py-2"
-            style={{ background: i % 2 === 0 ? 'var(--bg-input)' : 'transparent', borderBottom: i < 5 ? '1px solid var(--bg-border)' : 'none' }}>
+            style={{ background: i % 2 === 0 ? 'var(--bg-input)' : 'transparent', borderBottom: i < arr.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
             <span className="text-xs" style={{ color: 'var(--text-lo)' }}>{item.label}</span>
             <span className="text-xs font-semibold" style={{ color: item.valueColor || 'var(--text-mid)' }}>{item.value}</span>
           </div>
@@ -693,6 +709,7 @@ export default function DashboardPage() {
   const [menuDeviceId, setMenuDeviceId] = useState<number | null>(null);
   const [infoDeviceId, setInfoDeviceId] = useState<number | null>(null);
   const [licenses, setLicenses] = useState<Record<string, { daysLeft: number; status: string }>>({});
+  const [geofenceDeviceId, setGeofenceDeviceId] = useState<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -987,7 +1004,9 @@ export default function DashboardPage() {
                 onClose={closeDetailMobile}
                 onHistory={() => { window.location.href = `/historico?device=${selectedId}`; }}
                 onCenter={() => setCenterTrigger(t => t + 1)}
+                onGeofence={() => setGeofenceDeviceId(selectedId)}
                 clientName={assignments[selectedId]} isAdmin={user.administrator}
+                licenseInfo={licenses[String(selectedId)]}
                 variant="sheet"
               />
             </div>
@@ -1022,7 +1041,10 @@ export default function DashboardPage() {
               onClose={() => setDesktopPanelCollapsed(true)}
               onHistory={() => { window.location.href = `/historico?device=${selectedId}`; }}
               onCenter={() => setCenterTrigger(t => t + 1)}
-              clientName={assignments[selectedId]} isAdmin={user.administrator} variant="panel" />
+              onGeofence={() => setGeofenceDeviceId(selectedId)}
+              clientName={assignments[selectedId]} isAdmin={user.administrator}
+              licenseInfo={licenses[String(selectedId)]}
+              variant="panel" />
           </div>
         )}
 
@@ -1094,6 +1116,19 @@ export default function DashboardPage() {
             currentPrefs={vehiclePrefs[infoDeviceId] || { vehicleType: 'car' }}
             onClose={() => setInfoDeviceId(null)}
             onSave={(deviceId, prefs) => setVehiclePrefs(prev => ({ ...prev, [deviceId]: prefs }))} />
+        ) : null;
+      })()}
+
+      {geofenceDeviceId !== null && (() => {
+        const gfDevice = devices.find(d => d.id === geofenceDeviceId);
+        return gfDevice ? (
+          <GeofenceModal
+            deviceId={geofenceDeviceId}
+            deviceName={gfDevice.name}
+            lat={posMap[geofenceDeviceId]?.latitude}
+            lon={posMap[geofenceDeviceId]?.longitude}
+            onClose={() => setGeofenceDeviceId(null)}
+          />
         ) : null;
       })()}
 

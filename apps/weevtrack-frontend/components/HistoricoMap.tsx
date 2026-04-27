@@ -4,11 +4,28 @@ import { useEffect, useRef } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
 import { TraccarPosition, knotsToKmh } from '@/lib/traccar';
 
-interface HistoricoMapProps {
-  route: TraccarPosition[];
+export interface Stop {
+  lat: number;
+  lon: number;
+  startTime: string;
+  endTime: string;
+  durationSeconds: number;
 }
 
-export default function HistoricoMap({ route }: HistoricoMapProps) {
+interface HistoricoMapProps {
+  route: TraccarPosition[];
+  stops?: Stop[];
+}
+
+function fmtStopDur(s: number): string {
+  if (s < 60) return `${Math.round(s)}s`;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}h${m}m`;
+  return `${m}m`;
+}
+
+export default function HistoricoMap({ route, stops = [] }: HistoricoMapProps) {
   const mapRef = useRef<LeafletMap | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<unknown[]>([]);
@@ -42,7 +59,6 @@ export default function HistoricoMap({ route }: HistoricoMapProps) {
     const L = require('leaflet');
     const map = mapRef.current;
 
-    // Limpar camadas anteriores
     layersRef.current.forEach((layer) => map.removeLayer(layer as Parameters<typeof map.removeLayer>[0]));
     layersRef.current = [];
 
@@ -53,61 +69,54 @@ export default function HistoricoMap({ route }: HistoricoMapProps) {
 
     const latlngs = validPoints.map((p) => [p.latitude, p.longitude] as [number, number]);
 
-    // Linha do percurso
-    const polyline = L.polyline(latlngs, {
-      color: '#007AFF',
-      weight: 4,
-      opacity: 0.8,
-    }).addTo(map);
+    // Route line
+    const polyline = L.polyline(latlngs, { color: '#007AFF', weight: 4, opacity: 0.85 }).addTo(map);
     layersRef.current.push(polyline);
 
-    // Marcador de início
+    // Start marker
     const startIcon = L.divIcon({
       html: `<div style="width:16px;height:16px;background:#34C759;border:3px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3)"></div>`,
-      className: '',
-      iconSize: [16, 16],
-      iconAnchor: [8, 8],
+      className: '', iconSize: [16, 16], iconAnchor: [8, 8],
     });
-
     const start = L.marker(latlngs[0], { icon: startIcon })
       .addTo(map)
       .bindPopup(`<b>Início</b><br>${new Date(validPoints[0].fixTime).toLocaleString('pt-BR')}`);
     layersRef.current.push(start);
 
-    // Marcador de fim
+    // End marker
     const endIcon = L.divIcon({
       html: `<div style="width:16px;height:16px;background:#FF3B30;border:3px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3)"></div>`,
-      className: '',
-      iconSize: [16, 16],
-      iconAnchor: [8, 8],
+      className: '', iconSize: [16, 16], iconAnchor: [8, 8],
     });
-
     const last = validPoints[validPoints.length - 1];
     const end = L.marker(latlngs[latlngs.length - 1], { icon: endIcon })
       .addTo(map)
       .bindPopup(`<b>Fim</b><br>${new Date(last.fixTime).toLocaleString('pt-BR')}<br>${knotsToKmh(last.speed)} km/h`);
     layersRef.current.push(end);
 
-    // Ajustar zoom
+    // Stop markers
+    stops.forEach((stop, i) => {
+      const stopIcon = L.divIcon({
+        html: `<div style="width:22px;height:22px;background:#FF9500;border:2.5px solid white;border-radius:5px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 5px rgba(0,0,0,0.35);font-size:11px;font-weight:800;color:white;font-family:sans-serif">P</div>`,
+        className: '', iconSize: [22, 22], iconAnchor: [11, 11],
+      });
+      const stopMarker = L.marker([stop.lat, stop.lon], { icon: stopIcon })
+        .addTo(map)
+        .bindPopup(
+          `<b>Parada ${i + 1}</b><br>` +
+          `⏱ Duração: <b>${fmtStopDur(stop.durationSeconds)}</b><br>` +
+          `De: ${new Date(stop.startTime).toLocaleString('pt-BR')}<br>` +
+          `Até: ${new Date(stop.endTime).toLocaleString('pt-BR')}`
+        );
+      layersRef.current.push(stopMarker);
+    });
+
     map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
-  }, [route]);
+  }, [route, stops]);
 
   return (
     <div className="flex-1 relative">
       <div ref={containerRef} className="w-full h-full" style={{ minHeight: '400px' }} />
-      {route.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="bg-white/90 rounded-2xl shadow-sm border border-border px-8 py-6 text-center">
-            <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center mx-auto mb-3">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#808080" strokeWidth="1.5">
-                <path d="M3 12h18M12 3l9 9-9 9"/>
-              </svg>
-            </div>
-            <p className="text-sm font-medium text-dark">Selecione um dispositivo e período</p>
-            <p className="text-xs text-muted mt-1">O percurso aparecerá aqui</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

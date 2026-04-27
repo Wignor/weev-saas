@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import DesktopNav from '@/components/DesktopNav';
 import { TraccarDevice, TraccarPosition, knotsToKmh } from '@/lib/traccar';
+import type { Stop } from '@/components/HistoricoMap';
 
 const HistoricoMap = dynamic(() => import('@/components/HistoricoMap'), {
   ssr: false,
@@ -21,6 +22,36 @@ function todayRange() {
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
   return { from: start.toISOString().slice(0, 16), to: now.toISOString().slice(0, 16) };
+}
+
+function detectStops(positions: TraccarPosition[]): Stop[] {
+  const stops: Stop[] = [];
+  const MIN_STOP_SEC = 60;
+  let stopStart: number | null = null;
+  for (let i = 0; i < positions.length; i++) {
+    const moving = knotsToKmh(positions[i].speed) >= 3;
+    if (!moving) {
+      if (stopStart === null) stopStart = i;
+    } else {
+      if (stopStart !== null) {
+        const dur = (new Date(positions[i - 1].fixTime).getTime() - new Date(positions[stopStart].fixTime).getTime()) / 1000;
+        if (dur >= MIN_STOP_SEC) stops.push({ lat: positions[stopStart].latitude, lon: positions[stopStart].longitude, startTime: positions[stopStart].fixTime, endTime: positions[i - 1].fixTime, durationSeconds: dur });
+        stopStart = null;
+      }
+    }
+  }
+  if (stopStart !== null && positions.length > 0) {
+    const dur = (new Date(positions[positions.length - 1].fixTime).getTime() - new Date(positions[stopStart].fixTime).getTime()) / 1000;
+    if (dur >= MIN_STOP_SEC) stops.push({ lat: positions[stopStart].latitude, lon: positions[stopStart].longitude, startTime: positions[stopStart].fixTime, endTime: positions[positions.length - 1].fixTime, durationSeconds: dur });
+  }
+  return stops;
+}
+
+function fmtDur(s: number): string {
+  if (s < 60) return `${Math.round(s)}s`;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}h${m}m` : `${m}m`;
 }
 
 function minDate90() {
@@ -103,6 +134,8 @@ function HistoricoContent() {
 
   const maxSpeed = route.length ? Math.max(...route.map((p) => knotsToKmh(p.speed))) : 0;
   const distanceKm = route.length > 1 ? ((route[route.length - 1].attributes?.totalDistance as number ?? 0) / 1000) : 0;
+  const stops = route.length ? detectStops(route) : [];
+  const totalParkSec = stops.reduce((sum, s) => sum + s.durationSeconds, 0);
 
   return (
     <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
@@ -183,11 +216,12 @@ function HistoricoContent() {
       {/* Resultado */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {searched && !loading && route.length > 0 && (
-          <div className="flex-shrink-0 grid grid-cols-3 gap-3 p-4" style={{ borderBottom: '1px solid var(--bg-border)' }}>
+          <div className="flex-shrink-0 grid grid-cols-4 gap-2 p-3" style={{ borderBottom: '1px solid var(--bg-border)' }}>
             {[
               { label: 'Pontos', value: String(route.length), icon: '📍' },
               { label: 'Vel. máx.', value: `${maxSpeed} km/h`, icon: '⚡' },
               { label: 'Distância', value: distanceKm > 0 ? `${distanceKm.toFixed(1)} km` : '—', icon: '🛣️' },
+              { label: 'Paradas', value: stops.length > 0 ? `${stops.length} · ${fmtDur(totalParkSec)}` : '0', icon: '🅿️' },
             ].map((stat) => (
               <div key={stat.label} className="rounded-xl p-3 text-center" style={{ background: 'var(--bg-card)' }}>
                 <p className="text-lg">{stat.icon}</p>
@@ -199,7 +233,7 @@ function HistoricoContent() {
         )}
 
         {showMap && route.length > 0 ? (
-          <HistoricoMap route={route} />
+          <HistoricoMap route={route} stops={stops} />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pb-20">
             {searched && !loading && route.length === 0 ? (
