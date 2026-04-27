@@ -23,7 +23,13 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Credenciais inválidas'); return; }
-      router.push('/dashboard');
+      if (data.administrator) {
+        router.push('/gestao');
+      } else if (data.role === 'distribuidor' || data.role === 'distribuidor_geral') {
+        router.push('/distribuidor');
+      } else {
+        router.push('/dashboard');
+      }
     } catch {
       setError('Erro de conexão. Tente novamente.');
     } finally {

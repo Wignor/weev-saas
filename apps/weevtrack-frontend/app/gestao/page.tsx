@@ -48,6 +48,13 @@ export default function GestaoPage() {
   const [faturaModalUser, setFaturaModalUser] = useState<TUser | null>(null);
   const [showConfig, setShowConfig] = useState(false);
   const [showUsersModal, setShowUsersModal] = useState(false);
+  const [distMap, setDistMap] = useState<Record<string, number[]>>({});
+
+  useEffect(() => {
+    fetch('/api/admin/distribuidor').then(r => r.json()).then(d => {
+      if (d && typeof d === 'object' && !d.error) setDistMap(d);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     try {
@@ -481,6 +488,61 @@ export default function GestaoPage() {
                             ))}
                           </div>
                         </div>
+
+                        {/* Distribuidor responsável */}
+                        {(() => {
+                          const distributors = users.filter(u => u.role === 'distribuidor' || u.role === 'distribuidor_geral');
+                          const currentDistId = Object.entries(distMap).find(([, ids]) => ids.includes(user.id))?.[0];
+                          const currentDist = users.find(u => String(u.id) === currentDistId);
+                          if (distributors.length === 0) return null;
+                          return (
+                            <div className="mb-4 p-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+                              <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-2">Distribuidor responsável</p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <button
+                                  onClick={async () => {
+                                    await fetch('/api/admin/distribuidor', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId: user.id }) });
+                                    setDistMap(prev => {
+                                      const next = { ...prev };
+                                      for (const k of Object.keys(next)) next[k] = next[k].filter(id => id !== user.id);
+                                      return next;
+                                    });
+                                    flash('✅ Desvinculado');
+                                  }}
+                                  className="text-xs px-2.5 py-1.5 rounded-lg font-medium"
+                                  style={{ background: currentDistId ? 'rgba(107,114,128,0.12)' : 'var(--bg-page)', color: currentDistId ? 'var(--text-lo)' : 'var(--text-lo)', border: '1px solid var(--bg-border)' }}>
+                                  Nenhum
+                                </button>
+                                {distributors.map(dist => {
+                                  const isActive = String(dist.id) === currentDistId;
+                                  return (
+                                    <button key={dist.id}
+                                      onClick={async () => {
+                                        await fetch('/api/admin/distribuidor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ distributorId: dist.id, clientId: user.id }) });
+                                        setDistMap(prev => {
+                                          const next = { ...prev };
+                                          for (const k of Object.keys(next)) next[k] = next[k].filter(id => id !== user.id);
+                                          if (!next[String(dist.id)]) next[String(dist.id)] = [];
+                                          next[String(dist.id)].push(user.id);
+                                          return next;
+                                        });
+                                        flash(`✅ Atribuído a ${dist.name.split(' ')[0]}`);
+                                      }}
+                                      className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
+                                      style={{ background: isActive ? 'rgba(139,92,246,0.15)' : 'var(--bg-page)', color: isActive ? '#8B5CF6' : 'var(--text-lo)', border: `1px solid ${isActive ? 'rgba(139,92,246,0.4)' : 'var(--bg-border)'}` }}>
+                                      {dist.name.split(' ')[0]}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {currentDist && (
+                                <p className="text-xs mt-2" style={{ color: '#8B5CF6' }}>
+                                  Gerenciado por: <strong>{currentDist.name}</strong>
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Contrato + Faturas buttons */}
                         <div className="flex gap-2 mb-4">
