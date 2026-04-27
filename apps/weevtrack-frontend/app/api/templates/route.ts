@@ -28,9 +28,21 @@ async function checkAuth() {
 
 export async function GET() {
   if (!await checkAuth()) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-  const base = CONTRACT_TEMPLATES.map(t => ({ ...t, isCustom: false }));
-  const custom = readCustomTemplates().map((t: any) => ({ ...t, isCustom: true }));
-  return NextResponse.json([...base, ...custom]);
+  const stored = readCustomTemplates();
+  const storedIds = new Set(stored.map((t: any) => t.id));
+
+  // Default templates not overridden by stored versions
+  const base = CONTRACT_TEMPLATES
+    .filter(t => !storedIds.has(t.id))
+    .map(t => ({ ...t, isCustom: false }));
+
+  // Stored templates — flag whether they override a default or are truly custom
+  const storedMapped = stored.map((t: any) => ({
+    ...t,
+    isCustom: !CONTRACT_TEMPLATES.some(d => d.id === t.id),
+  }));
+
+  return NextResponse.json([...base, ...storedMapped]);
 }
 
 export async function POST(req: NextRequest) {
@@ -52,10 +64,40 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(newTemplate);
 }
 
+export async function PATCH(req: NextRequest) {
+  if (!await checkAuth()) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+  const body = await req.json();
+  const { id, name, description, installationValue, monthlyValue } = body;
+  if (!id || !name) return NextResponse.json({ error: 'ID e nome obrigatórios' }, { status: 400 });
+
+  const custom = readCustomTemplates();
+  const isDefaultOverride = CONTRACT_TEMPLATES.some(t => t.id === id);
+  const updated = {
+    id,
+    name,
+    description: description || '',
+    installationValue: Number(installationValue) || 0,
+    monthlyValue: Number(monthlyValue) || 0,
+    isCustom: !isDefaultOverride,
+  };
+
+  const idx = custom.findIndex((t: any) => t.id === id);
+  if (idx >= 0) {
+    custom[idx] = updated;
+  } else {
+    custom.push(updated);
+  }
+  writeCustomTemplates(custom);
+  return NextResponse.json(updated);
+}
+
 export async function DELETE(req: NextRequest) {
   if (!await checkAuth()) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: 'ID obrigatório' }, { status: 400 });
+
+  const isDefault = CONTRACT_TEMPLATES.some(t => t.id === id);
+  if (isDefault) return NextResponse.json({ error: 'Não é possível excluir um modelo padrão' }, { status: 400 });
 
   const custom = readCustomTemplates();
   writeCustomTemplates(custom.filter((t: any) => t.id !== id));
