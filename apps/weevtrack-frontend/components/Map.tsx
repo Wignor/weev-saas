@@ -17,7 +17,7 @@ interface MapProps {
 function getMarkerColor(device: TraccarDevice, position?: TraccarPosition): string {
   if (device.status === 'offline' || device.status === 'unknown') return '#6B7280';
   if (position && knotsToKmh(position.speed) > 2) return '#34C759';
-  return '#FF9500';
+  return '#007AFF';
 }
 
 function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'car'): string {

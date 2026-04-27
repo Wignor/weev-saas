@@ -77,12 +77,22 @@ function toggleTheme() {
 }
 
 const S_COLOR: Record<DeviceStatus, string> = {
-  movendo: '#34C759', parado: '#FF9500', offline: '#6B7280', expirado: '#FF3B30',
+  movendo: '#34C759', parado: '#007AFF', offline: '#6B7280', expirado: '#FF3B30',
 };
 const S_BG: Record<DeviceStatus, string> = {
-  movendo: 'rgba(52,199,89,0.15)', parado: 'rgba(255,149,0,0.15)',
+  movendo: 'rgba(52,199,89,0.15)', parado: 'rgba(0,122,255,0.15)',
   offline: 'rgba(107,114,128,0.15)', expirado: 'rgba(255,59,48,0.15)',
 };
+
+function detectVehicleType(name: string): string {
+  const n = name.toLowerCase();
+  if (/moto|scooter|cg\s|titan|bros|fazer|factor|biz|pop\s|nxr|xre|twister|lead|pcx|burgman/.test(n)) return 'motorcycle';
+  if (/caminhao|caminhão|truck|carreta|bitruck|scania|volvo fh|iveco|daf\s/.test(n)) return 'truck';
+  if (/onibus|ônibus|\bbus\b|micro.?onibus|micro.?ônibus|sprinter|kombi/.test(n)) return 'bus';
+  if (/pickup|caminhonete|hilux|ranger|\bs10\b|l200|triton|frontier|amarok|f-250|f250|\btoro\b|oroch/.test(n)) return 'pickup';
+  if (/barco|lancha|embarcacao|embarcação|ferry|bote/.test(n)) return 'boat';
+  return 'car';
+}
 const S_LABEL: Record<DeviceStatus, string> = {
   movendo: 'Movendo', parado: 'Estático', offline: 'Offline', expirado: 'Expirado',
 };
@@ -648,7 +658,7 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, onSe
           <div className="relative">
             <div className="w-11 h-11 rounded-full flex items-center justify-center text-2xl"
               style={{ background: isSelected ? 'rgba(0,122,255,0.2)' : S_BG[status] }}>
-              {VEHICLE_TYPES.find(v => v.type === (vehicleType || 'car'))?.emoji ?? '🚗'}
+              {VEHICLE_TYPES.find(v => v.type === (vehicleType || detectVehicleType(device.name)))?.emoji ?? '🚗'}
             </div>
             {/* Signal dot */}
             <div className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full"
@@ -710,6 +720,8 @@ export default function DashboardPage() {
   const [infoDeviceId, setInfoDeviceId] = useState<number | null>(null);
   const [licenses, setLicenses] = useState<Record<string, { daysLeft: number; status: string }>>({});
   const [geofenceDeviceId, setGeofenceDeviceId] = useState<number | null>(null);
+  const [showUsersModal, setShowUsersModal] = useState(false);
+  const [usersList, setUsersList] = useState<{ id: number; name: string; email: string; role: string }[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -727,6 +739,14 @@ export default function DashboardPage() {
       }).catch(() => {});
     }
   }, [asUser]);
+
+  useEffect(() => {
+    if (user.administrator && !asUser) {
+      fetch('/api/admin/users').then(r => r.json()).then(data => {
+        if (Array.isArray(data)) setUsersList(data.filter((u: { administrator?: boolean }) => !u.administrator));
+      }).catch(() => {});
+    }
+  }, [user.administrator, asUser]);
 
   useEffect(() => {
     fetch('/api/devices/prefs').then(r => r.json()).then((data: Record<string, DevicePref>) => {
@@ -763,7 +783,7 @@ export default function DashboardPage() {
   const posMap = Object.fromEntries(positions.map((p) => [p.deviceId, p]));
   const selectedDevice = devices.find((d) => d.id === selectedId);
   const mapVehiclePrefs: Record<number, string> = Object.fromEntries(
-    Object.entries(vehiclePrefs).map(([k, v]) => [Number(k), v.vehicleType])
+    devices.map(d => [d.id, vehiclePrefs[d.id]?.vehicleType || detectVehicleType(d.name)])
   );
 
   function getEffectiveStatus(device: TraccarDevice, pos?: TraccarPosition): DeviceStatus {
@@ -839,13 +859,28 @@ export default function DashboardPage() {
             <a href="/dashboard" className="text-xs px-2.5 py-1 rounded-lg font-medium no-underline"
               style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}>✕ Sair</a>
           ) : (
-            <button onClick={toggleTheme} className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'var(--bg-border)' }} title="Alternar tema">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="5"/>
-                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-              </svg>
-            </button>
+            <>
+              {user.administrator && (
+                <button onClick={() => setShowUsersModal(true)}
+                  className="flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-semibold flex-shrink-0"
+                  style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF', border: '1px solid rgba(0,122,255,0.2)' }}
+                  title="Acessar conta de usuário">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                  Usuários
+                </button>
+              )}
+              <button onClick={toggleTheme} className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: 'var(--bg-border)' }} title="Alternar tema">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="5"/>
+                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+              </button>
+            </>
           )}
           {lastUpdate && (
             <span className="text-xs hidden md:block" style={{ color: 'var(--text-lo)' }}>
@@ -1131,6 +1166,55 @@ export default function DashboardPage() {
           />
         ) : null;
       })()}
+
+      {showUsersModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 3000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '16px', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowUsersModal(false); }}>
+          <div style={{ width: '100%', maxWidth: '400px', borderRadius: '20px', overflow: 'hidden', background: 'var(--bg-card)', maxHeight: '75vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--bg-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-hi)' }}>Acessar conta de usuário</span>
+              </div>
+              <button onClick={() => setShowUsersModal(false)}
+                style={{ width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-page)', border: 'none', cursor: 'pointer' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <p style={{ padding: '10px 20px 4px', fontSize: '12px', color: 'var(--text-lo)' }}>
+              Clique em um cliente para visualizar o painel como ele vê.
+            </p>
+            <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '8px' }}>
+              {usersList.length === 0 ? (
+                <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-lo)', padding: '32px' }}>Nenhum cliente cadastrado</p>
+              ) : usersList.map(u => (
+                <a key={u.id}
+                  href={`/dashboard?asUser=${u.id}&asUserName=${encodeURIComponent(u.name)}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderBottom: '1px solid var(--bg-border)', textDecoration: 'none' }}
+                  onClick={() => setShowUsersModal(false)}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(0,122,255,0.13)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#007AFF' }}>{u.name.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-hi)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-lo)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</p>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>
