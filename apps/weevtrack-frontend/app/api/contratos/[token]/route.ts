@@ -35,6 +35,17 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   return NextResponse.json({ ...safe, signed: contract.status === 'signed' });
 }
 
+export async function DELETE(_req: NextRequest, { params }: { params: { token: string } }) {
+  const cookieStore = await cookies();
+  const session = cookieStore.get('wt_session')?.value;
+  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+
+  const p = contractPath(params.token);
+  if (!fs.existsSync(p)) return NextResponse.json({ error: 'Contrato não encontrado' }, { status: 404 });
+  fs.unlinkSync(p);
+  return NextResponse.json({ ok: true });
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { token: string } }) {
   const { token } = params;
   const contract = readContract(token);

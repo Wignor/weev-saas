@@ -23,6 +23,7 @@ export default function ContratoModal({ user, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/contratos?userId=${user.id}`)
@@ -31,6 +32,16 @@ export default function ContratoModal({ user, onClose }: Props) {
       .catch(() => {})
       .finally(() => setLoadingContracts(false));
   }, [user.id]);
+
+  async function deleteContract(token: string) {
+    if (!confirm('Excluir este contrato? Esta ação não pode ser desfeita.')) return;
+    setDeletingId(token);
+    try {
+      const res = await fetch(`/api/contratos/${token}`, { method: 'DELETE' });
+      if (res.ok) setContracts(prev => prev.filter(c => c.token !== token));
+    } catch { /* */ }
+    setDeletingId(null);
+  }
 
   async function generate() {
     if (!templateId || !cpfCnpj) return;
@@ -134,6 +145,9 @@ export default function ContratoModal({ user, onClose }: Props) {
                         )}
                         <button onClick={() => { navigator.clipboard.writeText(`${APP_URL}/contrato/${c.token}`); }} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(0,122,255,0.1)', color: '#007AFF', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
                           Copiar link
+                        </button>
+                        <button onClick={() => deleteContract(c.token)} disabled={deletingId === c.token} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(255,59,48,0.1)', color: '#FF3B30', border: 'none', cursor: 'pointer', fontWeight: 600, opacity: deletingId === c.token ? 0.5 : 1 }}>
+                          🗑
                         </button>
                       </div>
                     </div>
