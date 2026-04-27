@@ -631,6 +631,52 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
   );
 }
 
+/* ── VehicleIcon SVG (side-view, professional) ── */
+function VehicleIcon({ type, color }: { type: string; color: string }) {
+  const s = { stroke: color, strokeWidth: '1.6', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' };
+  switch (type) {
+    case 'motorcycle': return (
+      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+        <circle cx="5" cy="16" r="3"/><circle cx="19" cy="16" r="3"/>
+        <path d="M5 16h3l2-6h4l3 6"/><path d="M10 10l2-4h3l2 4"/>
+        <path d="M14 10h4v3"/>
+      </svg>
+    );
+    case 'truck': return (
+      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+        <rect x="1" y="7" width="12" height="9" rx="1"/><path d="M13 9h5l3 4v4h-8V9z"/>
+        <circle cx="5" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>
+      </svg>
+    );
+    case 'bus': return (
+      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+        <rect x="2" y="5" width="20" height="12" rx="2"/>
+        <path d="M2 11h20"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="19" r="2"/>
+        <path d="M7 5v6M12 5v6M17 5v6"/>
+      </svg>
+    );
+    case 'pickup': return (
+      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+        <path d="M2 11h9V8l4-2h5l2 3v5H2v-3z"/>
+        <path d="M11 11h10"/><circle cx="6" cy="17" r="2"/><circle cx="18" cy="17" r="2"/>
+      </svg>
+    );
+    case 'boat': return (
+      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+        <path d="M3 17l3-8h12l3 8H3z"/><path d="M12 9V4M9 7l3-3 3 3"/>
+      </svg>
+    );
+    default: return ( // car
+      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
+        <path d="M4 11l2-5h12l2 5H4z"/>
+        <path d="M2 11h20v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-4z"/>
+        <circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>
+        <path d="M5 11V9M19 11V9"/>
+      </svg>
+    );
+  }
+}
+
 /* ── DeviceListItem ── */
 interface ListItemProps {
   device: TraccarDevice;
@@ -647,53 +693,59 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, onSe
   const speed = pos ? knotsToKmh(pos.speed) : 0;
   const isOffline = status === 'offline' || status === 'expirado';
   const offlineTag = isOffline ? timeOffline(device.lastUpdate) : null;
+  const effectiveType = vehicleType || detectVehicleType(device.name);
+  const iconColor = isOffline ? 'var(--text-lo)' : S_COLOR[status];
 
   return (
-    <div onClick={onSelect} className="w-full text-left px-4 py-3 transition-all cursor-pointer"
-      style={{ background: isSelected ? 'var(--bg-hover)' : 'transparent', borderBottom: '1px solid var(--bg-border)' }}>
-      <div className="flex items-center gap-3">
+    <div onClick={onSelect} style={{
+      display: 'flex', alignItems: 'center', gap: '12px',
+      padding: '10px 14px 10px 0',
+      background: isSelected ? 'var(--bg-hover)' : 'transparent',
+      borderBottom: '1px solid var(--bg-border)',
+      borderLeft: `3px solid ${S_COLOR[status]}`,
+      paddingLeft: '13px',
+      cursor: 'pointer',
+      transition: 'background 0.15s',
+    }}>
 
-        {/* Avatar column */}
-        <div className="flex flex-col items-center flex-shrink-0" style={{ width: '52px' }}>
-          <div className="relative">
-            <div className="w-11 h-11 rounded-full flex items-center justify-center text-2xl"
-              style={{ background: isSelected ? 'rgba(0,122,255,0.2)' : S_BG[status] }}>
-              {VEHICLE_TYPES.find(v => v.type === (vehicleType || detectVehicleType(device.name)))?.emoji ?? '🚗'}
-            </div>
-            {/* Signal dot */}
-            <div className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full"
-              style={{ background: S_COLOR[status], border: '2.5px solid var(--bg-page)' }} />
-          </div>
-          {offlineTag && (
-            <span className="mt-1 font-semibold text-center px-1.5 py-0.5 rounded"
-              style={{ background: S_BG[status], color: S_COLOR[status], fontSize: '9px', lineHeight: '1.2' }}>
-              {offlineTag}
-            </span>
-          )}
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-semibold text-sm truncate" style={{ color: 'var(--text-hi)' }}>{device.name}</span>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-              style={{ background: clientName ? 'rgba(255,149,0,0.15)' : S_BG[status], color: clientName ? '#FF9500' : S_COLOR[status] }}>
-              {clientName ? `👤 ${clientName}` : S_LABEL[status]}
-            </span>
-          </div>
-          <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--text-lo)' }}>{device.uniqueId.slice(-12)}</p>
-          {speed > 0 && <p className="text-xs mt-0.5" style={{ color: '#007AFF' }}>⚡ {speed} km/h</p>}
-        </div>
-
-        {/* Three-dots */}
-        <button onClick={e => { e.stopPropagation(); onMenu(); }}
-          className="w-7 h-7 flex-shrink-0 flex items-center justify-center"
-          style={{ background: 'transparent', opacity: 0.6 }}>
-          <svg width="4" height="18" viewBox="0 0 4 18" fill="var(--text-lo)">
-            <circle cx="2" cy="2" r="2"/><circle cx="2" cy="9" r="2"/><circle cx="2" cy="16" r="2"/>
-          </svg>
-        </button>
+      {/* Vehicle icon box */}
+      <div style={{
+        width: '42px', height: '42px', borderRadius: '10px',
+        background: 'var(--bg-input)',
+        border: '1px solid var(--bg-border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        <VehicleIcon type={effectiveType} color={iconColor} />
       </div>
+
+      {/* Info */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+          <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-hi)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {device.name}
+          </span>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: S_COLOR[status], flexShrink: 0 }}>
+            {S_LABEL[status]}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {offlineTag && <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-lo)' }}>{offlineTag}</span>}
+          {speed > 0 && <span style={{ fontSize: '11px', fontWeight: 600, color: S_COLOR[status] }}>{speed} km/h</span>}
+          {clientName && <span style={{ fontSize: '11px', color: 'var(--text-lo)' }}>• {clientName}</span>}
+          <span style={{ fontSize: '10px', color: 'var(--text-lo)', fontFamily: 'monospace', opacity: 0.7 }}>
+            {device.uniqueId.slice(-8)}
+          </span>
+        </div>
+      </div>
+
+      {/* Three-dots */}
+      <button onClick={e => { e.stopPropagation(); onMenu(); }}
+        style={{ width: '28px', height: '28px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', opacity: 0.5, padding: 0 }}>
+        <svg width="4" height="16" viewBox="0 0 4 16" fill="var(--text-lo)">
+          <circle cx="2" cy="2" r="1.5"/><circle cx="2" cy="8" r="1.5"/><circle cx="2" cy="14" r="1.5"/>
+        </svg>
+      </button>
     </div>
   );
 }
