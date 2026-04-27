@@ -7,7 +7,15 @@ import ContratoModal from '@/components/ContratoModal';
 import FaturaModal from '@/components/FaturaModal';
 import ConfigModal from '@/components/ConfigModal';
 
-interface TUser { id: number; name: string; email: string; administrator: boolean; }
+type UserRole = 'monitor' | 'usuario' | 'distribuidor' | 'distribuidor_geral';
+interface TUser { id: number; name: string; email: string; administrator: boolean; role: UserRole; }
+
+const ROLES: Record<UserRole, { label: string; color: string; bg: string; desc: string }> = {
+  monitor:           { label: 'Monitor',          color: '#6B7280', bg: 'rgba(107,114,128,0.15)', desc: 'Apenas visualiza, sem enviar comandos' },
+  usuario:           { label: 'Usuário',           color: '#007AFF', bg: 'rgba(0,122,255,0.12)',   desc: 'Uso completo com comandos de bloqueio' },
+  distribuidor:      { label: 'Distribuidor',      color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)',  desc: 'Revendedor com painel próprio limitado' },
+  distribuidor_geral:{ label: 'Dist. Geral',       color: '#F59E0B', bg: 'rgba(245,158,11,0.12)',  desc: 'Painel completo, gerencia revendedores' },
+};
 interface TDevice { id: number; name: string; uniqueId: string; status: string; }
 
 function toggleTheme() {
@@ -27,7 +35,7 @@ export default function GestaoPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showCreateDevice, setShowCreateDevice] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', phone: '', cpfCnpj: '' });
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', phone: '', cpfCnpj: '', role: 'usuario' as UserRole });
   const [newDevice, setNewDevice] = useState({ name: '', uniqueId: '', modelo: '', iccid: '', chip: '' });
   const [creating, setCreating] = useState(false);
   const [creatingDevice, setCreatingDevice] = useState(false);
@@ -105,7 +113,7 @@ export default function GestaoPage() {
       });
       if (res.ok) {
         flash('✅ Cliente criado com sucesso');
-        setNewUser({ name: '', email: '', password: '', phone: '', cpfCnpj: '' });
+        setNewUser({ name: '', email: '', password: '', phone: '', cpfCnpj: '', role: 'usuario' });
         setShowCreate(false);
         await loadData();
       } else {
@@ -368,8 +376,14 @@ export default function GestaoPage() {
                           {user.name.charAt(0).toUpperCase()}
                         </span>
                       </div>
-                      <button className="flex-1 text-left" onClick={() => selectUser(user)}>
-                        <p className="text-sm font-semibold t-text-hi">{user.name}</p>
+                      <button className="flex-1 text-left min-w-0" onClick={() => selectUser(user)}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold t-text-hi">{user.name}</p>
+                          <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
+                            style={{ background: ROLES[user.role]?.bg, color: ROLES[user.role]?.color }}>
+                            {ROLES[user.role]?.label || 'Usuário'}
+                          </span>
+                        </div>
                         <p className="text-xs t-text-lo">{user.email}</p>
                       </button>
                       <div className="flex items-center gap-2">
@@ -420,6 +434,35 @@ export default function GestaoPage() {
 
                     {selectedUser?.id === user.id && (
                       <div className="px-4 py-4" style={{ background: 'var(--bg-page)', borderBottom: '1px solid var(--bg-border)' }}>
+                        {/* Função / Role */}
+                        <div className="mb-4 p-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+                          <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-2">Função do usuário</p>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {(Object.entries(ROLES) as [UserRole, typeof ROLES[UserRole]][]).map(([key, cfg]) => (
+                              <button key={key}
+                                onClick={async () => {
+                                  const res = await fetch(`/api/admin/users/${user.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ role: key }),
+                                  });
+                                  if (res.ok) {
+                                    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role: key } : u));
+                                    flash(`✅ Função alterada para ${cfg.label}`);
+                                  }
+                                }}
+                                className="text-left px-2.5 py-2 rounded-lg transition-all"
+                                style={{
+                                  background: user.role === key ? cfg.bg : 'var(--bg-page)',
+                                  border: `1px solid ${user.role === key ? cfg.color + '50' : 'var(--bg-border)'}`,
+                                }}>
+                                <p className="text-xs font-semibold" style={{ color: user.role === key ? cfg.color : 'var(--text-hi)' }}>{cfg.label}</p>
+                                <p className="text-xs t-text-lo leading-tight" style={{ fontSize: 10 }}>{cfg.desc}</p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
                         {/* Contrato + Faturas buttons */}
                         <div className="flex gap-2 mb-4">
                           <button
@@ -691,6 +734,24 @@ export default function GestaoPage() {
                   />
                 </div>
               ))}
+
+              <div>
+                <label className="block text-xs font-medium t-text-lo mb-2">Função do usuário</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(Object.entries(ROLES) as [UserRole, typeof ROLES[UserRole]][]).map(([key, cfg]) => (
+                    <button key={key} type="button"
+                      onClick={() => setNewUser(prev => ({ ...prev, role: key }))}
+                      className="text-left px-3 py-2.5 rounded-xl transition-all"
+                      style={{
+                        background: newUser.role === key ? cfg.bg : 'var(--bg-page)',
+                        border: `1px solid ${newUser.role === key ? cfg.color + '60' : 'var(--bg-border)'}`,
+                      }}>
+                      <p className="text-xs font-bold" style={{ color: newUser.role === key ? cfg.color : 'var(--text-hi)' }}>{cfg.label}</p>
+                      <p style={{ fontSize: 10, color: 'var(--text-lo)', marginTop: 1 }}>{cfg.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <button
                 onClick={createUser}
                 disabled={creating || !newUser.name || !newUser.email || !newUser.password}
