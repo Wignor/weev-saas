@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
 import type { Contract } from '@/lib/contracts';
@@ -17,10 +18,18 @@ function readContract(token: string): Contract | null {
   } catch { return null; }
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { token: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { token: string } }) {
   const { token } = params;
   const contract = readContract(token);
   if (!contract) return NextResponse.json({ error: 'Contrato não encontrado' }, { status: 404 });
+
+  // ?full=1 retorna dados completos (assinatura + selfie) apenas para admins autenticados
+  if (req.nextUrl.searchParams.get('full') === '1') {
+    const cookieStore = await cookies();
+    const session = cookieStore.get('wt_session')?.value;
+    if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    return NextResponse.json({ ...contract, signed: contract.status === 'signed' });
+  }
 
   const { clientSignature, selfiePhoto, ...safe } = contract;
   return NextResponse.json({ ...safe, signed: contract.status === 'signed' });

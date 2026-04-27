@@ -123,10 +123,15 @@ export default function ContratoModal({ user, onClose }: Props) {
                         <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-hi)' }}>{c.templateName}</p>
                         <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-lo)' }}>{new Date(c.createdAt).toLocaleDateString('pt-BR')}</p>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, fontWeight: 700, background: c.status === 'signed' ? 'rgba(52,199,89,0.15)' : 'rgba(255,149,0,0.15)', color: c.status === 'signed' ? '#34C759' : '#FF9500' }}>
                           {c.status === 'signed' ? '✅ Assinado' : '⏳ Pendente'}
                         </span>
+                        {c.status === 'signed' && (
+                          <button onClick={() => window.open(`/gestao/contrato/${c.token}`, '_blank')} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(52,199,89,0.1)', color: '#34C759', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                            📄 Comprovante
+                          </button>
+                        )}
                         <button onClick={() => { navigator.clipboard.writeText(`${APP_URL}/contrato/${c.token}`); }} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(0,122,255,0.1)', color: '#007AFF', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
                           Copiar link
                         </button>
