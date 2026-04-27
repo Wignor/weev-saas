@@ -32,7 +32,7 @@ function getStatus(device: ApiDevice, position?: ApiPosition) {
 
 const statusMap = {
   movendo: { color: colors.success, label: 'Movendo' },
-  parado:  { color: colors.warning, label: 'Parado'  },
+  parado:  { color: colors.primary, label: 'Parado'  },
   offline: { color: colors.muted,   label: 'Offline' },
 };
 

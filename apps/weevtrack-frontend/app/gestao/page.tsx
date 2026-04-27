@@ -47,6 +47,7 @@ export default function GestaoPage() {
   const [contratoModalUser, setContratoModalUser] = useState<TUser | null>(null);
   const [faturaModalUser, setFaturaModalUser] = useState<TUser | null>(null);
   const [showConfig, setShowConfig] = useState(false);
+  const [showUsersModal, setShowUsersModal] = useState(false);
 
   useEffect(() => {
     try {
@@ -295,6 +296,17 @@ export default function GestaoPage() {
               <circle cx="12" cy="12" r="3"/>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
+          </button>
+          <button onClick={() => setShowUsersModal(true)}
+            className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold flex-shrink-0"
+            style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF', border: '1px solid rgba(0,122,255,0.2)' }}
+            title="Acessar conta de usuário">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            Usuários
           </button>
           <button
             onClick={() => activeTab === 'clientes' ? setShowCreate(true) : setShowCreateDevice(true)}
@@ -863,6 +875,69 @@ export default function GestaoPage() {
 
       {showConfig && (
         <ConfigModal onClose={() => setShowConfig(false)} />
+      )}
+
+      {showUsersModal && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowUsersModal(false); }}>
+          <div className="w-full max-w-sm rounded-2xl overflow-hidden"
+            style={{ background: 'var(--bg-card)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="flex items-center justify-between px-5 py-4"
+              style={{ borderBottom: '1px solid var(--bg-border)' }}>
+              <div className="flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                <h2 className="font-bold text-sm t-text-hi">Acessar conta de usuário</h2>
+              </div>
+              <button onClick={() => setShowUsersModal(false)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: 'var(--bg-page)' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <p className="px-5 pt-3 pb-1 text-xs t-text-lo">
+              Clique em um cliente para visualizar o painel como ele vê.
+            </p>
+            <div className="overflow-y-auto flex-1 py-2">
+              {users.length === 0 ? (
+                <p className="text-center text-xs t-text-lo py-8">Nenhum cliente cadastrado</p>
+              ) : (
+                users.map(u => (
+                  <a key={u.id}
+                    href={`/dashboard?asUser=${u.id}&asUserName=${encodeURIComponent(u.name)}`}
+                    className="flex items-center gap-3 px-5 py-3 no-underline transition-all"
+                    style={{ borderBottom: '1px solid var(--bg-border)' }}
+                    onClick={() => setShowUsersModal(false)}>
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'rgba(0,122,255,0.13)' }}>
+                      <span className="font-bold text-sm" style={{ color: '#007AFF' }}>
+                        {u.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold t-text-hi truncate">{u.name}</p>
+                      <p className="text-xs t-text-lo truncate">{u.email}</p>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0"
+                      style={{ background: ROLES[u.role]?.bg, color: ROLES[u.role]?.color }}>
+                      {ROLES[u.role]?.label || 'Usuário'}
+                    </span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </a>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       <BottomNav />

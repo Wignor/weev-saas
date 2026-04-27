@@ -24,7 +24,7 @@ export const LIVE_MAP_HTML = `<!DOCTYPE html>
 
   function getColor(status, speedKmh) {
     if (status === 'offline' || status === 'unknown') return '#808080';
-    return speedKmh > 2 ? '#34C759' : '#FF9500';
+    return speedKmh > 2 ? '#34C759' : '#007AFF';
   }
 
   function getVehicleType(name) {
