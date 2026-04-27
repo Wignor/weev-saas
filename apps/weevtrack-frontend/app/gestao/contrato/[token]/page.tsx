@@ -120,23 +120,40 @@ export default function ComprovantePage({ params }: { params: { token: string } 
               <div style={{ background: '#1a1a2e', color: 'white', padding: '7px 14px', borderRadius: '6px 6px 0 0', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                 Dados do Contratante
               </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, border: '1px solid #dde1e7', borderTop: 'none' }}>
-                <tbody>
-                  {[
-                    ['Nome', c.clientName, 'CPF / CNPJ', c.clientCpfCnpj || '—'],
-                    ['Telefone', c.clientPhone || '—', 'E-mail', c.clientEmail || '—'],
-                    ['Veículo', c.vehicle || '—', 'Placa', c.vehiclePlate || '—'],
-                    ['IMEI', c.deviceImei || '—', 'Valores', `Instalação: R$ ${c.installationValue.toFixed(2).replace('.', ',')} | Mensalidade: R$ ${c.monthlyValue.toFixed(2).replace('.', ',')}`],
-                  ].map(([k1, v1, k2, v2], i, arr) => (
-                    <tr key={i}>
-                      <td style={{ padding: '8px 12px', borderBottom: i < arr.length - 1 ? '1px solid #eef0f3' : 'none', borderRight: '1px solid #dde1e7', width: '20%', fontWeight: 700, color: '#555', fontSize: 12 }}>{k1}</td>
-                      <td style={{ padding: '8px 12px', borderBottom: i < arr.length - 1 ? '1px solid #eef0f3' : 'none', borderRight: '1px solid #dde1e7', width: '30%' }}>{v1}</td>
-                      <td style={{ padding: '8px 12px', borderBottom: i < arr.length - 1 ? '1px solid #eef0f3' : 'none', borderRight: '1px solid #dde1e7', width: '20%', fontWeight: 700, color: '#555', fontSize: 12 }}>{k2}</td>
-                      <td style={{ padding: '8px 12px', borderBottom: i < arr.length - 1 ? '1px solid #eef0f3' : 'none', width: '30%' }}>{v2}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {(() => {
+                const empty = (v: string | null | undefined) => !v || v === '—';
+                const fields = [
+                  { label: 'Nome', value: c.clientName },
+                  { label: 'CPF / CNPJ', value: c.clientCpfCnpj },
+                  { label: 'Telefone', value: c.clientPhone },
+                  { label: 'E-mail', value: c.clientEmail },
+                  { label: 'Veículo', value: c.vehicle },
+                  { label: 'Placa', value: c.vehiclePlate },
+                  { label: 'IMEI', value: c.deviceImei },
+                  { label: 'Instalação', value: `R$ ${c.installationValue.toFixed(2).replace('.', ',')}` },
+                  { label: 'Mensalidade', value: `R$ ${c.monthlyValue.toFixed(2).replace('.', ',')}` },
+                ].filter(f => !empty(f.value));
+
+                const rows: Array<[typeof fields[0], typeof fields[0] | null]> = [];
+                for (let i = 0; i < fields.length; i += 2) {
+                  rows.push([fields[i], fields[i + 1] ?? null]);
+                }
+
+                return (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, border: '1px solid #dde1e7', borderTop: 'none' }}>
+                    <tbody>
+                      {rows.map(([a, b], i) => (
+                        <tr key={i}>
+                          <td style={{ padding: '8px 12px', borderBottom: i < rows.length - 1 ? '1px solid #eef0f3' : 'none', borderRight: '1px solid #dde1e7', width: '20%', fontWeight: 700, color: '#555', fontSize: 12 }}>{a.label}</td>
+                          <td style={{ padding: '8px 12px', borderBottom: i < rows.length - 1 ? '1px solid #eef0f3' : 'none', borderRight: '1px solid #dde1e7', width: '30%' }}>{a.value}</td>
+                          <td style={{ padding: '8px 12px', borderBottom: i < rows.length - 1 ? '1px solid #eef0f3' : 'none', borderRight: '1px solid #dde1e7', width: '20%', fontWeight: 700, color: '#555', fontSize: 12 }}>{b?.label ?? ''}</td>
+                          <td style={{ padding: '8px 12px', borderBottom: i < rows.length - 1 ? '1px solid #eef0f3' : 'none', width: '30%' }}>{b?.value ?? ''}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
             </section>
 
             {/* Texto do contrato */}
