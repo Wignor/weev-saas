@@ -41,33 +41,41 @@ export default function DeviceCard({ device, position, selected, onPress }: Prop
   const cfg = statusMap[status];
   const speed = position ? knotsToKmh(position.speed) : 0;
   const iconName = getVehicleIcon(device.name);
-  const iconColor = selected ? colors.primary : status === 'movendo' ? colors.success : status === 'parado' ? colors.warning : colors.muted;
 
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[styles.card, selected && styles.cardSelected]}
-      activeOpacity={0.7}
+      style={[styles.card, { borderLeftColor: cfg.color }, selected && styles.cardSelected]}
+      activeOpacity={0.75}
     >
-      <View style={[styles.iconBox, selected && styles.iconBoxSelected, { borderColor: iconColor + '40' }]}>
-        <MaterialCommunityIcons name={iconName} size={22} color={iconColor} />
+      {/* Ícone neutro — cor só quando selecionado */}
+      <View style={[styles.iconBox, selected && styles.iconBoxSelected]}>
+        <MaterialCommunityIcons
+          name={iconName}
+          size={22}
+          color={selected ? colors.primary : colors.muted}
+        />
       </View>
 
       <View style={styles.info}>
+        {/* Nome + status */}
         <View style={styles.row}>
           <Text style={styles.name} numberOfLines={1}>{device.name}</Text>
-          <View style={styles.statusBadge}>
-            <View style={[styles.dot, { backgroundColor: cfg.color }]} />
-            <Text style={[styles.statusLabel, { color: cfg.color }]}>{cfg.label}</Text>
-          </View>
+          <Text style={[styles.statusLabel, { color: cfg.color }]}>{cfg.label}</Text>
         </View>
+
+        {/* Velocidade / tempo */}
         <View style={styles.row}>
-          {status !== 'offline' && (
-            <Text style={styles.meta}>{speed > 2 ? `${Math.round(speed)} km/h` : 'Parado'}</Text>
-          )}
           <Text style={styles.meta}>
-            {device.lastUpdate ? timeAgo(device.lastUpdate) : '—'}
+            {status === 'movendo'
+              ? `${Math.round(speed)} km/h`
+              : status === 'parado'
+              ? 'Parado'
+              : device.lastUpdate ? timeAgo(device.lastUpdate) : '—'}
           </Text>
+          {status !== 'offline' && (
+            <Text style={styles.meta}>{device.lastUpdate ? timeAgo(device.lastUpdate) : '—'}</Text>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -78,22 +86,22 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingLeft: 13,
+    paddingRight: 16,
+    paddingVertical: 11,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    borderLeftWidth: 3,
     backgroundColor: colors.white,
     gap: 12,
   },
   cardSelected: {
     backgroundColor: '#F0F7FF',
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
   },
   iconBox: {
     width: 42,
     height: 42,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -101,7 +109,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconBoxSelected: {
-    backgroundColor: '#DDEEFF',
+    backgroundColor: '#E8F0FE',
+    borderColor: colors.primary + '40',
   },
   info: {
     flex: 1,
@@ -119,22 +128,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
   statusLabel: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '700',
   },
   meta: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.muted,
   },
 });
