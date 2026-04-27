@@ -3,13 +3,22 @@ import { traccarLogin } from '@/lib/traccar';
 import fs from 'fs';
 import path from 'path';
 
-const ROLES_FILE = path.join(process.cwd(), 'data', 'user_roles.json');
+const ROLES_FILE   = path.join(process.cwd(), 'data', 'user_roles.json');
+const SESSION_CACHE = path.join(process.cwd(), 'data', 'admin_session.cache');
 
 function readRoles(): Record<string, string> {
   try {
     if (!fs.existsSync(ROLES_FILE)) return {};
     return JSON.parse(fs.readFileSync(ROLES_FILE, 'utf-8'));
   } catch { return {}; }
+}
+
+function saveAdminSession(sessionId: string) {
+  try {
+    const dir = path.dirname(SESSION_CACHE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(SESSION_CACHE, sessionId, 'utf-8');
+  } catch { /* silencioso */ }
 }
 
 export async function POST(req: Request) {
@@ -22,6 +31,11 @@ export async function POST(req: Request) {
     const { user, sessionId } = await traccarLogin(email, password);
     const roles = readRoles();
     const role = user.administrator ? 'admin' : (roles[String(user.id)] || 'usuario');
+
+    // Guarda sessão do admin para uso interno (rotas do distribuidor)
+    if (user.administrator) {
+      saveAdminSession(sessionId);
+    }
 
     const payload = {
       id: user.id,

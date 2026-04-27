@@ -3,15 +3,20 @@ import { cookies } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
 
-const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
-const ROLES_FILE  = path.join(process.cwd(), 'data', 'user_roles.json');
-const DIST_FILE   = path.join(process.cwd(), 'data', 'distributor_clients.json');
+const TRACCAR_URL   = process.env.TRACCAR_URL || 'http://localhost:8082';
+const ROLES_FILE    = path.join(process.cwd(), 'data', 'user_roles.json');
+const DIST_FILE     = path.join(process.cwd(), 'data', 'distributor_clients.json');
+const SESSION_CACHE = path.join(process.cwd(), 'data', 'admin_session.cache');
+
+function getAdminSession(): string {
+  try { return fs.readFileSync(SESSION_CACHE, 'utf-8').trim(); } catch { return ''; }
+}
 
 function adminHeaders() {
-  const creds = Buffer.from(
-    `${process.env.TRACCAR_ADMIN_USER}:${process.env.TRACCAR_ADMIN_PASS}`
-  ).toString('base64');
-  return { Authorization: `Basic ${creds}`, 'Content-Type': 'application/json' };
+  return {
+    Cookie: `JSESSIONID=${getAdminSession()}`,
+    'Content-Type': 'application/json',
+  };
 }
 
 function readRoles(): Record<string, string> {
@@ -43,7 +48,7 @@ async function getCallerAndRole(session: string) {
   return { user, role };
 }
 
-/* GET — distribuidor busca seus clientes */
+/* GET — distribuidor lista seus próprios clientes */
 export async function GET() {
   const cookieStore = await cookies();
   const session = cookieStore.get('wt_session')?.value;
@@ -75,7 +80,7 @@ export async function GET() {
   return NextResponse.json(myClients);
 }
 
-/* POST — distribuidor cria novo cliente (já fica vinculado a ele) */
+/* POST — distribuidor cria novo cliente (vinculado automaticamente a ele) */
 export async function POST(req: Request) {
   const cookieStore = await cookies();
   const session = cookieStore.get('wt_session')?.value;
