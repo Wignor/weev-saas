@@ -192,7 +192,7 @@ export default function ContratoPage({ params }: { params: { token: string } }) 
         body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fa; }
       `}</style>
 
-      <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', maxWidth: 720, margin: '0 auto' }}>
+      <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', maxWidth: 720, margin: '0 auto', overflow: 'hidden' }}>
         {/* Header */}
         <header style={{ background: '#1a1a2e', color: 'white', padding: '16px 20px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
