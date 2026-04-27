@@ -99,8 +99,9 @@ export default function ComprovantePage({ params }: { params: { token: string } 
                 <p style={{ fontSize: 12, opacity: 0.65 }}>CNPJ: 34.266.884/0001-42 &nbsp;|&nbsp; (19) 99978-0601 &nbsp;|&nbsp; Mogi Guaçu – SP</p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <p style={{ fontWeight: 800, fontSize: 14, opacity: 0.9 }}>WeevTrack</p>
-                <p style={{ fontSize: 11, opacity: 0.55 }}>Rastreamento Veicular</p>
+                <p style={{ fontWeight: 800, fontSize: 15, opacity: 0.95 }}>{c.clientName}</p>
+                {c.clientCpfCnpj && <p style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>CPF/CNPJ: {c.clientCpfCnpj}</p>}
+                {c.vehicle && <p style={{ fontSize: 12, opacity: 0.65, marginTop: 2 }}>{c.vehicle}{c.vehiclePlate ? ` — ${c.vehiclePlate}` : ''}</p>}
               </div>
             </div>
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: 16 }}>

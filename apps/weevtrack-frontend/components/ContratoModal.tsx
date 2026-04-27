@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CONTRACT_TEMPLATES } from '@/lib/contracts';
 
 interface User { id: number; name: string; email: string; }
 interface Contract { id: string; token: string; templateName: string; status: string; createdAt: string; signedAt?: string; }
+interface Template { id: string; name: string; description: string; installationValue: number; monthlyValue: number; isCustom: boolean; }
 
 interface Props { user: User; onClose: () => void; }
 
@@ -13,8 +13,9 @@ const APP_URL = 'https://app.weevtrack.com';
 export default function ContratoModal({ user, onClose }: Props) {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loadingContracts, setLoadingContracts] = useState(true);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [step, setStep] = useState<'list' | 'create' | 'done'>('list');
-  const [templateId, setTemplateId] = useState(CONTRACT_TEMPLATES[0].id);
+  const [templateId, setTemplateId] = useState('');
   const [cpfCnpj, setCpfCnpj] = useState('');
   const [phone, setPhone] = useState('');
   const [vehicle, setVehicle] = useState('');
@@ -31,6 +32,16 @@ export default function ContratoModal({ user, onClose }: Props) {
       .then(data => { if (Array.isArray(data)) setContracts(data); })
       .catch(() => {})
       .finally(() => setLoadingContracts(false));
+
+    fetch('/api/templates')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setTemplates(data);
+          setTemplateId(data[0].id);
+        }
+      })
+      .catch(() => {});
   }, [user.id]);
 
   async function deleteContract(token: string) {
@@ -65,7 +76,7 @@ export default function ContratoModal({ user, onClose }: Props) {
       const data = await res.json();
       if (res.ok) {
         setGeneratedUrl(data.url);
-        setContracts(prev => [{ id: data.token, token: data.token, templateName: CONTRACT_TEMPLATES.find(t => t.id === templateId)?.name || '', status: 'pending', createdAt: new Date().toISOString() }, ...prev]);
+        setContracts(prev => [{ id: data.token, token: data.token, templateName: templates.find(t => t.id === templateId)?.name || '', status: 'pending', createdAt: new Date().toISOString() }, ...prev]);
         setStep('done');
       }
     } catch { /* */ }
@@ -164,7 +175,7 @@ export default function ContratoModal({ user, onClose }: Props) {
                 <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 600, color: 'var(--text-lo)' }}>Modelo de contrato *</p>
                 <select value={templateId} onChange={e => setTemplateId(e.target.value)}
                   style={{ width: '100%', padding: '12px 14px', borderRadius: 12, background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)', fontSize: 13 }}>
-                  {CONTRACT_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name} — {t.description}</option>)}
+                  {templates.map(t => <option key={t.id} value={t.id}>{t.name}{t.description ? ` — ${t.description}` : ''}</option>)}
                 </select>
               </div>
               {[
