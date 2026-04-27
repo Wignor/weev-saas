@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef, use } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 type Step = 'loading' | 'reading' | 'signing' | 'done' | 'error' | 'already_signed';
 
-export default function ContratoPage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = use(params);
+export default function ContratoPage({ params }: { params: { token: string } }) {
+  const { token } = params;
 
   const [step, setStep] = useState<Step>('loading');
   const [contract, setContract] = useState<any>(null);

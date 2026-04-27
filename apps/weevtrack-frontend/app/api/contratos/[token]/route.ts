@@ -17,8 +17,8 @@ function readContract(token: string): Contract | null {
   } catch { return null; }
 }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
+export async function GET(_req: NextRequest, { params }: { params: { token: string } }) {
+  const { token } = params;
   const contract = readContract(token);
   if (!contract) return NextResponse.json({ error: 'Contrato não encontrado' }, { status: 404 });
 
@@ -26,8 +26,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   return NextResponse.json({ ...safe, signed: contract.status === 'signed' });
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
+export async function PATCH(req: NextRequest, { params }: { params: { token: string } }) {
+  const { token } = params;
   const contract = readContract(token);
   if (!contract) return NextResponse.json({ error: 'Contrato não encontrado' }, { status: 404 });
   if (contract.status === 'signed') return NextResponse.json({ error: 'Contrato já assinado' }, { status: 409 });
