@@ -54,13 +54,26 @@ export const SIGNATORY = {
   cnpj: '34.266.884/0001-42',
 };
 
+export { CONTRACT_BASE as CONTRACT_BASE_DEFAULT };
+
+import fs from 'fs';
+import path from 'path';
+
+export function getContractBase(): string {
+  try {
+    const file = path.join(process.cwd(), 'data', 'contract_base.txt');
+    if (fs.existsSync(file)) return fs.readFileSync(file, 'utf-8');
+  } catch { /* */ }
+  return CONTRACT_BASE;
+}
+
 export function getContractText(
   template: ContractTemplate,
   vars: { nome: string; cpfCnpj: string; data: string; veiculo: string; placa: string; imei: string }
 ): string {
   const inst = template.installationValue.toFixed(2).replace('.', ',');
   const mens = template.monthlyValue.toFixed(2).replace('.', ',');
-  return CONTRACT_BASE
+  return getContractBase()
     .replace(/{{NOME}}/g, vars.nome)
     .replace(/{{CPF_CNPJ}}/g, vars.cpfCnpj)
     .replace(/{{DATA}}/g, vars.data)
@@ -127,7 +140,7 @@ Cláusula 3 – LIMITAÇÕES E RESPONSABILIDADES
 Cláusula 4 – DO PRAZO E FIDELIDADE
 ──────────────────────────────────
 
-4.1 – O presente contrato tem prazo mínimo de fidelidade de 12 (doze) meses, contados da data de instalação e ativação do equipamento, renovando-se automaticamente por iguais períodos, salvo notificação de rescisão com antecedência mínima de 30 (trinta) dias do vencimento.
+4.1 – O presente contrato tem prazo mínimo de fidelidade de 6 (seis) meses, contados da data de instalação e ativação do equipamento, renovando-se automaticamente por iguais períodos, salvo notificação de rescisão com antecedência mínima de 30 (trinta) dias do vencimento.
 
 4.2 – Em caso de rescisão antecipada pelo CONTRATANTE dentro do prazo mínimo de fidelidade, será devida multa compensatória equivalente a 50% (cinquenta por cento) das mensalidades restantes até o término do período de fidelidade, sem prejuízo da obrigação de devolução do equipamento.
 

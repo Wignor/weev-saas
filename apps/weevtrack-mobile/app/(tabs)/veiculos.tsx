@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getSession, clearSession, getStoredUser } from '@/lib/storage';
 import { fetchDevices, fetchPositions, ApiDevice, ApiPosition } from '@/lib/api';
@@ -73,7 +74,10 @@ export default function VeiculosTab() {
     <View style={styles.root}>
       {/* Navbar */}
       <View style={styles.navbar}>
-        <View>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <MaterialCommunityIcons name="arrow-left" size={20} color="white" />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
           <Text style={styles.navTitle}>Veículos</Text>
           {userName ? <Text style={styles.navSub}>Olá, {userName.split(' ')[0]}</Text> : null}
         </View>
@@ -148,11 +152,19 @@ const styles = StyleSheet.create({
   navbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 10,
     backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingTop: 52,
     paddingBottom: 14,
+  },
+  backBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navTitle: { fontSize: 20, fontWeight: '800', color: colors.white },
   navSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 2 },

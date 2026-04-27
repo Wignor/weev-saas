@@ -23,8 +23,14 @@ interface Template {
 interface Props { onClose: () => void; }
 
 export default function ConfigModal({ onClose }: Props) {
-  const [tab, setTab] = useState<'signatarios' | 'modelos'>('signatarios');
+  const [tab, setTab] = useState<'signatarios' | 'modelos' | 'contrato'>('signatarios');
   const [msg, setMsg] = useState('');
+
+  // Contract editor
+  const [contractText, setContractText] = useState('');
+  const [loadingContract, setLoadingContract] = useState(false);
+  const [savingContract, setSavingContract] = useState(false);
+  const [contractLoaded, setContractLoaded] = useState(false);
 
   // Signatories
   const [signatories, setSignatories] = useState<Signatory[]>([]);
@@ -60,6 +66,17 @@ export default function ConfigModal({ onClose }: Props) {
       .catch(() => {})
       .finally(() => setLoadingTpl(false));
   }, []);
+
+  useEffect(() => {
+    if (tab === 'contrato' && !contractLoaded) {
+      setLoadingContract(true);
+      fetch('/api/admin/contract')
+        .then(r => r.json())
+        .then(data => { if (data.text) { setContractText(data.text); setContractLoaded(true); } })
+        .catch(() => {})
+        .finally(() => setLoadingContract(false));
+    }
+  }, [tab, contractLoaded]);
 
   function startEdit(t: Template) {
     setEditingTpl(t);
@@ -189,13 +206,17 @@ export default function ConfigModal({ onClose }: Props) {
             <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: 'var(--text-hi)' }}>⚙️ Configurações</p>
             <button onClick={onClose} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'var(--bg-border)', border: 'none', color: 'var(--text-lo)', cursor: 'pointer' }}>Fechar</button>
           </div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-            {(['signatarios', 'modelos'] as const).map(t => (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+            {([
+              ['signatarios', '✍️ Signatários'],
+              ['modelos', '📋 Modelos'],
+              ['contrato', '📝 Contrato'],
+            ] as const).map(([t, label]) => (
               <button key={t} onClick={() => { setTab(t); setEditingTpl(null); }}
-                style={{ flex: 1, padding: '8px 0', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                style={{ flex: 1, padding: '8px 4px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
                   background: tab === t ? '#007AFF' : 'var(--bg-border)',
                   color: tab === t ? 'white' : 'var(--text-lo)' }}>
-                {t === 'signatarios' ? '✍️ Signatários' : '📋 Modelos'}
+                {label}
               </button>
             ))}
           </div>
@@ -362,6 +383,65 @@ export default function ConfigModal({ onClose }: Props) {
               </div>
             </>
           )}
+          {/* ── EDITOR DE CONTRATO ── */}
+          {tab === 'contrato' && (
+            <>
+              <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(0,122,255,0.07)', border: '1px solid rgba(0,122,255,0.2)', marginBottom: 12, fontSize: 12, color: 'var(--text-lo)', lineHeight: 1.5 }}>
+                <strong style={{ color: '#007AFF' }}>Variáveis disponíveis:</strong><br />
+                {'{{NOME}}'} — nome do cliente &nbsp;|&nbsp; {'{{CPF_CNPJ}}'} — CPF/CNPJ<br />
+                {'{{DATA}}'} — data da assinatura &nbsp;|&nbsp; {'{{VEICULO}}'} — veículo<br />
+                {'{{PLACA}}'} — placa &nbsp;|&nbsp; {'{{IMEI}}'} — IMEI do rastreador<br />
+                {'{{INSTALACAO}}'} — valor instalação &nbsp;|&nbsp; {'{{MENSALIDADE}}'} — mensalidade
+              </div>
+
+              {loadingContract
+                ? <div style={{ textAlign: 'center', padding: 24 }}><div style={{ width: 24, height: 24, border: '2px solid #007AFF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} /></div>
+                : <>
+                    <textarea
+                      value={contractText}
+                      onChange={e => setContractText(e.target.value)}
+                      style={{
+                        width: '100%', minHeight: 420, padding: '12px 14px', borderRadius: 12,
+                        background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)',
+                        fontSize: 12, lineHeight: 1.7, fontFamily: 'Georgia, serif', resize: 'vertical',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                      <button
+                        onClick={async () => {
+                          setSavingContract(true);
+                          try {
+                            const res = await fetch('/api/admin/contract', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ text: contractText }),
+                            });
+                            if (res.ok) flash('✅ Contrato salvo com sucesso');
+                            else flash('❌ Erro ao salvar contrato');
+                          } catch { flash('❌ Erro de conexão'); }
+                          setSavingContract(false);
+                        }}
+                        disabled={savingContract}
+                        style={{ flex: 2, padding: '13px', borderRadius: 12, border: 'none', cursor: 'pointer', background: '#007AFF', color: 'white', fontWeight: 700, fontSize: 14, opacity: savingContract ? 0.6 : 1 }}>
+                        {savingContract ? 'Salvando...' : '💾 Salvar contrato'}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Restaurar o contrato padrão? As edições serão perdidas.')) return;
+                          const res = await fetch('/api/admin/contract', { method: 'DELETE' });
+                          const data = await res.json();
+                          if (data.text) { setContractText(data.text); flash('✅ Contrato restaurado para o padrão'); }
+                        }}
+                        style={{ flex: 1, padding: '13px', borderRadius: 12, border: '1px solid var(--bg-border)', cursor: 'pointer', background: 'transparent', color: 'var(--text-lo)', fontWeight: 600, fontSize: 13 }}>
+                        Restaurar padrão
+                      </button>
+                    </div>
+                  </>
+              }
+            </>
+          )}
+
         </div>
       </div>
     </div>

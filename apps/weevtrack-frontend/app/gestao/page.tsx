@@ -266,7 +266,14 @@ export default function GestaoPage() {
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <a href="/dashboard"
+            className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 no-underline"
+            style={{ background: 'var(--bg-border)' }} title="Voltar ao monitor">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5" strokeLinecap="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </a>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
             <circle cx="9" cy="7" r="4"/>
