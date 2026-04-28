@@ -185,7 +185,6 @@ let lastEventsCheck = Date.now();
 async function check() {
   try {
     const subscriptions = readSubs();
-    if (subscriptions.length === 0) return;
 
     const session = await getSession();
     const headers = { Cookie: `JSESSIONID=${session}` };

@@ -8,7 +8,15 @@ import FaturaModal from '@/components/FaturaModal';
 import ConfigModal from '@/components/ConfigModal';
 
 type UserRole = 'monitor' | 'usuario' | 'distribuidor' | 'distribuidor_geral';
-interface TUser { id: number; name: string; email: string; administrator: boolean; role: UserRole; }
+interface TUser {
+  id: number;
+  name: string;
+  email: string;
+  administrator: boolean;
+  role: UserRole;
+  phone?: string;
+  attributes?: Record<string, unknown>;
+}
 
 const ROLES: Record<UserRole, { label: string; color: string; bg: string; desc: string }> = {
   monitor:           { label: 'Monitor',          color: '#6B7280', bg: 'rgba(107,114,128,0.15)', desc: 'Apenas visualiza, sem enviar comandos' },
@@ -48,6 +56,7 @@ export default function GestaoPage() {
   const [faturaModalUser, setFaturaModalUser] = useState<TUser | null>(null);
   const [showConfig, setShowConfig] = useState(false);
   const [showUsersModal, setShowUsersModal] = useState(false);
+  const [profileUser, setProfileUser] = useState<TUser | null>(null);
   const [distMap, setDistMap] = useState<Record<string, number[]>>({});
   const [distCredits, setDistCredits] = useState<Record<string, number>>({});
 
@@ -997,6 +1006,94 @@ export default function GestaoPage() {
         <ConfigModal onClose={() => setShowConfig(false)} />
       )}
 
+      {/* Modal: Perfil do cliente */}
+      {profileUser && (
+        <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setProfileUser(null); }}>
+          <div className="w-full max-w-sm rounded-t-2xl md:rounded-2xl overflow-hidden slide-up"
+            style={{ background: 'var(--bg-card)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="flex items-center justify-between px-5 py-4 flex-shrink-0"
+              style={{ borderBottom: '1px solid var(--bg-border)' }}>
+              <div className="flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <h2 className="font-bold text-sm t-text-hi">Perfil do cliente</h2>
+              </div>
+              <button onClick={() => setProfileUser(null)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: 'var(--bg-page)' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 pb-6">
+              {/* Avatar */}
+              <div className="flex flex-col items-center py-6">
+                <div className="w-20 h-20 rounded-full flex items-center justify-center mb-3"
+                  style={{ background: ROLES[profileUser.role]?.bg || 'rgba(0,122,255,0.15)' }}>
+                  <span className="text-3xl font-bold" style={{ color: ROLES[profileUser.role]?.color || '#007AFF' }}>
+                    {profileUser.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <h2 className="font-bold t-text-hi text-lg">{profileUser.name}</h2>
+                <p className="t-text-lo text-sm">{profileUser.email}</p>
+                <span className="mt-2 text-xs px-2.5 py-1 rounded-full font-semibold"
+                  style={{ background: ROLES[profileUser.role]?.bg, color: ROLES[profileUser.role]?.color }}>
+                  {ROLES[profileUser.role]?.label || 'Usuário'}
+                </span>
+              </div>
+
+              {/* Info fields */}
+              <div className="px-5">
+                <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-2">Dados de cadastro</p>
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--bg-border)' }}>
+                  {[
+                    { icon: '👤', label: 'Nome completo', value: profileUser.name },
+                    { icon: '📧', label: 'E-mail', value: profileUser.email },
+                    { icon: '📱', label: 'Telefone', value: profileUser.phone || '—' },
+                    { icon: '📄', label: 'CPF / CNPJ', value: (profileUser.attributes?.cpfCnpj as string) || '—' },
+                    { icon: '🔑', label: 'Função', value: ROLES[profileUser.role]?.label || 'Usuário' },
+                    { icon: '#️⃣', label: 'ID do usuário', value: String(profileUser.id) },
+                  ].map((item, i, arr) => (
+                    <div key={item.label} className="flex items-center justify-between px-4 py-3"
+                      style={{
+                        background: 'var(--bg-card)',
+                        borderBottom: i < arr.length - 1 ? '1px solid var(--bg-border)' : 'none',
+                      }}>
+                      <div className="flex items-center gap-3">
+                        <span>{item.icon}</span>
+                        <span className="text-sm t-text-hi">{item.label}</span>
+                      </div>
+                      <span className="text-sm t-text-lo text-right truncate ml-4" style={{ maxWidth: 160 }}>
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <a
+                  href={`/dashboard?asUser=${profileUser.id}&asUserName=${encodeURIComponent(profileUser.name)}`}
+                  className="mt-4 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold no-underline"
+                  style={{ background: 'rgba(88,86,214,0.12)', color: '#5856D6', border: '1px solid rgba(88,86,214,0.2)' }}
+                  onClick={() => setProfileUser(null)}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  Ver monitor como este cliente
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showUsersModal && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
@@ -1022,18 +1119,17 @@ export default function GestaoPage() {
               </button>
             </div>
             <p className="px-5 pt-3 pb-1 text-xs t-text-lo">
-              Clique em um cliente para visualizar o painel como ele vê.
+              Toque em um cliente para ver o perfil completo de cadastro.
             </p>
             <div className="overflow-y-auto flex-1 py-2">
               {users.length === 0 ? (
                 <p className="text-center text-xs t-text-lo py-8">Nenhum cliente cadastrado</p>
               ) : (
                 users.map(u => (
-                  <a key={u.id}
-                    href={`/dashboard?asUser=${u.id}&asUserName=${encodeURIComponent(u.name)}`}
-                    className="flex items-center gap-3 px-5 py-3 no-underline transition-all"
+                  <button key={u.id}
+                    className="w-full flex items-center gap-3 px-5 py-3 text-left transition-all"
                     style={{ borderBottom: '1px solid var(--bg-border)' }}
-                    onClick={() => setShowUsersModal(false)}>
+                    onClick={() => { setProfileUser(u); setShowUsersModal(false); }}>
                     <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                       style={{ background: 'rgba(0,122,255,0.13)' }}>
                       <span className="font-bold text-sm" style={{ color: '#007AFF' }}>
@@ -1048,11 +1144,10 @@ export default function GestaoPage() {
                       style={{ background: ROLES[u.role]?.bg, color: ROLES[u.role]?.color }}>
                       {ROLES[u.role]?.label || 'Usuário'}
                     </span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+                      <polyline points="9 18 15 12 9 6"/>
                     </svg>
-                  </a>
+                  </button>
                 ))
               )}
             </div>

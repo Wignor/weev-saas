@@ -28,14 +28,16 @@ interface TraccarDevice {
 }
 
 const alertConfig: Record<string, { icon: string; color: string }> = {
-  ignitionOn:  { icon: '🔑', color: '#34C759' },
-  ignitionOff: { icon: '🔒', color: '#FF3B30' },
-  moving:      { icon: '🚗', color: '#007AFF' },
-  overspeed:   { icon: '🚦', color: '#FF3B30' },
-  parking:     { icon: '🅿️', color: '#FF9500' },
-  lowBattery:  { icon: '🔋', color: '#FF9500' },
-  sos:         { icon: '🆘', color: '#FF3B30' },
-  collision:   { icon: '💥', color: '#FF3B30' },
+  ignitionOn:    { icon: '🔑', color: '#34C759' },
+  ignitionOff:   { icon: '🔒', color: '#FF3B30' },
+  moving:        { icon: '🚗', color: '#007AFF' },
+  overspeed:     { icon: '🚦', color: '#FF3B30' },
+  parking:       { icon: '🅿️', color: '#FF9500' },
+  lowBattery:    { icon: '🔋', color: '#FF9500' },
+  sos:           { icon: '🆘', color: '#FF3B30' },
+  collision:     { icon: '💥', color: '#FF3B30' },
+  geofenceExit:  { icon: '🚧', color: '#FF9500' },
+  geofenceEnter: { icon: '📍', color: '#007AFF' },
 };
 
 const traccarConfig: Record<string, { icon: string; label: string; color: string }> = {

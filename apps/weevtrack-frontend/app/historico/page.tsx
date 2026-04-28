@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
@@ -11,7 +11,7 @@ import type { Stop } from '@/components/HistoricoMap';
 const HistoricoMap = dynamic(() => import('@/components/HistoricoMap'), {
   ssr: false,
   loading: () => (
-    <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--bg-page)' }}>
+    <div className="w-full h-full flex items-center justify-center" style={{ background: 'var(--bg-page)' }}>
       <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   ),
@@ -54,6 +54,10 @@ function fmtDur(s: number): string {
   return h > 0 ? `${h}h${m}m` : `${m}m`;
 }
 
+function fmtTime(ts: string) {
+  return new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+}
+
 function minDate90() {
   const d = new Date();
   d.setDate(d.getDate() - 90);
@@ -64,6 +68,25 @@ function toggleTheme() {
   const next = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   try { localStorage.setItem('wt_theme', next); } catch { /**/ }
+}
+
+async function reverseGeocode(lat: number, lon: number): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=pt-BR`,
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (!res.ok) return '';
+    const data = await res.json();
+    const addr = data.address;
+    if (!addr) return data.display_name?.split(',').slice(0, 2).join(',').trim() || '';
+    const road = addr.road || addr.pedestrian || addr.path || addr.street || '';
+    const num = addr.house_number ? `, ${addr.house_number}` : '';
+    const suburb = addr.suburb || addr.neighbourhood || addr.quarter || '';
+    const city = addr.city || addr.town || addr.village || addr.municipality || '';
+    const parts = [road + num, suburb, city].filter(Boolean);
+    return parts.join(' — ') || data.display_name?.split(',').slice(0, 2).join(',').trim() || '';
+  } catch { return ''; }
 }
 
 function HistoricoContent() {
@@ -77,6 +100,9 @@ function HistoricoContent() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [stopAddresses, setStopAddresses] = useState<(string | null)[]>([]);
+
+  const stops = useMemo(() => route.length ? detectStops(route) : [], [route]);
 
   useEffect(() => {
     fetch('/api/devices').then((r) => r.json()).then((data) => {
@@ -87,6 +113,30 @@ function HistoricoContent() {
       }
     }).catch(() => null);
   }, [searchParams]);
+
+  // Reverse geocode stops when they change
+  useEffect(() => {
+    if (stops.length === 0) { setStopAddresses([]); return; }
+    setStopAddresses(new Array(stops.length).fill(null));
+    let cancelled = false;
+    (async () => {
+      for (let i = 0; i < Math.min(stops.length, 12); i++) {
+        if (cancelled) break;
+        const addr = await reverseGeocode(stops[i].lat, stops[i].lon);
+        if (!cancelled) {
+          setStopAddresses(prev => {
+            const next = [...prev];
+            next[i] = addr || '';
+            return next;
+          });
+        }
+        if (i < Math.min(stops.length, 12) - 1 && !cancelled) {
+          await new Promise(r => setTimeout(r, 1100));
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [stops]);
 
   function downloadCSV() {
     if (!route.length) return;
@@ -104,7 +154,27 @@ function HistoricoContent() {
         p.attributes?.batteryLevel ?? '',
       ];
     });
-    const csv = [headers, ...rows].map(r => r.join(';')).join('\r\n');
+
+    const lines: string[] = [headers.join(';'), ...rows.map(r => r.join(';'))];
+
+    if (stops.length > 0) {
+      lines.push('');
+      lines.push('PARADAS');
+      lines.push(['Nº', 'Início', 'Fim', 'Duração', 'Latitude', 'Longitude', 'Endereço'].join(';'));
+      stops.forEach((stop, i) => {
+        lines.push([
+          i + 1,
+          new Date(stop.startTime).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+          new Date(stop.endTime).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+          fmtDur(stop.durationSeconds),
+          stop.lat.toFixed(6),
+          stop.lon.toFixed(6),
+          stopAddresses[i] ?? '',
+        ].join(';'));
+      });
+    }
+
+    const csv = lines.join('\r\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -134,7 +204,6 @@ function HistoricoContent() {
 
   const maxSpeed = route.length ? Math.max(...route.map((p) => knotsToKmh(p.speed))) : 0;
   const distanceKm = route.length > 1 ? ((route[route.length - 1].attributes?.totalDistance as number ?? 0) / 1000) : 0;
-  const stops = route.length ? detectStops(route) : [];
   const totalParkSec = stops.reduce((sum, s) => sum + s.durationSeconds, 0);
 
   return (
@@ -213,29 +282,71 @@ function HistoricoContent() {
         </div>
       </div>
 
-      {/* Resultado */}
-      <div className="flex-1 overflow-hidden flex flex-col">
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto pb-20">
+
+        {/* Stats */}
         {searched && !loading && route.length > 0 && (
-          <div className="flex-shrink-0 grid grid-cols-4 gap-2 p-3" style={{ borderBottom: '1px solid var(--bg-border)' }}>
+          <div className="grid grid-cols-4 gap-2 p-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--bg-border)' }}>
             {[
               { label: 'Pontos', value: String(route.length), icon: '📍' },
               { label: 'Vel. máx.', value: `${maxSpeed} km/h`, icon: '⚡' },
               { label: 'Distância', value: distanceKm > 0 ? `${distanceKm.toFixed(1)} km` : '—', icon: '🛣️' },
               { label: 'Paradas', value: stops.length > 0 ? `${stops.length} · ${fmtDur(totalParkSec)}` : '0', icon: '🅿️' },
             ].map((stat) => (
-              <div key={stat.label} className="rounded-xl p-3 text-center" style={{ background: 'var(--bg-card)' }}>
-                <p className="text-lg">{stat.icon}</p>
-                <p className="text-sm font-bold t-text-hi mt-1">{stat.value}</p>
-                <p className="text-xs t-text-lo">{stat.label}</p>
+              <div key={stat.label} className="rounded-xl p-2 text-center" style={{ background: 'var(--bg-card)' }}>
+                <p className="text-base">{stat.icon}</p>
+                <p className="text-xs font-bold t-text-hi mt-0.5 leading-tight">{stat.value}</p>
+                <p className="text-xs t-text-lo leading-tight">{stat.label}</p>
               </div>
             ))}
           </div>
         )}
 
         {showMap && route.length > 0 ? (
-          <HistoricoMap route={route} stops={stops} />
+          <>
+            {/* Map — fixed height so it never overlaps BottomNav */}
+            <div className="flex-shrink-0" style={{ height: '300px', position: 'relative' }}>
+              <HistoricoMap route={route} stops={stops} addresses={stopAddresses} />
+            </div>
+
+            {/* Stops list */}
+            {stops.length > 0 && (
+              <div className="p-4">
+                <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-3">
+                  Paradas detectadas ({stops.length})
+                </p>
+                <div className="space-y-2">
+                  {stops.map((stop, i) => (
+                    <div key={i} className="rounded-xl px-3 py-3"
+                      style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 font-bold text-white"
+                          style={{ background: '#FF9500', fontSize: 11 }}>
+                          {i + 1}
+                        </div>
+                        <span className="text-sm font-semibold t-text-hi flex-1">Parada {i + 1}</span>
+                        <span className="text-sm font-bold" style={{ color: '#FF9500' }}>{fmtDur(stop.durationSeconds)}</span>
+                      </div>
+                      <div className="ml-8">
+                        {stopAddresses[i] === null ? (
+                          <p className="text-xs t-text-lo italic">Buscando endereço...</p>
+                        ) : stopAddresses[i] ? (
+                          <p className="text-xs" style={{ color: 'var(--text-mid)' }}>📍 {stopAddresses[i]}</p>
+                        ) : null}
+                        <div className="flex gap-4 mt-1">
+                          <span className="text-xs t-text-lo">🕐 {fmtTime(stop.startTime)}</span>
+                          <span className="text-xs t-text-lo">➡ {fmtTime(stop.endTime)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-8 pb-20">
+          <div className="flex flex-col items-center justify-center text-center px-8 py-16" style={{ minHeight: '200px' }}>
             {searched && !loading && route.length === 0 ? (
               <>
                 <div className="text-4xl mb-4">🛣️</div>
