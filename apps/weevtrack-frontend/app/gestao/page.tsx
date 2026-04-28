@@ -6,6 +6,7 @@ import BottomNav from '@/components/BottomNav';
 import ContratoModal from '@/components/ContratoModal';
 import FaturaModal from '@/components/FaturaModal';
 import ConfigModal from '@/components/ConfigModal';
+import GeofenceSection from '@/components/GeofenceSection';
 
 type UserRole = 'monitor' | 'usuario' | 'distribuidor' | 'distribuidor_geral';
 interface TUser {
@@ -698,6 +699,11 @@ export default function GestaoPage() {
                                         🔓 Desbloquear
                                       </button>
                                     </div>
+                                    <GeofenceSection
+                                      deviceId={device.id}
+                                      apiBase="/api/admin/geofences"
+                                      onMessage={flash}
+                                    />
                                   </div>
                                 ))}
                               </div>

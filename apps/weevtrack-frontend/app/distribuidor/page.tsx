@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import ContratoModal from '@/components/ContratoModal';
+import GeofenceSection from '@/components/GeofenceSection';
 
 type TClient = { id: number; name: string; email: string; phone?: string; };
 type TDevice = { id: number; name: string; uniqueId: string; status: string; };
@@ -341,6 +342,12 @@ export default function DistribuidorPage() {
                                         </button>
                                       </div>
                                     </div>
+                                    <GeofenceSection
+                                      deviceId={device.id}
+                                      clientId={client.id}
+                                      apiBase="/api/distribuidor/geofences"
+                                      onMessage={flash}
+                                    />
                                   </div>
                                 );
                               })}
