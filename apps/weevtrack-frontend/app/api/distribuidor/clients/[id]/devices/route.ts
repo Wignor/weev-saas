@@ -4,14 +4,19 @@ import fs from 'fs';
 import path from 'path';
 import { readDistClients } from '../../route';
 
-const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
-const ROLES_FILE  = path.join(process.cwd(), 'data', 'user_roles.json');
+const TRACCAR_URL   = process.env.TRACCAR_URL || 'http://localhost:8082';
+const ROLES_FILE    = path.join(process.cwd(), 'data', 'user_roles.json');
+const SESSION_CACHE = path.join(process.cwd(), 'data', 'admin_session.cache');
+
+function getAdminSession(): string {
+  try { return fs.readFileSync(SESSION_CACHE, 'utf-8').trim(); } catch { return ''; }
+}
 
 function adminHeaders() {
-  const creds = Buffer.from(
-    `${process.env.TRACCAR_ADMIN_USER}:${process.env.TRACCAR_ADMIN_PASS}`
-  ).toString('base64');
-  return { Authorization: `Basic ${creds}`, 'Content-Type': 'application/json' };
+  return {
+    Cookie: `JSESSIONID=${getAdminSession()}`,
+    'Content-Type': 'application/json',
+  };
 }
 
 function readRoles(): Record<string, string> {

@@ -7,6 +7,7 @@ import ContratoModal from '@/components/ContratoModal';
 
 type TClient = { id: number; name: string; email: string; phone?: string; };
 type TDevice = { id: number; name: string; uniqueId: string; status: string; };
+type TLicInfo = { expiresAt: string; daysLeft: number; status: string };
 
 function getUserFromCookie() {
   if (typeof document === 'undefined') return { name: '', role: '', administrator: false };
@@ -36,6 +37,8 @@ export default function DistribuidorPage() {
   const [contratoUser, setContratoUser] = useState<TClient | null>(null);
   const [activeTab, setActiveTab] = useState<'clientes' | 'dispositivos'>('clientes');
   const [allDevices, setAllDevices] = useState<TDevice[]>([]);
+  const [credits, setCredits] = useState(0);
+  const [licenses, setLicenses] = useState<Record<string, TLicInfo>>({});
 
   useEffect(() => {
     const u = getUserFromCookie();
@@ -45,7 +48,19 @@ export default function DistribuidorPage() {
     }
     setUser(u);
     loadClients();
+    loadLicenses();
   }, []);
+
+  async function loadLicenses() {
+    try {
+      const res = await fetch('/api/distribuidor/licenses');
+      if (res.ok) {
+        const data = await res.json();
+        setCredits(data.credits ?? 0);
+        setLicenses(data.licenses ?? {});
+      }
+    } catch { /* silencioso */ }
+  }
 
   async function loadClients() {
     setLoading(true);
@@ -130,6 +145,25 @@ export default function DistribuidorPage() {
     } else flash('❌ Erro ao remover');
   }
 
+  async function activateLicense(deviceId: number, clientId: number) {
+    const res = await fetch('/api/distribuidor/licenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId, clientId }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setCredits(data.credits);
+      setLicenses(prev => ({
+        ...prev,
+        [String(deviceId)]: { expiresAt: data.expiresAt, daysLeft: data.daysLeft, status: data.status },
+      }));
+      flash(`✅ Licença ativada — expira em ${data.daysLeft} dias`);
+    } else {
+      flash(`❌ ${data.error || 'Erro ao ativar licença'}`);
+    }
+  }
+
   const assignedIds = Object.values(clientDevices).flat().map(d => d.id);
   const unassigned = allDevices.filter(d => !assignedIds.includes(d.id));
   const myDevices = selectedClient ? (clientDevices[selectedClient.id] || []) : [];
@@ -178,6 +212,7 @@ export default function DistribuidorPage() {
           { value: clients.length, label: 'Clientes', color: 'var(--text-hi)' },
           { value: Object.values(clientDevices).flat().length, label: 'Dispositivos', color: '#007AFF' },
           { value: online, label: 'Online', color: '#34C759' },
+          { value: credits, label: 'Créditos', color: credits === 0 ? '#FF3B30' : credits <= 3 ? '#FF9500' : '#8B5CF6' },
         ].map((s, i, arr) => (
           <div key={s.label} className="flex-1 flex flex-col items-center py-3"
             style={{ borderRight: i < arr.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
@@ -273,23 +308,42 @@ export default function DistribuidorPage() {
                             <p className="text-xs t-text-lo mb-4 text-center py-2">Nenhum dispositivo atribuído</p>
                           ) : (
                             <div className="space-y-2 mb-4">
-                              {myDevices.map(device => (
-                                <div key={device.id} className="flex items-center justify-between rounded-xl px-3 py-2.5"
-                                  style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full" style={{ background: statusColor(device.status) }} />
-                                    <div>
-                                      <p className="text-sm font-medium t-text-hi">{device.name}</p>
-                                      <p className="text-xs t-text-lo">{device.uniqueId}</p>
+                              {myDevices.map(device => {
+                                const lic = licenses[String(device.id)];
+                                const licColor = !lic ? '#6B7280' : lic.status === 'expired' ? '#FF3B30' : lic.status === 'expiring' ? '#FF9500' : '#34C759';
+                                const licLabel = !lic ? 'Sem licença' : lic.status === 'expired' ? 'Expirado' : `${lic.daysLeft}d`;
+                                return (
+                                  <div key={device.id} className="rounded-xl px-3 py-2.5"
+                                    style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
+                                        <div className="min-w-0">
+                                          <p className="text-sm font-medium t-text-hi truncate">{device.name}</p>
+                                          <p className="text-xs t-text-lo">{device.uniqueId}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                        <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+                                          style={{ background: `${licColor}18`, color: licColor }}>
+                                          {licLabel}
+                                        </span>
+                                        <button onClick={() => activateLicense(device.id, client.id)}
+                                          className="text-xs px-2 py-1 rounded-lg font-medium"
+                                          style={{ background: credits > 0 ? 'rgba(139,92,246,0.12)' : 'rgba(107,114,128,0.1)', color: credits > 0 ? '#8B5CF6' : '#6B7280' }}
+                                          title={credits > 0 ? 'Ativar/Renovar (+31 dias)' : 'Sem créditos disponíveis'}>
+                                          +31d
+                                        </button>
+                                        <button onClick={() => removeDevice(client.id, device.id)}
+                                          className="text-xs px-2 py-1 rounded-lg font-medium"
+                                          style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}>
+                                          Remover
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
-                                  <button onClick={() => removeDevice(client.id, device.id)}
-                                    className="text-xs px-2.5 py-1 rounded-lg font-medium"
-                                    style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}>
-                                    Remover
-                                  </button>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
 

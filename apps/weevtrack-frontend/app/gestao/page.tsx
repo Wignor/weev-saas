@@ -49,10 +49,14 @@ export default function GestaoPage() {
   const [showConfig, setShowConfig] = useState(false);
   const [showUsersModal, setShowUsersModal] = useState(false);
   const [distMap, setDistMap] = useState<Record<string, number[]>>({});
+  const [distCredits, setDistCredits] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetch('/api/admin/distribuidor').then(r => r.json()).then(d => {
       if (d && typeof d === 'object' && !d.error) setDistMap(d);
+    }).catch(() => {});
+    fetch('/api/admin/license-credits').then(r => r.json()).then(d => {
+      if (d && typeof d === 'object' && !d.error) setDistCredits(d);
     }).catch(() => {});
   }, []);
 
@@ -144,6 +148,21 @@ export default function GestaoPage() {
       flash(`✅ Licença renovada — expira em ${data.daysLeft} dias`);
     } else {
       flash('❌ Erro ao renovar licença');
+    }
+  }
+
+  async function giveCredits(distributorId: number, amount: number) {
+    const res = await fetch('/api/admin/license-credits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ distributorId, amount }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setDistCredits(prev => ({ ...prev, [String(distributorId)]: data.credits }));
+      flash(`✅ +${amount} crédito${amount > 1 ? 's' : ''} adicionado${amount > 1 ? 's' : ''} — saldo: ${data.credits}`);
+    } else {
+      flash('❌ Erro ao adicionar créditos');
     }
   }
 
@@ -540,6 +559,38 @@ export default function GestaoPage() {
                                   Gerenciado por: <strong>{currentDist.name}</strong>
                                 </p>
                               )}
+                            </div>
+                          );
+                        })()}
+
+                        {/* Créditos de licença — só aparece quando o usuário selecionado é distribuidor */}
+                        {(user.role === 'distribuidor' || user.role === 'distribuidor_geral') && (() => {
+                          const credits = distCredits[String(user.id)] ?? 0;
+                          return (
+                            <div className="mb-4 p-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+                              <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-2">Créditos de licença</p>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs px-2.5 py-1 rounded-full font-bold"
+                                  style={{
+                                    background: credits === 0 ? 'rgba(255,59,48,0.1)' : credits <= 3 ? 'rgba(255,149,0,0.12)' : 'rgba(52,199,89,0.1)',
+                                    color: credits === 0 ? '#FF3B30' : credits <= 3 ? '#FF9500' : '#34C759',
+                                  }}>
+                                  {credits} crédito{credits !== 1 ? 's' : ''} disponível{credits !== 1 ? 'is' : ''}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  {[1, 5, 10].map(n => (
+                                    <button key={n}
+                                      onClick={() => giveCredits(user.id, n)}
+                                      className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
+                                      style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF' }}>
+                                      +{n}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <p className="text-xs t-text-lo mt-2" style={{ fontSize: 10 }}>
+                                Cada crédito = 1 mês de licença para 1 dispositivo
+                              </p>
                             </div>
                           );
                         })()}
