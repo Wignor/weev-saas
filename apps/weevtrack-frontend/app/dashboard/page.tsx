@@ -774,7 +774,11 @@ export default function DashboardPage() {
   const [geofenceDeviceId, setGeofenceDeviceId] = useState<number | null>(null);
   const [showUsersModal, setShowUsersModal] = useState(false);
   const [usersList, setUsersList] = useState<{ id: number; name: string; email: string; role: string }[]>([]);
+  const [mergeMode, setMergeMode] = useState(false);
+  const [allDevices, setAllDevices] = useState<TraccarDevice[]>([]);
+  const [allPositions, setAllPositions] = useState<TraccarPosition[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const mergeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -832,10 +836,35 @@ export default function DashboardPage() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchData]);
 
-  const posMap = Object.fromEntries(positions.map((p) => [p.deviceId, p]));
-  const selectedDevice = devices.find((d) => d.id === selectedId);
+  async function fetchAllFleet() {
+    try {
+      const [devRes, posRes] = await Promise.all([
+        fetch('/api/admin/all-devices'),
+        fetch('/api/admin/all-positions'),
+      ]);
+      if (devRes.ok) setAllDevices(await devRes.json());
+      if (posRes.ok) setAllPositions(await posRes.json());
+    } catch { /**/ }
+  }
+
+  useEffect(() => {
+    if (mergeMode) {
+      fetchAllFleet();
+      mergeIntervalRef.current = setInterval(fetchAllFleet, 10000);
+    } else {
+      if (mergeIntervalRef.current) clearInterval(mergeIntervalRef.current);
+      setAllDevices([]);
+      setAllPositions([]);
+    }
+    return () => { if (mergeIntervalRef.current) clearInterval(mergeIntervalRef.current); };
+  }, [mergeMode]);
+
+  const displayDevices = mergeMode ? allDevices : devices;
+  const displayPositions = mergeMode ? allPositions : positions;
+  const posMap = Object.fromEntries(displayPositions.map((p) => [p.deviceId, p]));
+  const selectedDevice = displayDevices.find((d) => d.id === selectedId);
   const mapVehiclePrefs: Record<number, string> = Object.fromEntries(
-    devices.map(d => [d.id, vehiclePrefs[d.id]?.vehicleType || detectVehicleType(d.name)])
+    displayDevices.map(d => [d.id, vehiclePrefs[d.id]?.vehicleType || detectVehicleType(d.name)])
   );
 
   function getEffectiveStatus(device: TraccarDevice, pos?: TraccarPosition): DeviceStatus {
@@ -845,12 +874,12 @@ export default function DashboardPage() {
   }
 
   const countByStatus = {
-    online: devices.filter(d => { const s = getEffectiveStatus(d, posMap[d.id]); return s === 'movendo' || s === 'parado'; }).length,
-    offline: devices.filter(d => getEffectiveStatus(d, posMap[d.id]) === 'offline').length,
-    expirando: devices.filter(d => getEffectiveStatus(d, posMap[d.id]) === 'expirado').length,
+    online: displayDevices.filter(d => { const s = getEffectiveStatus(d, posMap[d.id]); return s === 'movendo' || s === 'parado'; }).length,
+    offline: displayDevices.filter(d => getEffectiveStatus(d, posMap[d.id]) === 'offline').length,
+    expirando: displayDevices.filter(d => getEffectiveStatus(d, posMap[d.id]) === 'expirado').length,
   };
 
-  const filteredDevices = devices.filter(d => {
+  const filteredDevices = displayDevices.filter(d => {
     const st = getEffectiveStatus(d, posMap[d.id]);
     if (filter === 'online' && st !== 'movendo' && st !== 'parado') return false;
     if (filter === 'offline' && st !== 'offline') return false;
@@ -1012,6 +1041,17 @@ export default function DashboardPage() {
                 </button>
               ))}
             </div>
+            {user.administrator && !asUser && (
+              <button onClick={() => setMergeMode(m => !m)}
+                className="w-full mt-2 text-xs py-1.5 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all"
+                style={{
+                  background: mergeMode ? 'rgba(255,149,0,0.15)' : 'var(--bg-input)',
+                  color: mergeMode ? '#FF9500' : 'var(--text-lo)',
+                  border: mergeMode ? '1px solid rgba(255,149,0,0.3)' : '1px solid transparent',
+                }}>
+                🌐 {mergeMode ? `Frota total (${displayDevices.length})` : 'Frota total — todos clientes'}
+              </button>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto">
             {loading ? (
@@ -1036,7 +1076,7 @@ export default function DashboardPage() {
             so the list overlay (z:10) and BottomNav (fixed z:50) appear correctly above */}
         <div style={{ flex: 1, position: 'relative', minHeight: 0, zIndex: 0 }}>
           <VehicleMap
-            devices={devices} positions={positions}
+            devices={displayDevices} positions={displayPositions}
             selectedDeviceId={selectedId}
             onDeviceSelect={(id) => selectDevice(id)}
             visible={mobileView === 'mapa'}
@@ -1164,6 +1204,18 @@ export default function DashboardPage() {
                   {f.label} ({f.count})
                 </button>
               ))}
+              {user.administrator && !asUser && (
+                <button onClick={() => setMergeMode(m => !m)}
+                  className="flex-shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 rounded-full font-medium transition-all"
+                  style={{
+                    background: mergeMode ? 'rgba(255,149,0,0.15)' : 'var(--bg-input)',
+                    color: mergeMode ? '#FF9500' : 'var(--text-lo)',
+                    whiteSpace: 'nowrap',
+                    border: mergeMode ? '1px solid rgba(255,149,0,0.3)' : '1px solid transparent',
+                  }}>
+                  🌐 {mergeMode ? 'Frota total' : 'Frota total'}
+                </button>
+              )}
             </div>
           </div>
           {/* List */}

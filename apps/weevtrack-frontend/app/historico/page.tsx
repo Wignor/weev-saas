@@ -138,48 +138,97 @@ function HistoricoContent() {
     return () => { cancelled = true; };
   }, [stops]);
 
-  function downloadCSV() {
+  async function downloadExcel() {
     if (!route.length) return;
-    const deviceName = devices.find(d => String(d.id) === selectedDevice)?.name || 'veiculo';
-    const headers = ['Data/Hora', 'Latitude', 'Longitude', 'Velocidade (km/h)', 'Curso (°)', 'Ignição', 'Bateria (%)'];
-    const rows = route.map(p => {
-      const dt = new Date(p.fixTime).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-      return [
-        dt,
-        p.latitude.toFixed(6),
-        p.longitude.toFixed(6),
+    const deviceName = devices.find(d => String(d.id) === selectedDevice)?.name || 'Veículo';
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'WeevTrack';
+    const ws = wb.addWorksheet('Trajeto');
+
+    const orange: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF9500' } };
+    const white = { argb: 'FFFFFFFF' };
+    const bold = { bold: true };
+
+    // Title row
+    ws.mergeCells('A1:G1');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = `Relatório de Trajeto — ${deviceName} — ${from.slice(0, 10)} a ${to.slice(0, 10)}`;
+    titleCell.font = { bold: true, size: 13, color: white };
+    titleCell.fill = orange;
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getRow(1).height = 28;
+
+    ws.addRow([]);
+
+    // Position headers
+    const posHeaders = ['Data/Hora', 'Latitude', 'Longitude', 'Velocidade (km/h)', 'Curso (°)', 'Ignição', 'Bateria (%)'];
+    const posHdrRow = ws.addRow(posHeaders);
+    posHdrRow.eachCell(cell => {
+      cell.fill = orange;
+      cell.font = { ...bold, color: white };
+      cell.alignment = { horizontal: 'center' };
+    });
+    posHdrRow.height = 22;
+
+    // Position data
+    route.forEach(p => {
+      ws.addRow([
+        new Date(p.fixTime).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+        parseFloat(p.latitude.toFixed(6)),
+        parseFloat(p.longitude.toFixed(6)),
         knotsToKmh(p.speed),
         Math.round(p.course),
         p.attributes?.ignition ? 'Ligado' : 'Desligado',
         p.attributes?.batteryLevel ?? '',
-      ];
+      ]);
     });
 
-    const lines: string[] = [headers.join(';'), ...rows.map(r => r.join(';'))];
-
+    // Stops section
     if (stops.length > 0) {
-      lines.push('');
-      lines.push('PARADAS');
-      lines.push(['Nº', 'Início', 'Fim', 'Duração', 'Latitude', 'Longitude', 'Endereço'].join(';'));
+      ws.addRow([]);
+      ws.mergeCells(`A${ws.rowCount + 1}:G${ws.rowCount + 1}`);
+      const stopsTitleCell = ws.getCell(`A${ws.rowCount}`);
+      stopsTitleCell.value = `PARADAS DETECTADAS (${stops.length})`;
+      stopsTitleCell.font = { ...bold, color: white };
+      stopsTitleCell.fill = orange;
+      stopsTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.getRow(ws.rowCount).height = 22;
+
+      const stopHeaders = ['Nº', 'Início', 'Fim', 'Duração', 'Latitude', 'Longitude', 'Endereço'];
+      const stopHdrRow = ws.addRow(stopHeaders);
+      stopHdrRow.eachCell(cell => {
+        cell.fill = orange;
+        cell.font = { ...bold, color: white };
+        cell.alignment = { horizontal: 'center' };
+      });
+      stopHdrRow.height = 22;
+
       stops.forEach((stop, i) => {
-        lines.push([
+        ws.addRow([
           i + 1,
           new Date(stop.startTime).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
           new Date(stop.endTime).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
           fmtDur(stop.durationSeconds),
-          stop.lat.toFixed(6),
-          stop.lon.toFixed(6),
+          parseFloat(stop.lat.toFixed(6)),
+          parseFloat(stop.lon.toFixed(6)),
           stopAddresses[i] ?? '',
-        ].join(';'));
+        ]);
       });
     }
 
-    const csv = lines.join('\r\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    // Column widths
+    ws.columns = [
+      { width: 22 }, { width: 12 }, { width: 12 }, { width: 18 },
+      { width: 10 }, { width: 12 }, { width: 14 },
+    ];
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `trajeto-${deviceName}-${from.slice(0, 10)}.csv`;
+    a.download = `trajeto-${deviceName}-${from.slice(0, 10)}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -266,17 +315,17 @@ function HistoricoContent() {
           </button>
           {route.length > 0 && (
             <button
-              onClick={downloadCSV}
+              onClick={downloadExcel}
               className="flex items-center gap-1.5 px-4 py-3 rounded-xl text-sm font-semibold"
-              style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
-              title="Baixar CSV"
+              style={{ background: 'rgba(52,199,89,0.1)', color: '#34C759', border: '1px solid rgba(52,199,89,0.2)' }}
+              title="Baixar Excel"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
-              CSV
+              Excel
             </button>
           )}
         </div>

@@ -94,6 +94,7 @@ export default function VehicleMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const hasFittedRef = useRef(false);
   const tileLayerRef = useRef<unknown>(null);
+  const labelsLayerRef = useRef<unknown>(null);
   const isDarkRef = useRef(false);
   const animationsRef = useRef<globalThis.Map<number, number>>(new globalThis.Map());
   const [mapLayer, setMapLayer] = useState<'street' | 'satellite'>('street');
@@ -143,10 +144,18 @@ export default function VehicleMap({
     if (tileLayerRef.current) {
       try { (mapRef.current as LeafletMap).removeLayer(tileLayerRef.current as Parameters<LeafletMap['removeLayer']>[0]); } catch { /**/ }
     }
+    if (labelsLayerRef.current) {
+      try { (mapRef.current as LeafletMap).removeLayer(labelsLayerRef.current as Parameters<LeafletMap['removeLayer']>[0]); } catch { /**/ }
+      labelsLayerRef.current = null;
+    }
     if (mapLayer === 'satellite') {
       tileLayerRef.current = L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { attribution: '© Esri, Maxar, Earthstar Geographics', maxZoom: 19, maxNativeZoom: 18 }
+        { attribution: '© Esri, Maxar, Earthstar Geographics', maxZoom: 20, maxNativeZoom: 19 }
+      ).addTo(mapRef.current);
+      labelsLayerRef.current = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+        { attribution: '', maxZoom: 20, maxNativeZoom: 19, opacity: 1 }
       ).addTo(mapRef.current);
     } else {
       const url = isDarkRef.current

@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   const { deviceId, userId, days } = await req.json();
   if (!deviceId || !userId) return NextResponse.json({ error: 'deviceId e userId são obrigatórios' }, { status: 400 });
 
-  const addDays = typeof days === 'number' && days > 0 ? days : 31;
+  const addDays = typeof days === 'number' && days !== 0 ? days : 31;
   const licenses = readLicenses();
   const key = String(deviceId);
   licenses[key] = createOrRenewLicense(String(userId), licenses[key], addDays);

@@ -155,8 +155,9 @@ export default function GestaoPage() {
     if (res.ok) {
       const data = await res.json();
       setLicenses(prev => ({ ...prev, [String(deviceId)]: { expiresAt: data.expiresAt, daysLeft: data.daysLeft, status: data.status } }));
-      const label = days === 1 ? '1 dia' : days === 365 ? '1 ano' : `${days} dias`;
-      flash(`✅ +${label} adicionado — expira em ${data.daysLeft} dias`);
+      const absLabel = Math.abs(days) === 1 ? '1 dia' : `${Math.abs(days)} dias`;
+      const sign = days < 0 ? '−' : '+';
+      flash(`✅ ${sign}${absLabel} — expira em ${data.daysLeft} dias`);
     } else {
       flash('❌ Erro ao renovar licença');
     }
@@ -661,15 +662,18 @@ export default function GestaoPage() {
                                           );
                                         })()}
                                         {[
+                                          { label: '−1d', days: -1 },
                                           { label: '+1d', days: 1 },
                                           { label: '+1m', days: 31 },
-                                          { label: '+1a', days: 365 },
                                         ].map(({ label, days }) => (
                                           <button key={label}
                                             onClick={() => renewLicense(device.id, selectedUser!.id, days)}
                                             className="text-xs px-2 py-1 rounded-lg font-medium"
-                                            style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF' }}
-                                            title={`Adicionar ${label === '+1d' ? '1 dia' : label === '+1m' ? '1 mês' : '1 ano'}`}
+                                            style={{
+                                              background: days < 0 ? 'rgba(255,59,48,0.1)' : 'rgba(0,122,255,0.12)',
+                                              color: days < 0 ? '#FF3B30' : '#007AFF',
+                                            }}
+                                            title={days < 0 ? 'Remover 1 dia' : days === 1 ? 'Adicionar 1 dia' : 'Adicionar 1 mês'}
                                           >
                                             {label}
                                           </button>
