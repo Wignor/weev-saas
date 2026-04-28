@@ -136,16 +136,17 @@ export default function GestaoPage() {
     setCreating(false);
   }
 
-  async function renewLicense(deviceId: number, userId: number) {
+  async function renewLicense(deviceId: number, userId: number, days: number) {
     const res = await fetch('/api/admin/licenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceId, userId }),
+      body: JSON.stringify({ deviceId, userId, days }),
     });
     if (res.ok) {
       const data = await res.json();
       setLicenses(prev => ({ ...prev, [String(deviceId)]: { expiresAt: data.expiresAt, daysLeft: data.daysLeft, status: data.status } }));
-      flash(`✅ Licença renovada — expira em ${data.daysLeft} dias`);
+      const label = days === 1 ? '1 dia' : days === 365 ? '1 ano' : `${days} dias`;
+      flash(`✅ +${label} adicionado — expira em ${data.daysLeft} dias`);
     } else {
       flash('❌ Erro ao renovar licença');
     }
@@ -649,14 +650,20 @@ export default function GestaoPage() {
                                             </span>
                                           );
                                         })()}
-                                        <button
-                                          onClick={() => renewLicense(device.id, selectedUser!.id)}
-                                          className="text-xs px-2 py-1 rounded-lg font-medium"
-                                          style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF' }}
-                                          title="Renovar licença +31 dias"
-                                        >
-                                          Renovar
-                                        </button>
+                                        {[
+                                          { label: '+1d', days: 1 },
+                                          { label: '+1m', days: 31 },
+                                          { label: '+1a', days: 365 },
+                                        ].map(({ label, days }) => (
+                                          <button key={label}
+                                            onClick={() => renewLicense(device.id, selectedUser!.id, days)}
+                                            className="text-xs px-2 py-1 rounded-lg font-medium"
+                                            style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF' }}
+                                            title={`Adicionar ${label === '+1d' ? '1 dia' : label === '+1m' ? '1 mês' : '1 ano'}`}
+                                          >
+                                            {label}
+                                          </button>
+                                        ))}
                                         <button
                                           onClick={() => removeDevice(device.id)}
                                           className="text-xs px-2 py-1 rounded-lg font-medium"

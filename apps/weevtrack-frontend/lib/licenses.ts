@@ -37,7 +37,7 @@ export function licenseStatus(expiresAt: string): 'active' | 'expiring' | 'expir
   return 'active';
 }
 
-export function createOrRenewLicense(userId: string, existing?: LicenseRecord): LicenseRecord {
+export function createOrRenewLicense(userId: string, existing?: LicenseRecord, days = 31): LicenseRecord {
   const now = new Date();
   const base = existing && new Date(existing.expiresAt) > now
     ? new Date(existing.expiresAt)
@@ -45,7 +45,7 @@ export function createOrRenewLicense(userId: string, existing?: LicenseRecord): 
   return {
     userId,
     activatedAt: existing?.activatedAt || now.toISOString(),
-    expiresAt: new Date(base.getTime() + 31 * 24 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(base.getTime() + days * 24 * 60 * 60 * 1000).toISOString(),
   };
 }
 
