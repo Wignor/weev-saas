@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
-import { readDistClients } from '../../route';
+import { readDistClients } from '@/lib/distributorClients';
 
 const TRACCAR_URL   = process.env.TRACCAR_URL || 'http://localhost:8082';
 const ROLES_FILE    = path.join(process.cwd(), 'data', 'user_roles.json');

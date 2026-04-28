@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
+import { readDistClients, writeDistClients } from '@/lib/distributorClients';
 
 const TRACCAR_URL   = process.env.TRACCAR_URL || 'http://localhost:8082';
 const ROLES_FILE    = path.join(process.cwd(), 'data', 'user_roles.json');
-const DIST_FILE     = path.join(process.cwd(), 'data', 'distributor_clients.json');
 const SESSION_CACHE = path.join(process.cwd(), 'data', 'admin_session.cache');
 
 function getAdminSession(): string {
@@ -21,19 +21,6 @@ function adminHeaders() {
 
 function readRoles(): Record<string, string> {
   try { return JSON.parse(fs.readFileSync(ROLES_FILE, 'utf-8')); } catch { return {}; }
-}
-
-export function readDistClients(): Record<string, number[]> {
-  try {
-    if (!fs.existsSync(DIST_FILE)) return {};
-    return JSON.parse(fs.readFileSync(DIST_FILE, 'utf-8'));
-  } catch { return {}; }
-}
-
-export function writeDistClients(data: Record<string, number[]>) {
-  const dir = path.dirname(DIST_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(DIST_FILE, JSON.stringify(data, null, 2));
 }
 
 async function getCallerAndRole(session: string) {

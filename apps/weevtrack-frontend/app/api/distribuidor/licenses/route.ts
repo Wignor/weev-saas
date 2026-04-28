@@ -7,7 +7,7 @@ import {
   daysLeft, licenseStatus,
   getCredits, useCredit,
 } from '@/lib/licenses';
-import { readDistClients } from '../clients/route';
+import { readDistClients } from '@/lib/distributorClients';
 
 const TRACCAR_URL   = process.env.TRACCAR_URL || 'http://localhost:8082';
 const ROLES_FILE    = path.join(process.cwd(), 'data', 'user_roles.json');

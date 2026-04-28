@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { readDistClients, writeDistClients } from '../../distribuidor/clients/route';
+import { readDistClients, writeDistClients } from '@/lib/distributorClients';
 
 /* GET — retorna mapa { distributorId: [clientId, ...] } para o admin */
 export async function GET() {
