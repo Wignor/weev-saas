@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { saveRole, deleteRole } from '../route';
+import { saveRole, deleteRole } from '@/lib/userRoles';
 import { removeClientRowsByEmail } from '@/lib/sheets';
 
 const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
