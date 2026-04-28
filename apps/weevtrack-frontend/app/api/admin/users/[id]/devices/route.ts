@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { readLicenses, writeLicenses, createOrRenewLicense } from '@/lib/licenses';
-import { appendClientRow } from '@/lib/sheets';
+import { appendClientRow, removeClientRowByImei } from '@/lib/sheets';
 
 const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
 
@@ -80,6 +80,18 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const { id } = await params;
   const { deviceId } = await req.json();
 
+  // Fetch device before removing (need IMEI for sheet cleanup)
+  let deviceImei = '';
+  try {
+    const devRes = await fetch(`${TRACCAR_URL}/api/devices/${deviceId}`, {
+      headers: { Cookie: `JSESSIONID=${session}` }, cache: 'no-store',
+    });
+    if (devRes.ok) {
+      const dev = await devRes.json();
+      deviceImei = dev.uniqueId || '';
+    }
+  } catch { /**/ }
+
   const res = await fetch(`${TRACCAR_URL}/api/permissions`, {
     method: 'DELETE',
     headers: { Cookie: `JSESSIONID=${session}`, 'Content-Type': 'application/json' },
@@ -87,5 +99,9 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   });
 
   if (!res.ok) return NextResponse.json({ error: 'Erro ao remover dispositivo' }, { status: res.status });
+
+  // Remove corresponding row from Google Sheets
+  if (deviceImei) removeClientRowByImei(deviceImei).catch(() => {});
+
   return NextResponse.json({ success: true });
 }

@@ -65,3 +65,59 @@ export async function appendClientRow(data: {
     console.error('[Sheets] Erro ao gravar linha:', err);
   }
 }
+
+async function deleteSheetRows(rowIndices: number[]): Promise<void> {
+  if (rowIndices.length === 0) return;
+  const auth = getAuth();
+  const sheets = google.sheets({ version: 'v4', auth });
+  // Delete from bottom to top so earlier indices don't shift
+  for (const rowIdx of [...rowIndices].sort((a, b) => b - a)) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SHEET_ID,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: { sheetId: 0, dimension: 'ROWS', startIndex: rowIdx, endIndex: rowIdx + 1 },
+          },
+        }],
+      },
+    });
+  }
+}
+
+// Remove row(s) where IMEI column (G, index 6) matches
+export async function removeClientRowByImei(imei: string): Promise<void> {
+  if (!imei) return;
+  try {
+    const auth = getAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'A:J' });
+    const rows = res.data.values || [];
+    const toDelete: number[] = [];
+    // i=0 is header row — skip it; sheet row index (0-based) = i
+    for (let i = 1; i < rows.length; i++) {
+      if ((rows[i][6] || '') === imei) toDelete.push(i);
+    }
+    await deleteSheetRows(toDelete);
+  } catch (err) {
+    console.error('[Sheets] Erro ao remover linha por IMEI:', err);
+  }
+}
+
+// Remove all rows where Email column (C, index 2) matches
+export async function removeClientRowsByEmail(email: string): Promise<void> {
+  if (!email) return;
+  try {
+    const auth = getAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'A:J' });
+    const rows = res.data.values || [];
+    const toDelete: number[] = [];
+    for (let i = 1; i < rows.length; i++) {
+      if ((rows[i][2] || '').toLowerCase() === email.toLowerCase()) toDelete.push(i);
+    }
+    await deleteSheetRows(toDelete);
+  } catch (err) {
+    console.error('[Sheets] Erro ao remover linhas por email:', err);
+  }
+}
