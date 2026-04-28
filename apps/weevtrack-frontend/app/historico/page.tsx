@@ -146,7 +146,7 @@ function HistoricoContent() {
     wb.creator = 'WeevTrack';
     const ws = wb.addWorksheet('Trajeto');
 
-    const orange: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF9500' } };
+    const orange = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF9500' } } as const;
     const white = { argb: 'FFFFFFFF' };
     const bold = { bold: true };
 
