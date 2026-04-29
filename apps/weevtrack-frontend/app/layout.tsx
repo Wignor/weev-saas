@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import DesktopNav from '@/components/DesktopNav';
 
 export const metadata: Metadata = {
   title: 'WeevTrack — Rastreamento Veicular',
@@ -21,14 +22,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="WeevTrack" />
-        {/* Runs synchronously before first paint — prevents theme flash on hard refresh */}
+        {/* Runs synchronously before first paint — prevents theme and nav-collapsed flash */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('wt_theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('wt_theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}try{if(localStorage.getItem('nav_collapsed')==='1')document.body.classList.add('nav-collapsed');}catch(e){}})();`,
           }}
         />
       </head>
       <body>
+        <DesktopNav />
         {children}
         <script
           dangerouslySetInnerHTML={{

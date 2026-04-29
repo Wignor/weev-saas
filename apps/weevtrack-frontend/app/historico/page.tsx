@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
-import DesktopNav from '@/components/DesktopNav';
 import { TraccarDevice, TraccarPosition, knotsToKmh } from '@/lib/traccar';
 import type { Stop } from '@/components/HistoricoMap';
 
@@ -274,8 +273,6 @@ function HistoricoContent() {
           </svg>
         </button>
       </header>
-
-      <DesktopNav />
 
       {/* Filtros */}
       <div className="flex-shrink-0 p-4 space-y-3" style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>

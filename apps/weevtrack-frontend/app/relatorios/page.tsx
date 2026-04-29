@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import BottomNav from '@/components/BottomNav';
-import DesktopNav from '@/components/DesktopNav';
 import { knotsToKmh } from '@/lib/traccar';
 
 interface Device { id: number; name: string; }
@@ -190,8 +189,6 @@ export default function RelatoriosPage() {
 
   return (
     <div className="flex flex-col sidebar-offset" style={{ minHeight: '100dvh', background: 'var(--bg-page)' }}>
-      <DesktopNav />
-
       {/* Header */}
       <header className="flex-shrink-0 flex items-center px-4 h-14 gap-3"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>

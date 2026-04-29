@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
-import DesktopNav from '@/components/DesktopNav';
 import ContratoModal from '@/components/ContratoModal';
 import FaturaModal from '@/components/FaturaModal';
 import ConfigModal from '@/components/ConfigModal';
@@ -308,7 +307,6 @@ export default function GestaoPage() {
 
   return (
     <div className="flex flex-col sidebar-offset" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
-      <DesktopNav />
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>

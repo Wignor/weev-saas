@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import dynamic from 'next/dynamic';
 import BottomNav from '@/components/BottomNav';
-import DesktopNav from '@/components/DesktopNav';
 import PushNotificationSetup from '@/components/PushNotificationSetup';
 import GeofenceModal from '@/components/GeofenceModal';
 import { TraccarDevice, TraccarPosition, knotsToKmh } from '@/lib/traccar';
@@ -944,8 +943,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col sidebar-offset" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
-      <DesktopNav />
-
       {/* ── Header ── */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14 z-20"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-interface User { id: number; name: string; email: string; }
+interface User { id: number; name: string; email: string; phone?: string; attributes?: Record<string, unknown>; }
 interface Props { user: User; onClose: () => void; }
 
 const BILLING_TYPES = [
@@ -24,8 +24,12 @@ function todayISO() {
 
 export default function FaturaModal({ user, onClose }: Props) {
   const [type, setType] = useState<'subscription' | 'payment' | ''>('');
-  const [cpfCnpj, setCpfCnpj] = useState('');
-  const [phone, setPhone] = useState('');
+  const [cpfCnpj, setCpfCnpj] = useState(
+    String(user.attributes?.cpfCnpj || ''),
+  );
+  const [phone, setPhone] = useState(
+    String(user.attributes?.phone || user.phone || ''),
+  );
   const [billingType, setBillingType] = useState('BOLETO');
   const [value, setValue] = useState('');
   const [dueDate, setDueDate] = useState(todayISO());

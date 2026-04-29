@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
-import DesktopNav from '@/components/DesktopNav';
 
 interface Invoice {
   id: string;
@@ -153,8 +152,6 @@ export default function PerfilPage() {
           </svg>
         </button>
       </header>
-
-      <DesktopNav />
 
       <div className="flex-1 overflow-y-auto pb-20">
         {/* Avatar */}

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import BottomNav from '@/components/BottomNav';
-import DesktopNav from '@/components/DesktopNav';
 
 interface AlertEntry {
   id: number;
@@ -158,8 +157,6 @@ export default function AlertasPage() {
           </svg>
         </button>
       </header>
-
-      <DesktopNav />
 
       {/* Tabs */}
       <div className="flex-shrink-0 flex px-4 gap-2 py-2"
