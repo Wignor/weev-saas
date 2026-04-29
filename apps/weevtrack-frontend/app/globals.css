@@ -82,3 +82,16 @@ input, select, textarea { color-scheme: dark; }
 [data-theme="light"] input,
 [data-theme="light"] select,
 [data-theme="light"] textarea { color-scheme: light; }
+
+/* Desktop sidebar offset — pages add class "sidebar-offset" to root div */
+@media (min-width: 768px) {
+  body:not(.nav-collapsed) .sidebar-offset { padding-left: 220px; }
+  body.nav-collapsed .sidebar-offset { padding-left: 64px; }
+}
+
+/* Pull-to-refresh indicator */
+.ptr-indicator {
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; transition: height 0.2s;
+  background: var(--bg-card);
+}
