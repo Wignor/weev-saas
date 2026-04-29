@@ -71,12 +71,12 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: '#8E8EA0', marginBottom: 6 }}>E-mail</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: '#8E8EA0', marginBottom: 6 }}>CPF ou CNPJ</label>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
+                placeholder="000.000.000-00"
                 required
                 style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: 12, fontSize: '0.875rem', outline: 'none', background: '#12131A', color: '#F0F0F5', border: '1px solid #2A2D3E', boxSizing: 'border-box' }}
               />

@@ -94,7 +94,7 @@ function detectVehicleType(name: string): string {
   return 'car';
 }
 const S_LABEL: Record<DeviceStatus, string> = {
-  movendo: 'Movendo', parado: 'Estático', offline: 'Offline', expirado: 'Expirado',
+  movendo: 'Movendo', parado: 'Parado', offline: 'Offline', expirado: 'Expirado',
 };
 
 const VEHICLE_TYPES = [
@@ -925,6 +925,14 @@ export default function DashboardPage() {
   ];
 
   function selectDevice(id: number) {
+    const device = displayDevices.find(d => d.id === id);
+    if (device && !user.administrator) {
+      const st = getEffectiveStatus(device, posMap[device.id]);
+      if (st === 'expirado') {
+        alert('⚠️ Licença expirada. Entre em contato com o suporte para regularizar o pagamento e reativar o rastreamento.');
+        return;
+      }
+    }
     setSelectedId(id);
     setMobileView('mapa');
     setPanelMinimized(false);
@@ -1334,7 +1342,7 @@ export default function DashboardPage() {
               </div>
               <p style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-lo)' }}>Clique para visualizar como o cliente, ou 👤 para ver o cadastro.</p>
             </div>
-            <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '8px' }}>
+            <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '80px' }}>
               {filteredUsersList.length === 0 ? (
                 <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-lo)', padding: '32px' }}>Nenhum cliente encontrado</p>
               ) : filteredUsersList.map(u => (

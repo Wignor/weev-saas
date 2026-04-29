@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 
@@ -65,19 +65,24 @@ export default function PerfilPage() {
   const [pwLoading, setPwLoading] = useState(false);
   const [pwMsg, setPwMsg] = useState('');
 
-  useEffect(() => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pullStartY = useRef(0);
+  const [pullDistance, setPullDistance] = useState(0);
+
+  function loadData() {
     setUser(getUserFromCookie());
-
     fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setFullUser(d); }).catch(() => {});
-
+    setInvoicesLoading(true);
     fetch('/api/me/invoices').then(r => r.json()).then(d => {
       if (Array.isArray(d)) setInvoices(d);
     }).catch(() => {}).finally(() => setInvoicesLoading(false));
-
+    setContratoLoading(true);
     fetch('/api/me/contrato').then(r => r.json()).then(d => {
       if (d && d.token) setContrato(d);
     }).catch(() => {}).finally(() => setContratoLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { loadData(); }, []);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -153,7 +158,25 @@ export default function PerfilPage() {
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div className="flex-1 overflow-y-auto pb-20" ref={scrollRef}
+        onTouchStart={e => { pullStartY.current = e.touches[0].clientY; }}
+        onTouchMove={e => {
+          if ((scrollRef.current?.scrollTop ?? 1) > 0) return;
+          const dy = e.touches[0].clientY - pullStartY.current;
+          if (dy > 0) setPullDistance(Math.min(dy * 0.5, 60));
+        }}
+        onTouchEnd={() => {
+          if (pullDistance >= 55) loadData();
+          setPullDistance(0);
+        }}>
+        {pullDistance > 0 && (
+          <div className="ptr-indicator" style={{ height: pullDistance }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round"
+              style={{ transform: pullDistance >= 55 ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+              <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+          </div>
+        )}
         {/* Avatar */}
         <div className="flex flex-col items-center py-8">
           <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center mb-3">
@@ -291,26 +314,6 @@ export default function PerfilPage() {
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
             </button>
-          </div>
-        </div>
-
-        {/* Sobre */}
-        <div className="mb-4">
-          <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Sobre</p>
-          <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
-            {[
-              { icon: '📱', label: 'Versão do app', value: '1.0.0' },
-              { icon: '🌐', label: 'Servidor', value: 'app.weevtrack.com' },
-            ].map((item, i, arr) => (
-              <div key={item.label} className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
-                <div className="flex items-center gap-3">
-                  <span>{item.icon}</span>
-                  <span className="text-sm t-text-hi">{item.label}</span>
-                </div>
-                <span className="text-sm t-text-lo">{item.value}</span>
-              </div>
-            ))}
           </div>
         </div>
 

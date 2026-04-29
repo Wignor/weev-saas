@@ -114,6 +114,7 @@ export default function GestaoPage() {
       setUserDevices([]);
       return;
     }
+    setUserDevices([]);
     setSelectedUser(user);
     setLoadingDevices(true);
     try {
@@ -399,15 +400,32 @@ export default function GestaoPage() {
 
           /* ─── CLIENTES TAB ─── */
           <>
+            {users.length > 0 && (
+              <div className="px-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--bg-border)', background: 'var(--bg-card)' }}>
+                <div className="relative">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                  <input type="text" placeholder="Buscar cliente..." value={usersSearch}
+                    onChange={e => setUsersSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus:outline-none"
+                    style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }} />
+                </div>
+              </div>
+            )}
             {users.length === 0 ? (
               <div className="text-center py-12 px-8">
                 <div className="text-5xl mb-4">👥</div>
                 <p className="t-text-lo text-sm">Nenhum cliente cadastrado</p>
                 <p className="t-text-lo text-xs mt-1">Toque em "+ Novo cliente" para adicionar</p>
               </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center py-12 px-8">
+                <p className="t-text-lo text-sm">Nenhum cliente encontrado</p>
+              </div>
             ) : (
               <div className="mt-2" style={{ borderTop: '1px solid var(--bg-border)' }}>
-                {users.map(user => (
+                {filteredUsers.map(user => (
                   <div key={user.id}>
                     <div className="flex items-center gap-3 px-4 py-3"
                       style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
@@ -1089,10 +1107,10 @@ export default function GestaoPage() {
       )}
 
       {showUsersModal && (
-        <div className="fixed inset-0 z-[300] flex items-end md:items-center justify-center p-4"
+        <div className="fixed inset-0 z-[300] flex items-end md:items-center justify-center md:p-4"
           style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) setShowUsersModal(false); }}>
-          <div className="w-full max-w-sm rounded-2xl overflow-hidden"
+          <div className="w-full max-w-sm md:rounded-2xl overflow-hidden rounded-t-2xl"
             style={{ background: 'var(--bg-card)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
             <div className="flex items-center justify-between px-5 py-4"
               style={{ borderBottom: '1px solid var(--bg-border)' }}>
@@ -1126,7 +1144,7 @@ export default function GestaoPage() {
                 />
               </div>
             </div>
-            <div className="overflow-y-auto flex-1 py-2" style={{ paddingBottom: '72px' }}>
+            <div className="overflow-y-auto flex-1 py-2" style={{ paddingBottom: '80px' }}>
               {filteredUsers.length === 0 ? (
                 <p className="text-center text-xs t-text-lo py-8">Nenhum cliente encontrado</p>
               ) : (

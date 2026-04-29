@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
@@ -102,6 +102,10 @@ function HistoricoContent() {
   const [stopAddresses, setStopAddresses] = useState<(string | null)[]>([]);
 
   const stops = useMemo(() => route.length ? detectStops(route) : [], [route]);
+
+  const listRef = useRef<HTMLDivElement>(null);
+  const pullStartY = useRef(0);
+  const [pullDistance, setPullDistance] = useState(0);
 
   useEffect(() => {
     fetch('/api/devices').then((r) => r.json()).then((data) => {
@@ -331,7 +335,25 @@ function HistoricoContent() {
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div className="flex-1 overflow-y-auto pb-20" ref={listRef}
+        onTouchStart={e => { pullStartY.current = e.touches[0].clientY; }}
+        onTouchMove={e => {
+          if ((listRef.current?.scrollTop ?? 1) > 0) return;
+          const dy = e.touches[0].clientY - pullStartY.current;
+          if (dy > 0) setPullDistance(Math.min(dy * 0.5, 60));
+        }}
+        onTouchEnd={() => {
+          if (pullDistance >= 55 && selectedDevice) handleSearch();
+          setPullDistance(0);
+        }}>
+        {pullDistance > 0 && (
+          <div className="ptr-indicator" style={{ height: pullDistance }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round"
+              style={{ transform: pullDistance >= 55 ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+              <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+          </div>
+        )}
 
         {/* Stats */}
         {searched && !loading && route.length > 0 && (

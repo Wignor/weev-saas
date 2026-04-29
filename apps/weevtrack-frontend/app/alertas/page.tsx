@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import BottomNav from '@/components/BottomNav';
 
 interface AlertEntry {
@@ -119,6 +119,33 @@ export default function AlertasPage() {
       .finally(() => setEventsLoading(false));
   }, [tab]);
 
+  const contentRef = useRef<HTMLDivElement>(null);
+  const pullStartY = useRef(0);
+  const [pullDistance, setPullDistance] = useState(0);
+
+  function refresh() {
+    if (tab === 'sistema') {
+      setAlertsLoading(true);
+      fetch(`/api/alerts/log?date=${date}`)
+        .then(r => r.json())
+        .then(data => { if (Array.isArray(data)) setAlerts(data); })
+        .catch(() => {})
+        .finally(() => setAlertsLoading(false));
+    } else {
+      setEventsLoading(true);
+      Promise.all([
+        fetch('/api/events').then(r => r.json()),
+        fetch('/api/devices').then(r => r.json()),
+      ])
+        .then(([evts, devs]) => {
+          if (Array.isArray(evts)) setEvents(evts.slice(0, 100));
+          if (Array.isArray(devs)) setDevices(devs);
+        })
+        .catch(() => {})
+        .finally(() => setEventsLoading(false));
+    }
+  }
+
   const deviceMap = Object.fromEntries(devices.map(d => [d.id, d.name]));
 
   const traccarFilters = [
@@ -210,7 +237,25 @@ export default function AlertasPage() {
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div className="flex-1 overflow-y-auto pb-20" ref={contentRef}
+        onTouchStart={e => { pullStartY.current = e.touches[0].clientY; }}
+        onTouchMove={e => {
+          if ((contentRef.current?.scrollTop ?? 1) > 0) return;
+          const dy = e.touches[0].clientY - pullStartY.current;
+          if (dy > 0) setPullDistance(Math.min(dy * 0.5, 60));
+        }}
+        onTouchEnd={() => {
+          if (pullDistance >= 55) refresh();
+          setPullDistance(0);
+        }}>
+        {pullDistance > 0 && (
+          <div className="ptr-indicator" style={{ height: pullDistance }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round"
+              style={{ transform: pullDistance >= 55 ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+              <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+          </div>
+        )}
 
         {/* Sistema alerts list */}
         {tab === 'sistema' && (
