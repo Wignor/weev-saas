@@ -631,47 +631,67 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
   );
 }
 
-/* ── VehicleIcon SVG (side-view, professional) ── */
+/* ── VehicleIcon SVG (side-view, filled, professional) ── */
 function VehicleIcon({ type, color }: { type: string; color: string }) {
-  const s = { stroke: color, strokeWidth: '1.6', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' };
+  const wh = 'rgba(0,0,0,0.32)';  // wheel
+  const gl = 'rgba(0,0,0,0.18)';  // glass
   switch (type) {
     case 'motorcycle': return (
-      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
-        <circle cx="5" cy="16" r="3"/><circle cx="19" cy="16" r="3"/>
-        <path d="M5 16h3l2-6h4l3 6"/><path d="M10 10l2-4h3l2 4"/>
-        <path d="M14 10h4v3"/>
+      <svg width="28" height="22" viewBox="0 0 28 22">
+        <circle cx="6" cy="16" r="5" fill={color}/>
+        <circle cx="6" cy="16" r="2.2" fill={wh}/>
+        <circle cx="22" cy="16" r="5" fill={color}/>
+        <circle cx="22" cy="16" r="2.2" fill={wh}/>
+        <path d="M6 16 L11 8 L17 8 L22 16" fill="none" stroke={color} strokeWidth="3" strokeLinejoin="bevel"/>
+        <rect x="9" y="5.5" width="8" height="5" rx="1.5" fill={color}/>
+        <path d="M17 8 L22 6" stroke={color} strokeWidth="2" strokeLinecap="round"/>
       </svg>
     );
     case 'truck': return (
-      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
-        <rect x="1" y="7" width="12" height="9" rx="1"/><path d="M13 9h5l3 4v4h-8V9z"/>
-        <circle cx="5" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>
+      <svg width="28" height="22" viewBox="0 0 28 22">
+        <rect x="0" y="8" width="14" height="10" rx="1.5" fill={color}/>
+        <path d="M14 10 L18 7 L27 7 L27 18 L14 18 Z" fill={color}/>
+        <rect x="15" y="8.5" width="7" height="4.5" rx="0.5" fill={gl}/>
+        <circle cx="4.5" cy="19.5" r="2.5" fill={wh}/>
+        <circle cx="22" cy="19.5" r="2.5" fill={wh}/>
       </svg>
     );
     case 'bus': return (
-      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
-        <rect x="2" y="5" width="20" height="12" rx="2"/>
-        <path d="M2 11h20"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="19" r="2"/>
-        <path d="M7 5v6M12 5v6M17 5v6"/>
+      <svg width="28" height="22" viewBox="0 0 28 22">
+        <rect x="0" y="5" width="28" height="13" rx="2" fill={color}/>
+        <rect x="2" y="7.5" width="5" height="4" rx="0.5" fill={gl}/>
+        <rect x="9" y="7.5" width="5" height="4" rx="0.5" fill={gl}/>
+        <rect x="16" y="7.5" width="5" height="4" rx="0.5" fill={gl}/>
+        <circle cx="6" cy="19.5" r="2.5" fill={wh}/>
+        <circle cx="22" cy="19.5" r="2.5" fill={wh}/>
       </svg>
     );
     case 'pickup': return (
-      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
-        <path d="M2 11h9V8l4-2h5l2 3v5H2v-3z"/>
-        <path d="M11 11h10"/><circle cx="6" cy="17" r="2"/><circle cx="18" cy="17" r="2"/>
+      <svg width="28" height="22" viewBox="0 0 28 22">
+        <path d="M0 14 L2 9 Q3 7 5.5 7 L14 7 Q15.5 7 16 9 L17.5 14 Z" fill={color}/>
+        <rect x="17.5" y="9" width="10.5" height="9" rx="1" fill={color}/>
+        <path d="M8 13.5 L9.5 9 L14 9 L15.5 13.5 Z" fill={gl}/>
+        <rect x="0" y="14" width="28" height="4" rx="1" fill={color}/>
+        <circle cx="7" cy="19.5" r="2.5" fill={wh}/>
+        <circle cx="21" cy="19.5" r="2.5" fill={wh}/>
       </svg>
     );
     case 'boat': return (
-      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
-        <path d="M3 17l3-8h12l3 8H3z"/><path d="M12 9V4M9 7l3-3 3 3"/>
+      <svg width="28" height="22" viewBox="0 0 28 22">
+        <path d="M0 15 L2.5 10 L25 10 L28 15 Q14 20 0 15 Z" fill={color}/>
+        <rect x="8" y="6" width="11" height="6" rx="1.5" fill={color}/>
+        <rect x="10" y="7.5" width="7" height="3" rx="0.5" fill={gl}/>
+        <line x1="14" y1="6" x2="14" y2="3" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M14 3 L19 5.5" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
     );
     default: return ( // car
-      <svg width="24" height="24" viewBox="0 0 24 24" {...s}>
-        <path d="M4 11l2-5h12l2 5H4z"/>
-        <path d="M2 11h20v4a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-4z"/>
-        <circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>
-        <path d="M5 11V9M19 11V9"/>
+      <svg width="28" height="22" viewBox="0 0 28 22">
+        <path d="M2 13 L4.5 8 Q5.5 6 8 6 L20 6 Q22.5 6 23.5 8 L26 13 H2 Z" fill={color}/>
+        <rect x="1" y="13" width="26" height="5" rx="1.5" fill={color}/>
+        <path d="M7.5 12.5 L9.5 7.5 L18.5 7.5 L20.5 12.5 Z" fill={gl}/>
+        <circle cx="7.5" cy="19" r="3" fill={wh}/>
+        <circle cx="20.5" cy="19" r="3" fill={wh}/>
       </svg>
     );
   }
@@ -750,6 +770,8 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, onSe
   );
 }
 
+type UserEntry = { id: number; name: string; email: string; phone?: string; attributes?: { cpfCnpj?: string }; role: string };
+
 /* ── Main page ── */
 export default function DashboardPage() {
   const [asUser, setAsUser] = useState<string | null>(null);
@@ -773,7 +795,8 @@ export default function DashboardPage() {
   const [licenses, setLicenses] = useState<Record<string, { daysLeft: number; status: string }>>({});
   const [geofenceDeviceId, setGeofenceDeviceId] = useState<number | null>(null);
   const [showUsersModal, setShowUsersModal] = useState(false);
-  const [usersList, setUsersList] = useState<{ id: number; name: string; email: string; role: string }[]>([]);
+  const [usersList, setUsersList] = useState<UserEntry[]>([]);
+  const [profileUser, setProfileUser] = useState<UserEntry | null>(null);
   const [mergeMode, setMergeMode] = useState(false);
   const [allDevices, setAllDevices] = useState<TraccarDevice[]>([]);
   const [allPositions, setAllPositions] = useState<TraccarPosition[]>([]);
@@ -1292,29 +1315,92 @@ export default function DashboardPage() {
               </button>
             </div>
             <p style={{ padding: '10px 20px 4px', fontSize: '12px', color: 'var(--text-lo)' }}>
-              Clique em um cliente para visualizar o painel como ele vê.
+              Clique em um cliente para visualizar o painel como ele vê, ou toque em 👤 para ver o cadastro.
             </p>
             <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '8px' }}>
               {usersList.length === 0 ? (
                 <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-lo)', padding: '32px' }}>Nenhum cliente cadastrado</p>
               ) : usersList.map(u => (
-                <a key={u.id}
-                  href={`/dashboard?asUser=${u.id}&asUserName=${encodeURIComponent(u.name)}`}
-                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderBottom: '1px solid var(--bg-border)', textDecoration: 'none' }}
-                  onClick={() => setShowUsersModal(false)}>
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 20px', borderBottom: '1px solid var(--bg-border)' }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(0,122,255,0.13)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <span style={{ fontWeight: 700, fontSize: '14px', color: '#007AFF' }}>{u.name.charAt(0).toUpperCase()}</span>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <a href={`/dashboard?asUser=${u.id}&asUserName=${encodeURIComponent(u.name)}`}
+                    style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}
+                    onClick={() => setShowUsersModal(false)}>
                     <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-hi)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name}</p>
                     <p style={{ fontSize: '12px', color: 'var(--text-lo)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</p>
-                  </div>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                </a>
+                  </a>
+                  <button onClick={() => { setProfileUser(u); setShowUsersModal(false); }}
+                    style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.2)', cursor: 'pointer' }}
+                    title="Ver cadastro">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF9500" strokeWidth="2" strokeLinecap="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </button>
+                </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Client profile modal ── */}
+      {profileUser && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 3100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '16px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setProfileUser(null); }}>
+          <div style={{ width: '100%', maxWidth: '420px', borderRadius: '20px', overflow: 'hidden', background: 'var(--bg-card)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 20px', borderBottom: '1px solid var(--bg-border)' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(255,149,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontWeight: 800, fontSize: '18px', color: '#FF9500' }}>{profileUser.name.charAt(0).toUpperCase()}</span>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-hi)', margin: 0 }}>{profileUser.name}</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-lo)', margin: 0 }}>Cadastro do cliente</p>
+              </div>
+              <button onClick={() => setProfileUser(null)}
+                style={{ width: '30px', height: '30px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-input)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            {/* Fields */}
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {[
+                { label: 'Nome completo', value: profileUser.name },
+                { label: 'E-mail', value: profileUser.email },
+                { label: 'Telefone', value: profileUser.phone || '—' },
+                { label: 'CPF / CNPJ', value: profileUser.attributes?.cpfCnpj || '—' },
+                { label: 'Função', value: profileUser.role === 'admin' ? 'Administrador' : profileUser.role === 'distribuidor' ? 'Distribuidor' : profileUser.role === 'distribuidor_geral' ? 'Distribuidor Geral' : profileUser.role === 'monitor' ? 'Monitor' : 'Usuário' },
+                { label: 'ID Traccar', value: String(profileUser.id) },
+              ].map((row, i, arr) => (
+                <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', background: i % 2 === 0 ? 'var(--bg-input)' : 'transparent', borderBottom: i < arr.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--text-lo)' }}>{row.label}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-hi)', maxWidth: '60%', textAlign: 'right', wordBreak: 'break-all' }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+            {/* Actions */}
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--bg-border)', display: 'flex', gap: '8px' }}>
+              <a href={`/dashboard?asUser=${profileUser.id}&asUserName=${encodeURIComponent(profileUser.name)}`}
+                style={{ flex: 1, padding: '10px', borderRadius: '12px', background: 'rgba(0,122,255,0.12)', color: '#007AFF', fontWeight: 600, fontSize: '13px', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                Ver como cliente
+              </a>
+              <a href={`/gestao?tab=usuarios&highlight=${profileUser.id}`}
+                style={{ flex: 1, padding: '10px', borderRadius: '12px', background: 'rgba(255,149,0,0.12)', color: '#FF9500', fontWeight: 600, fontSize: '13px', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Editar no Gestão
+              </a>
             </div>
           </div>
         </div>

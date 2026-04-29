@@ -164,7 +164,8 @@ function HistoricoContent() {
     // Position headers
     const posHeaders = ['Data/Hora', 'Latitude', 'Longitude', 'Velocidade (km/h)', 'Curso (°)', 'Ignição', 'Bateria (%)'];
     const posHdrRow = ws.addRow(posHeaders);
-    posHdrRow.eachCell(cell => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    posHdrRow.eachCell((cell: any) => {
       cell.fill = orange;
       cell.font = { ...bold, color: white };
       cell.alignment = { horizontal: 'center' };
@@ -197,7 +198,8 @@ function HistoricoContent() {
 
       const stopHeaders = ['Nº', 'Início', 'Fim', 'Duração', 'Latitude', 'Longitude', 'Endereço'];
       const stopHdrRow = ws.addRow(stopHeaders);
-      stopHdrRow.eachCell(cell => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      stopHdrRow.eachCell((cell: any) => {
         cell.fill = orange;
         cell.font = { ...bold, color: white };
         cell.alignment = { horizontal: 'center' };
