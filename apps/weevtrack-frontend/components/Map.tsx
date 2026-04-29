@@ -20,12 +20,14 @@ function getMarkerColor(device: TraccarDevice, position?: TraccarPosition): stri
   return '#007AFF';
 }
 
-function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'car'): string {
+function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'car', name = ''): string {
   const size = isSelected ? 48 : 38;
   const shadow = isSelected
     ? 'filter: drop-shadow(0 0 10px rgba(0,122,255,0.7));'
     : 'filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));';
   const ring = isSelected ? `<circle cx="24" cy="24" r="21" stroke="white" stroke-width="2.5" fill="none"/>` : '';
+  const safeName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const label = safeName ? `<div style="margin-top:3px;background:rgba(0,0,0,0.72);color:#fff;font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;text-align:center;pointer-events:none">${safeName}</div>` : '';
 
   let shape: string;
   switch (vehicleType) {
@@ -82,11 +84,14 @@ function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'ca
         <circle cx="32" cy="30" r="3.5" fill="${color}" stroke="white" stroke-width="2"/>`;
   }
 
-  return `<div style="width:${size}px;height:${size}px;${shadow}">
-    <svg width="${size}" height="${size}" viewBox="0 0 48 48" fill="none">
-      <circle cx="24" cy="24" r="24" fill="${color}" opacity="${isSelected ? '1' : '0.92'}"/>
-      ${ring}${shape}
-    </svg>
+  return `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto">
+    <div style="width:${size}px;height:${size}px;${shadow}">
+      <svg width="${size}" height="${size}" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="24" fill="${color}" opacity="${isSelected ? '1' : '0.92'}"/>
+        ${ring}${shape}
+      </svg>
+    </div>
+    ${label}
   </div>`;
 }
 
@@ -197,11 +202,12 @@ export default function VehicleMap({
       const color = getMarkerColor(device, pos);
       const isSelected = selectedDeviceId === device.id;
       const vType = vehiclePrefs[device.id] || 'car';
+      const s = isSelected ? 48 : 38;
       const icon = L.divIcon({
-        html: createVehicleIcon(color, isSelected, vType),
+        html: createVehicleIcon(color, isSelected, vType, device.name),
         className: '',
-        iconSize: [isSelected ? 48 : 38, isSelected ? 48 : 38],
-        iconAnchor: [isSelected ? 24 : 19, isSelected ? 24 : 19],
+        iconSize: [s, s + 22],
+        iconAnchor: [s / 2, s / 2],
       });
 
       if (markersRef.current.has(device.id)) {

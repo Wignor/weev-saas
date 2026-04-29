@@ -140,7 +140,7 @@ export default function AlertasPage() {
   });
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
+    <div className="flex flex-col sidebar-offset" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
 
       {/* Header */}
       <header className="flex-shrink-0 flex items-center px-4 h-14 gap-3"

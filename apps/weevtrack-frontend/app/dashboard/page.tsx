@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
 import dynamic from 'next/dynamic';
 import BottomNav from '@/components/BottomNav';
+import DesktopNav from '@/components/DesktopNav';
 import PushNotificationSetup from '@/components/PushNotificationSetup';
 import GeofenceModal from '@/components/GeofenceModal';
 import { TraccarDevice, TraccarPosition, knotsToKmh } from '@/lib/traccar';
@@ -704,12 +705,13 @@ interface ListItemProps {
   isSelected: boolean;
   clientName: string;
   vehicleType?: string;
+  licenseStatus?: string;
   onSelect: () => void;
   onMenu: () => void;
 }
 
-function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, onSelect, onMenu }: ListItemProps) {
-  const status = getStatus(device, pos);
+function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, licenseStatus, onSelect, onMenu }: ListItemProps) {
+  const status: DeviceStatus = licenseStatus === 'expired' ? 'expirado' : getStatus(device, pos);
   const speed = pos ? knotsToKmh(pos.speed) : 0;
   const isOffline = status === 'offline' || status === 'expirado';
   const offlineTag = isOffline ? timeOffline(device.lastUpdate) : null;
@@ -800,8 +802,12 @@ export default function DashboardPage() {
   const [mergeMode, setMergeMode] = useState(false);
   const [allDevices, setAllDevices] = useState<TraccarDevice[]>([]);
   const [allPositions, setAllPositions] = useState<TraccarPosition[]>([]);
+  const [mergeFetching, setMergeFetching] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const mergeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const mobileListRef = useRef<HTMLDivElement>(null);
+  const pullStartY = useRef(0);
+  const [pullDistance, setPullDistance] = useState(0);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -860,6 +866,7 @@ export default function DashboardPage() {
   }, [fetchData]);
 
   async function fetchAllFleet() {
+    setMergeFetching(true);
     try {
       const [devRes, posRes] = await Promise.all([
         fetch('/api/admin/all-devices'),
@@ -867,7 +874,7 @@ export default function DashboardPage() {
       ]);
       if (devRes.ok) setAllDevices(await devRes.json());
       if (posRes.ok) setAllPositions(await posRes.json());
-    } catch { /**/ }
+    } catch { /**/ } finally { setMergeFetching(false); }
   }
 
   useEffect(() => {
@@ -915,7 +922,7 @@ export default function DashboardPage() {
     { key: 'todos', label: 'Todos', count: devices.length },
     { key: 'online', label: 'Online', count: countByStatus.online },
     { key: 'offline', label: 'Offline', count: countByStatus.offline },
-    { key: 'expirando', label: 'Expirando', count: countByStatus.expirando },
+    { key: 'expirando', label: 'Expirado', count: countByStatus.expirando },
   ];
 
   function selectDevice(id: number) {
@@ -929,8 +936,15 @@ export default function DashboardPage() {
     setPanelMinimized(true);
   }
 
+  const [usersSearch, setUsersSearch] = useState('');
+  const sortedUsersList = [...usersList].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
+  const filteredUsersList = sortedUsersList.filter(u =>
+    !usersSearch || u.name.toLowerCase().includes(usersSearch.toLowerCase()) || u.email.toLowerCase().includes(usersSearch.toLowerCase())
+  );
+
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
+    <div className="flex flex-col sidebar-offset" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
+      <DesktopNav />
 
       {/* ── Header ── */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14 z-20"
@@ -993,32 +1007,6 @@ export default function DashboardPage() {
           )}
         </div>
       </header>
-
-      {/* ── Desktop nav tabs ── */}
-      <div className="hidden md:flex flex-shrink-0 px-4 gap-1"
-        style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)', paddingTop: '6px', paddingBottom: '6px' }}>
-        {[
-          { href: '/dashboard', label: 'Monitor' },
-          { href: '/historico', label: 'Trajetos' },
-          { href: '/alertas', label: 'Alertas' },
-          ...(user.administrator ? [{ href: '/gestao', label: 'Gestão' }] : []),
-          { href: '/perfil', label: 'Perfil' },
-        ].map(tab => {
-          const active = typeof window !== 'undefined' && window.location.pathname === tab.href;
-          return (
-            <a key={tab.href} href={tab.href}
-              className="px-4 py-1.5 rounded-lg text-sm font-medium no-underline transition-all"
-              style={{ background: active ? '#007AFF' : 'transparent', color: active ? 'white' : 'var(--text-lo)' }}>
-              {tab.label}
-            </a>
-          );
-        })}
-        {lastUpdate && (
-          <span className="ml-auto text-xs self-center" style={{ color: 'var(--text-lo)' }}>
-            Atualizado {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </span>
-        )}
-      </div>
 
       {/* ── Mobile toggle: Lista / Mapa ── */}
       <div className="md:hidden flex-shrink-0 flex px-4 py-2 gap-2"
@@ -1089,6 +1077,7 @@ export default function DashboardPage() {
               <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
                 isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
                 vehicleType={vehiclePrefs[device.id]?.vehicleType}
+                licenseStatus={licenses[String(device.id)]?.status}
                 onSelect={() => { const nid = selectedId === device.id ? null : device.id; setSelectedId(nid); if (nid) setDesktopPanelCollapsed(false); }}
                 onMenu={() => setMenuDeviceId(device.id)} />
             ))}
@@ -1241,9 +1230,27 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
-          {/* List */}
-          <div className="flex-1 overflow-y-auto pb-20">
-            {loading ? (
+          {/* Pull-to-refresh + List */}
+          <div className="flex-1 overflow-y-auto pb-20" ref={mobileListRef}
+            onTouchStart={e => { pullStartY.current = e.touches[0].clientY; }}
+            onTouchMove={e => {
+              if ((mobileListRef.current?.scrollTop ?? 1) > 0) return;
+              const dy = e.touches[0].clientY - pullStartY.current;
+              if (dy > 0) setPullDistance(Math.min(dy * 0.5, 60));
+            }}
+            onTouchEnd={() => {
+              if (pullDistance >= 55) fetchData();
+              setPullDistance(0);
+            }}>
+            {pullDistance > 0 && (
+              <div className="ptr-indicator" style={{ height: pullDistance }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round"
+                  style={{ transform: pullDistance >= 55 ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                  <path d="M12 5v14M5 12l7 7 7-7"/>
+                </svg>
+              </div>
+            )}
+            {(loading || (mergeMode && mergeFetching)) ? (
               <div className="flex justify-center py-12">
                 <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
@@ -1255,6 +1262,7 @@ export default function DashboardPage() {
               <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
                 isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
                 vehicleType={vehiclePrefs[device.id]?.vehicleType}
+                licenseStatus={licenses[String(device.id)]?.status}
                 onSelect={() => selectDevice(device.id)}
                 onMenu={() => setMenuDeviceId(device.id)} />
             ))}
@@ -1314,13 +1322,25 @@ export default function DashboardPage() {
                 </svg>
               </button>
             </div>
-            <p style={{ padding: '10px 20px 4px', fontSize: '12px', color: 'var(--text-lo)' }}>
-              Clique em um cliente para visualizar o painel como ele vê, ou toque em 👤 para ver o cadastro.
-            </p>
+            <div style={{ padding: '10px 20px 8px' }}>
+              <div style={{ position: 'relative' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Buscar cliente..."
+                  value={usersSearch}
+                  onChange={e => setUsersSearch(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px 8px 32px', borderRadius: '10px', border: '1px solid var(--bg-border)', background: 'var(--bg-input)', color: 'var(--text-hi)', fontSize: '13px', outline: 'none' }}
+                />
+              </div>
+              <p style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-lo)' }}>Clique para visualizar como o cliente, ou 👤 para ver o cadastro.</p>
+            </div>
             <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '8px' }}>
-              {usersList.length === 0 ? (
-                <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-lo)', padding: '32px' }}>Nenhum cliente cadastrado</p>
-              ) : usersList.map(u => (
+              {filteredUsersList.length === 0 ? (
+                <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-lo)', padding: '32px' }}>Nenhum cliente encontrado</p>
+              ) : filteredUsersList.map(u => (
                 <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 20px', borderBottom: '1px solid var(--bg-border)' }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(0,122,255,0.13)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <span style={{ fontWeight: 700, fontSize: '14px', color: '#007AFF' }}>{u.name.charAt(0).toUpperCase()}</span>

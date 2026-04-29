@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
+import DesktopNav from '@/components/DesktopNav';
 import ContratoModal from '@/components/ContratoModal';
 import FaturaModal from '@/components/FaturaModal';
 import ConfigModal from '@/components/ConfigModal';
@@ -60,6 +61,11 @@ export default function GestaoPage() {
   const [profileUser, setProfileUser] = useState<TUser | null>(null);
   const [distMap, setDistMap] = useState<Record<string, number[]>>({});
   const [distCredits, setDistCredits] = useState<Record<string, number>>({});
+  const [usersSearch, setUsersSearch] = useState('');
+  const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
+  const filteredUsers = sortedUsers.filter(u =>
+    !usersSearch || u.name.toLowerCase().includes(usersSearch.toLowerCase()) || u.email.toLowerCase().includes(usersSearch.toLowerCase())
+  );
 
   useEffect(() => {
     fetch('/api/admin/distribuidor').then(r => r.json()).then(d => {
@@ -301,7 +307,8 @@ export default function GestaoPage() {
   const unassigned = allDevices.filter(d => !userDevices.find(ud => ud.id === d.id));
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
+    <div className="flex flex-col sidebar-offset" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
+      <DesktopNav />
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
@@ -354,27 +361,6 @@ export default function GestaoPage() {
           </button>
         </div>
       </header>
-
-      {/* Desktop nav tabs */}
-      <div className="hidden md:flex flex-shrink-0 px-4 gap-1"
-        style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)', paddingTop: '6px', paddingBottom: '6px' }}>
-        {[
-          { href: '/dashboard', label: 'Monitor' },
-          { href: '/historico', label: 'Trajetos' },
-          { href: '/alertas', label: 'Alertas' },
-          { href: '/gestao', label: 'Gestão' },
-          { href: '/perfil', label: 'Perfil' },
-        ].map(tab => {
-          const active = typeof window !== 'undefined' && window.location.pathname === tab.href;
-          return (
-            <a key={tab.href} href={tab.href}
-              className="px-4 py-1.5 rounded-lg text-sm font-medium no-underline transition-all"
-              style={{ background: active ? '#007AFF' : 'transparent', color: active ? 'white' : 'var(--text-lo)' }}>
-              {tab.label}
-            </a>
-          );
-        })}
-      </div>
 
       {/* Tabs */}
       <div className="flex-shrink-0 flex px-4 py-2 gap-2"
@@ -1105,7 +1091,7 @@ export default function GestaoPage() {
       )}
 
       {showUsersModal && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4"
+        <div className="fixed inset-0 z-[300] flex items-end md:items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) setShowUsersModal(false); }}>
           <div className="w-full max-w-sm rounded-2xl overflow-hidden"
@@ -1128,14 +1114,25 @@ export default function GestaoPage() {
                 </svg>
               </button>
             </div>
-            <p className="px-5 pt-3 pb-1 text-xs t-text-lo">
-              Toque em um cliente para ver o perfil completo de cadastro.
-            </p>
-            <div className="overflow-y-auto flex-1 py-2">
-              {users.length === 0 ? (
-                <p className="text-center text-xs t-text-lo py-8">Nenhum cliente cadastrado</p>
+            <div className="px-5 pt-3 pb-2">
+              <div style={{ position: 'relative' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Buscar cliente..."
+                  value={usersSearch}
+                  onChange={e => setUsersSearch(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px 8px 32px', borderRadius: '10px', border: '1px solid var(--bg-border)', background: 'var(--bg-input)', color: 'var(--text-hi)', fontSize: '13px', outline: 'none' }}
+                />
+              </div>
+            </div>
+            <div className="overflow-y-auto flex-1 py-2" style={{ paddingBottom: '72px' }}>
+              {filteredUsers.length === 0 ? (
+                <p className="text-center text-xs t-text-lo py-8">Nenhum cliente encontrado</p>
               ) : (
-                users.map(u => (
+                filteredUsers.map(u => (
                   <button key={u.id}
                     className="w-full flex items-center gap-3 px-5 py-3 text-left transition-all"
                     style={{ borderBottom: '1px solid var(--bg-border)' }}

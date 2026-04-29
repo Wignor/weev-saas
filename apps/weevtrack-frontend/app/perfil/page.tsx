@@ -22,8 +22,7 @@ function toggleTheme() {
 
 export default function PerfilPage() {
   const router = useRouter();
-  const [user, setUser] = useState({ name: '', email: '', administrator: false });
-  const [notifStatus, setNotifStatus] = useState<'idle' | 'active' | 'denied' | 'unsupported'>('idle');
+  const [user, setUser] = useState<Record<string, unknown>>({ name: '', email: '', administrator: false });
 
   const [showPwModal, setShowPwModal] = useState(false);
   const [pwCurrent, setPwCurrent] = useState('');
@@ -34,9 +33,6 @@ export default function PerfilPage() {
 
   useEffect(() => {
     setUser(getUserFromCookie());
-    if (!('Notification' in window)) { setNotifStatus('unsupported'); return; }
-    if (Notification.permission === 'granted') setNotifStatus('active');
-    else if (Notification.permission === 'denied') setNotifStatus('denied');
   }, []);
 
   async function handleLogout() {
@@ -72,15 +68,29 @@ export default function PerfilPage() {
     setPwLoading(false);
   }
 
-  const notifLabel: Record<string, string> = {
-    active: '✅ Ativadas',
-    denied: '❌ Bloqueadas',
-    idle: '⚪ Não ativadas',
-    unsupported: '⚠️ Não suportado',
-  };
+  async function requestAssistance() {
+    const phone = '5519999780601';
+    const baseText = 'Olá! Preciso de assistência técnica com o WeevTrack.';
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          const text = `${baseText}\n📍 Minha localização: https://maps.google.com/?q=${latitude},${longitude}`;
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+        },
+        () => {
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(baseText)}`, '_blank');
+        }
+      );
+    } else {
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(baseText)}`, '_blank');
+    }
+  }
+
+  const clientSince = (user.attributes as Record<string, string> | undefined)?.clientSince;
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
+    <div className="flex flex-col sidebar-offset" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
       {/* Header */}
       <header className="flex-shrink-0 flex items-center px-4 h-14 gap-3"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
@@ -105,11 +115,11 @@ export default function PerfilPage() {
         <div className="flex flex-col items-center py-8">
           <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center mb-3">
             <span className="text-3xl font-bold text-white">
-              {user.name ? user.name.charAt(0).toUpperCase() : '?'}
+              {user.name ? String(user.name).charAt(0).toUpperCase() : '?'}
             </span>
           </div>
-          <h2 className="font-bold t-text-hi text-lg">{user.name || 'Usuário'}</h2>
-          <p className="t-text-lo text-sm">{user.email}</p>
+          <h2 className="font-bold t-text-hi text-lg">{String(user.name || 'Usuário')}</h2>
+          <p className="t-text-lo text-sm">{String(user.email || '')}</p>
         </div>
 
         {/* Conta */}
@@ -117,12 +127,13 @@ export default function PerfilPage() {
           <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Conta</p>
           <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
             {[
-              { icon: '👤', label: 'Nome', value: user.name },
-              { icon: '📧', label: 'E-mail', value: user.email },
+              { icon: '👤', label: 'Nome', value: String(user.name || '') },
+              { icon: '📧', label: 'E-mail', value: String(user.email || '') },
               { icon: '🔑', label: 'Perfil', value: user.administrator ? 'Administrador' : 'Usuário' },
-            ].map((item, i) => (
+              ...(clientSince ? [{ icon: '📅', label: 'Cliente desde', value: clientSince }] : []),
+            ].map((item, i, arr) => (
               <div key={item.label} className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: i < 2 ? '1px solid var(--bg-border)' : 'none' }}>
+                style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
                 <div className="flex items-center gap-3">
                   <span>{item.icon}</span>
                   <span className="text-sm t-text-hi">{item.label}</span>
@@ -147,25 +158,50 @@ export default function PerfilPage() {
           </div>
         </div>
 
-        {/* Notificações */}
+        {/* Financeiro */}
         <div className="mb-4">
-          <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Notificações</p>
+          <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Financeiro</p>
           <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
-            {[
-              { icon: '🔔', label: 'Push notifications', value: notifLabel[notifStatus] },
-              { icon: '🔑', label: 'Ignição liga/desliga', value: 'Ativo' },
-              { icon: '🚦', label: 'Excesso de velocidade', value: 'Via Traccar' },
-              { icon: '🔋', label: 'Bateria fraca', value: 'Via Traccar' },
-            ].map((item, i, arr) => (
-              <div key={item.label} className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
-                <div className="flex items-center gap-3">
-                  <span>{item.icon}</span>
-                  <span className="text-sm t-text-hi">{item.label}</span>
-                </div>
-                <span className="text-sm t-text-lo truncate max-w-[160px] text-right">{item.value}</span>
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span>💰</span>
+                <span className="text-sm t-text-hi">Faturas</span>
               </div>
-            ))}
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(107,114,128,0.12)', color: 'var(--text-lo)' }}>Em breve</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Contrato */}
+        <div className="mb-4">
+          <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Contrato</p>
+          <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span>📄</span>
+                <span className="text-sm t-text-hi">Download do contrato</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(107,114,128,0.12)', color: 'var(--text-lo)' }}>Em breve</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Assistência */}
+        <div className="mb-4">
+          <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Suporte</p>
+          <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
+            <button onClick={requestAssistance} className="w-full flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span>🆘</span>
+                <div className="text-left">
+                  <p className="text-sm t-text-hi">Solicitar assistência</p>
+                  <p className="text-xs t-text-lo">WhatsApp com sua localização</p>
+                </div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#25D366" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -176,7 +212,6 @@ export default function PerfilPage() {
             {[
               { icon: '📱', label: 'Versão do app', value: '1.0.0' },
               { icon: '🌐', label: 'Servidor', value: 'app.weevtrack.com' },
-              { icon: '⚙️', label: 'Protocolo', value: 'GT06 / Traccar' },
             ].map((item, i, arr) => (
               <div key={item.label} className="flex items-center justify-between px-4 py-3"
                 style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
