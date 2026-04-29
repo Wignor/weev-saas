@@ -5,6 +5,8 @@ import dynamic from 'next/dynamic';
 import BottomNav from '@/components/BottomNav';
 import PushNotificationSetup from '@/components/PushNotificationSetup';
 import GeofenceModal from '@/components/GeofenceModal';
+import FaturaModal from '@/components/FaturaModal';
+import ContratoModal from '@/components/ContratoModal';
 import { TraccarDevice, TraccarPosition, knotsToKmh } from '@/lib/traccar';
 
 const VehicleMap = dynamic(() => import('@/components/Map'), {
@@ -798,6 +800,8 @@ export default function DashboardPage() {
   const [showUsersModal, setShowUsersModal] = useState(false);
   const [usersList, setUsersList] = useState<UserEntry[]>([]);
   const [profileUser, setProfileUser] = useState<UserEntry | null>(null);
+  const [faturaProfileUser, setFaturaProfileUser] = useState<UserEntry | null>(null);
+  const [contratoProfileUser, setContratoProfileUser] = useState<UserEntry | null>(null);
   const [mergeMode, setMergeMode] = useState(false);
   const [allDevices, setAllDevices] = useState<TraccarDevice[]>([]);
   const [allPositions, setAllPositions] = useState<TraccarPosition[]>([]);
@@ -1409,26 +1413,45 @@ export default function DashboardPage() {
               ))}
             </div>
             {/* Actions */}
-            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--bg-border)', display: 'flex', gap: '8px' }}>
-              <a href={`/dashboard?asUser=${profileUser.id}&asUserName=${encodeURIComponent(profileUser.name)}`}
-                style={{ flex: 1, padding: '10px', borderRadius: '12px', background: 'rgba(0,122,255,0.12)', color: '#007AFF', fontWeight: 600, fontSize: '13px', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                Ver como cliente
-              </a>
-              <a href={`/gestao?tab=usuarios&highlight=${profileUser.id}`}
-                style={{ flex: 1, padding: '10px', borderRadius: '12px', background: 'rgba(255,149,0,0.12)', color: '#FF9500', fontWeight: 600, fontSize: '13px', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-                Editar no Gestão
-              </a>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--bg-border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <a href={`/dashboard?asUser=${profileUser.id}&asUserName=${encodeURIComponent(profileUser.name)}`}
+                  style={{ flex: 1, padding: '10px', borderRadius: '12px', background: 'rgba(0,122,255,0.12)', color: '#007AFF', fontWeight: 600, fontSize: '13px', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  Ver como cliente
+                </a>
+                <a href={`/gestao?tab=usuarios&highlight=${profileUser.id}`}
+                  style={{ flex: 1, padding: '10px', borderRadius: '12px', background: 'rgba(255,149,0,0.12)', color: '#FF9500', fontWeight: 600, fontSize: '13px', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                  Editar
+                </a>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => { setProfileUser(null); setContratoProfileUser(profileUser); }}
+                  style={{ flex: 1, padding: '10px', borderRadius: '12px', background: 'rgba(0,122,255,0.08)', color: '#007AFF', fontWeight: 600, fontSize: '13px', border: '1px solid rgba(0,122,255,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  📄 Contrato
+                </button>
+                <button onClick={() => { setProfileUser(null); setFaturaProfileUser(profileUser); }}
+                  style={{ flex: 1, padding: '10px', borderRadius: '12px', background: 'rgba(52,199,89,0.08)', color: '#34C759', fontWeight: 600, fontSize: '13px', border: '1px solid rgba(52,199,89,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  💰 Financeiro
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {faturaProfileUser && (
+        <FaturaModal user={faturaProfileUser} onClose={() => setFaturaProfileUser(null)} />
+      )}
+      {contratoProfileUser && (
+        <ContratoModal user={contratoProfileUser} onClose={() => setContratoProfileUser(null)} />
       )}
 
       <BottomNav />
