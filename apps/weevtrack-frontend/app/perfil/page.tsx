@@ -5,6 +5,23 @@ import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import DesktopNav from '@/components/DesktopNav';
 
+interface Invoice {
+  id: string;
+  value: number;
+  dueDate: string;
+  status: string;
+  billingType: string;
+  invoiceUrl: string | null;
+  description: string;
+}
+
+interface ContratoInfo {
+  token: string;
+  signedAt: string;
+  templateName: string;
+  url: string;
+}
+
 function getUserFromCookie() {
   if (typeof document === 'undefined') return { name: '', email: '', administrator: false };
   try {
@@ -20,9 +37,27 @@ function toggleTheme() {
   try { localStorage.setItem('wt_theme', next); } catch { /**/ }
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  RECEIVED: 'Pago', CONFIRMED: 'Pago', RECEIVED_IN_CASH: 'Pago',
+  PENDING: 'Pendente', OVERDUE: 'Vencido', REFUNDED: 'Estornado',
+};
+const STATUS_COLOR: Record<string, string> = {
+  RECEIVED: '#34C759', CONFIRMED: '#34C759', RECEIVED_IN_CASH: '#34C759',
+  PENDING: '#FF9500', OVERDUE: '#FF3B30', REFUNDED: '#6B7280',
+};
+const STATUS_BG: Record<string, string> = {
+  RECEIVED: 'rgba(52,199,89,0.12)', CONFIRMED: 'rgba(52,199,89,0.12)', RECEIVED_IN_CASH: 'rgba(52,199,89,0.12)',
+  PENDING: 'rgba(255,149,0,0.12)', OVERDUE: 'rgba(255,59,48,0.1)', REFUNDED: 'rgba(107,114,128,0.12)',
+};
+
 export default function PerfilPage() {
   const router = useRouter();
   const [user, setUser] = useState<Record<string, unknown>>({ name: '', email: '', administrator: false });
+  const [fullUser, setFullUser] = useState<Record<string, unknown> | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(true);
+  const [contrato, setContrato] = useState<ContratoInfo | null>(null);
+  const [contratoLoading, setContratoLoading] = useState(true);
 
   const [showPwModal, setShowPwModal] = useState(false);
   const [pwCurrent, setPwCurrent] = useState('');
@@ -33,6 +68,16 @@ export default function PerfilPage() {
 
   useEffect(() => {
     setUser(getUserFromCookie());
+
+    fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setFullUser(d); }).catch(() => {});
+
+    fetch('/api/me/invoices').then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setInvoices(d);
+    }).catch(() => {}).finally(() => setInvoicesLoading(false));
+
+    fetch('/api/me/contrato').then(r => r.json()).then(d => {
+      if (d && d.token) setContrato(d);
+    }).catch(() => {}).finally(() => setContratoLoading(false));
   }, []);
 
   async function handleLogout() {
@@ -49,8 +94,7 @@ export default function PerfilPage() {
     if (!pwCurrent || !pwNew || !pwConfirm) { setPwMsg('❌ Preencha todos os campos'); return; }
     if (pwNew !== pwConfirm) { setPwMsg('❌ As senhas não conferem'); return; }
     if (pwNew.length < 6) { setPwMsg('❌ A nova senha deve ter pelo menos 6 caracteres'); return; }
-    setPwLoading(true);
-    setPwMsg('');
+    setPwLoading(true); setPwMsg('');
     try {
       const res = await fetch('/api/auth/change-password', {
         method: 'POST',
@@ -58,12 +102,8 @@ export default function PerfilPage() {
         body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
       });
       const data = await res.json();
-      if (res.ok) {
-        setPwMsg('✅ Senha alterada com sucesso!');
-        setTimeout(() => setShowPwModal(false), 1500);
-      } else {
-        setPwMsg(`❌ ${data.error || 'Erro ao alterar senha'}`);
-      }
+      if (res.ok) { setPwMsg('✅ Senha alterada com sucesso!'); setTimeout(() => setShowPwModal(false), 1500); }
+      else setPwMsg(`❌ ${data.error || 'Erro ao alterar senha'}`);
     } catch { setPwMsg('❌ Erro de conexão'); }
     setPwLoading(false);
   }
@@ -78,16 +118,22 @@ export default function PerfilPage() {
           const text = `${baseText}\n📍 Minha localização: https://maps.google.com/?q=${latitude},${longitude}`;
           window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
         },
-        () => {
-          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(baseText)}`, '_blank');
-        }
+        () => window.open(`https://wa.me/${phone}?text=${encodeURIComponent(baseText)}`, '_blank')
       );
     } else {
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(baseText)}`, '_blank');
     }
   }
 
-  const clientSince = (user.attributes as Record<string, string> | undefined)?.clientSince;
+  const attrs = (fullUser?.attributes || user.attributes || {}) as Record<string, string>;
+  const clientSince = attrs.clientSince;
+
+  function fmtDate(iso: string) {
+    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  function fmtCurrency(val: number) {
+    return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
 
   return (
     <div className="flex flex-col sidebar-offset" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
@@ -142,10 +188,7 @@ export default function PerfilPage() {
               </div>
             ))}
             <div style={{ borderTop: '1px solid var(--bg-border)' }}>
-              <button
-                onClick={openPwModal}
-                className="w-full flex items-center justify-between px-4 py-3"
-              >
+              <button onClick={openPwModal} className="w-full flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
                   <span>🔒</span>
                   <span className="text-sm t-text-hi">Alterar senha</span>
@@ -162,13 +205,40 @@ export default function PerfilPage() {
         <div className="mb-4">
           <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Financeiro</p>
           <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
-            <div className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span>💰</span>
-                <span className="text-sm t-text-hi">Faturas</span>
+            {invoicesLoading ? (
+              <div className="flex justify-center py-6">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
-              <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(107,114,128,0.12)', color: 'var(--text-lo)' }}>Em breve</span>
-            </div>
+            ) : invoices.length === 0 ? (
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span>💰</span>
+                  <span className="text-sm t-text-hi">Faturas</span>
+                </div>
+                <span className="text-xs t-text-lo">Nenhuma cobrança encontrada</span>
+              </div>
+            ) : invoices.map((inv, i) => (
+              <div key={inv.id} className="flex items-center justify-between px-4 py-3"
+                style={{ borderBottom: i < invoices.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold t-text-hi">{fmtCurrency(inv.value)}</p>
+                  <p className="text-xs t-text-lo">Venc. {fmtDate(inv.dueDate)}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: STATUS_BG[inv.status] || 'rgba(107,114,128,0.12)', color: STATUS_COLOR[inv.status] || '#6B7280' }}>
+                    {STATUS_LABEL[inv.status] || inv.status}
+                  </span>
+                  {inv.invoiceUrl && (inv.status === 'PENDING' || inv.status === 'OVERDUE') && (
+                    <a href={inv.invoiceUrl} target="_blank" rel="noreferrer"
+                      className="text-xs px-2.5 py-1 rounded-lg font-semibold no-underline"
+                      style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF' }}>
+                      Pagar
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -176,17 +246,39 @@ export default function PerfilPage() {
         <div className="mb-4">
           <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Contrato</p>
           <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
-            <div className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span>📄</span>
-                <span className="text-sm t-text-hi">Download do contrato</span>
+            {contratoLoading ? (
+              <div className="flex justify-center py-6">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
-              <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(107,114,128,0.12)', color: 'var(--text-lo)' }}>Em breve</span>
-            </div>
+            ) : contrato ? (
+              <a href={contrato.url} target="_blank" rel="noreferrer"
+                className="flex items-center justify-between px-4 py-3 no-underline"
+                style={{ borderBottom: 'none' }}>
+                <div className="flex items-center gap-3">
+                  <span>📄</span>
+                  <div>
+                    <p className="text-sm t-text-hi font-medium">{contrato.templateName}</p>
+                    <p className="text-xs t-text-lo">Assinado em {fmtDate(contrato.signedAt)}</p>
+                  </div>
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0"
+                  style={{ background: 'rgba(52,199,89,0.12)', color: '#34C759' }}>
+                  Ver / Baixar
+                </span>
+              </a>
+            ) : (
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span>📄</span>
+                  <span className="text-sm t-text-hi">Contrato</span>
+                </div>
+                <span className="text-xs t-text-lo">Nenhum contrato assinado</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Assistência */}
+        {/* Suporte */}
         <div className="mb-4">
           <p className="text-xs font-semibold t-text-lo uppercase tracking-wider px-4 mb-2">Suporte</p>
           <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
@@ -219,7 +311,7 @@ export default function PerfilPage() {
                   <span>{item.icon}</span>
                   <span className="text-sm t-text-hi">{item.label}</span>
                 </div>
-                <span className="text-sm t-text-lo truncate max-w-[160px] text-right">{item.value}</span>
+                <span className="text-sm t-text-lo">{item.value}</span>
               </div>
             ))}
           </div>
@@ -227,11 +319,9 @@ export default function PerfilPage() {
 
         {/* Logout */}
         <div className="px-4 mt-4 mb-8">
-          <button
-            onClick={handleLogout}
+          <button onClick={handleLogout}
             className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all"
-            style={{ background: 'rgba(255,59,48,0.12)', color: '#FF3B30', border: '1px solid rgba(255,59,48,0.2)' }}
-          >
+            style={{ background: 'rgba(255,59,48,0.12)', color: '#FF3B30', border: '1px solid rgba(255,59,48,0.2)' }}>
             Sair da conta
           </button>
         </div>
@@ -258,10 +348,7 @@ export default function PerfilPage() {
               ].map(field => (
                 <div key={field.label}>
                   <label className="block text-xs font-medium t-text-lo mb-1.5">{field.label}</label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    value={field.value}
+                  <input type="password" placeholder="••••••••" value={field.value}
                     onChange={e => field.setter(e.target.value)}
                     className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
                     style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
@@ -277,11 +364,8 @@ export default function PerfilPage() {
                   {pwMsg}
                 </p>
               )}
-              <button
-                onClick={handleChangePassword}
-                disabled={pwLoading}
-                className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl mt-2 disabled:opacity-60 transition-all"
-              >
+              <button onClick={handleChangePassword} disabled={pwLoading}
+                className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl mt-2 disabled:opacity-60 transition-all">
                 {pwLoading ? 'Alterando...' : 'Salvar nova senha'}
               </button>
             </div>
