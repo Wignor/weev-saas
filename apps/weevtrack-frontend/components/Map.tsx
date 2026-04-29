@@ -150,35 +150,19 @@ export default function VehicleMap({
       try { (mapRef.current as LeafletMap).removeLayer(labelsLayerRef.current as Parameters<LeafletMap['removeLayer']>[0]); } catch { /**/ }
       labelsLayerRef.current = null;
     }
+    // Google Maps tiles: m=normal, y=híbrido, s=satélite, p=terreno
+    const GOOGLE: Record<string, string> = {
+      normal:   'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      hibrido:  'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      satelite: 'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+      terreno:  'https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+    };
     const map = mapRef.current as LeafletMap;
-    if (mapLayer === 'normal') {
-      const url = isDarkRef.current
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-      tileLayerRef.current = L.tileLayer(url, {
-        attribution: '© OpenStreetMap contributors © CARTO',
-        maxZoom: 20, maxNativeZoom: 19, subdomains: 'abcd',
-      }).addTo(map);
-    } else if (mapLayer === 'hibrido') {
-      tileLayerRef.current = L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { attribution: '© Esri, Maxar', maxZoom: 20, maxNativeZoom: 19 }
-      ).addTo(map);
-      labelsLayerRef.current = L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-        { attribution: '', maxZoom: 20, maxNativeZoom: 19 }
-      ).addTo(map);
-    } else if (mapLayer === 'satelite') {
-      tileLayerRef.current = L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { attribution: '© Esri, Maxar', maxZoom: 20, maxNativeZoom: 19 }
-      ).addTo(map);
-    } else if (mapLayer === 'terreno') {
-      tileLayerRef.current = L.tileLayer(
-        'https://tile.opentopomap.org/{z}/{x}/{y}.png',
-        { attribution: '© OpenTopoMap contributors', maxZoom: 17, maxNativeZoom: 17 }
-      ).addTo(map);
-    }
+    tileLayerRef.current = L.tileLayer(GOOGLE[mapLayer], {
+      subdomains: ['0', '1', '2', '3'],
+      attribution: '© Google Maps',
+      maxZoom: 22, maxNativeZoom: 22,
+    }).addTo(map);
   }, [mapLayer]);
 
   // Recalculate size when map becomes visible (mobile toggle)
@@ -294,27 +278,11 @@ export default function VehicleMap({
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               {([
-                {
-                  key: 'normal' as const, label: 'Normal',
-                  imgUrl: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/7/46/69.png',
-                  fallback: '#e2e8f0',
-                },
-                {
-                  key: 'hibrido' as const, label: 'Híbrido',
-                  imgUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/7/69/46',
-                  fallback: '#1a3320',
-                },
-                {
-                  key: 'satelite' as const, label: 'Satélite',
-                  imgUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/7/69/46',
-                  fallback: '#0d1f0d',
-                },
-                {
-                  key: 'terreno' as const, label: 'Terreno',
-                  imgUrl: 'https://tile.opentopomap.org/7/46/69.png',
-                  fallback: '#9b8155',
-                },
-              ] as const).map(cfg => (
+                { key: 'normal'   as const, label: 'Normal',   lyrs: 'm', fallback: '#e2e8f0' },
+                { key: 'hibrido'  as const, label: 'Híbrido',  lyrs: 'y', fallback: '#1a3320' },
+                { key: 'satelite' as const, label: 'Satélite', lyrs: 's', fallback: '#0d1f0d' },
+                { key: 'terreno'  as const, label: 'Terreno',  lyrs: 'p', fallback: '#7a6540' },
+              ]).map(cfg => (
                 <button
                   key={cfg.key}
                   onClick={() => { setMapLayer(cfg.key); setShowMapPanel(false); }}
@@ -325,22 +293,12 @@ export default function VehicleMap({
                     background: mapLayer === cfg.key ? 'rgba(0,122,255,0.07)' : 'white',
                   }}
                 >
-                  <div style={{
-                    width: '96px', height: '64px', borderRadius: '6px', overflow: 'hidden',
-                    background: cfg.fallback, position: 'relative',
-                  }}>
+                  <div style={{ width: '96px', height: '64px', borderRadius: '6px', overflow: 'hidden', background: cfg.fallback }}>
                     <img
-                      src={cfg.imgUrl}
+                      src={`https://mt0.google.com/vt/lyrs=${cfg.lyrs}&x=94&y=145&z=8`}
                       alt={cfg.label}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     />
-                    {cfg.key === 'hibrido' && (
-                      <img
-                        src="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/7/69/46"
-                        alt=""
-                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    )}
                   </div>
                   <span style={{ fontSize: '11px', fontWeight: mapLayer === cfg.key ? 700 : 600, color: mapLayer === cfg.key ? '#007AFF' : '#555' }}>
                     {cfg.label}

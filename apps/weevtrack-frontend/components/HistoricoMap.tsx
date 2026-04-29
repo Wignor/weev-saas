@@ -28,11 +28,11 @@ function fmtStopDur(s: number): string {
 
 type MapLayerType = 'normal' | 'hibrido' | 'satelite' | 'terreno';
 
-const MAP_TYPE_OPTIONS = [
-  { key: 'normal' as MapLayerType,   label: 'Normal',   imgUrl: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/7/46/69.png',                                                                                           fallback: '#e2e8f0' },
-  { key: 'hibrido' as MapLayerType,  label: 'Híbrido',  imgUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/7/69/46',                                                                  fallback: '#1a3320' },
-  { key: 'satelite' as MapLayerType, label: 'Satélite', imgUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/7/69/46',                                                                  fallback: '#0d1f0d' },
-  { key: 'terreno' as MapLayerType,  label: 'Terreno',  imgUrl: 'https://tile.opentopomap.org/7/46/69.png',                                                                                                                   fallback: '#9b8155' },
+const MAP_TYPE_OPTIONS: { key: MapLayerType; label: string; lyrs: string; fallback: string }[] = [
+  { key: 'normal',   label: 'Normal',   lyrs: 'm', fallback: '#e2e8f0' },
+  { key: 'hibrido',  label: 'Híbrido',  lyrs: 'y', fallback: '#1a3320' },
+  { key: 'satelite', label: 'Satélite', lyrs: 's', fallback: '#0d1f0d' },
+  { key: 'terreno',  label: 'Terreno',  lyrs: 'p', fallback: '#7a6540' },
 ];
 
 export default function HistoricoMap({ route, stops = [], addresses = [] }: HistoricoMapProps) {
@@ -69,26 +69,18 @@ export default function HistoricoMap({ route, stops = [], addresses = [] }: Hist
       try { map.removeLayer(labelsLayerRef.current as Parameters<typeof map.removeLayer>[0]); } catch { /**/ }
       labelsLayerRef.current = null;
     }
-    if (mapLayer === 'normal') {
-      tileLayerRef.current = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '© CARTO', maxZoom: 20, maxNativeZoom: 19, subdomains: 'abcd',
-      }).addTo(map);
-    } else if (mapLayer === 'hibrido') {
-      tileLayerRef.current = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '© Esri', maxZoom: 20, maxNativeZoom: 19,
-      }).addTo(map);
-      labelsLayerRef.current = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '', maxZoom: 20, maxNativeZoom: 19,
-      }).addTo(map);
-    } else if (mapLayer === 'satelite') {
-      tileLayerRef.current = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '© Esri', maxZoom: 20, maxNativeZoom: 19,
-      }).addTo(map);
-    } else if (mapLayer === 'terreno') {
-      tileLayerRef.current = L.tileLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenTopoMap', maxZoom: 17, maxNativeZoom: 17,
-      }).addTo(map);
-    }
+    // Google Maps tiles: m=normal, y=híbrido, s=satélite, p=terreno
+    const GOOGLE: Record<string, string> = {
+      normal:   'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      hibrido:  'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      satelite: 'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+      terreno:  'https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+    };
+    tileLayerRef.current = L.tileLayer(GOOGLE[mapLayer], {
+      subdomains: ['0', '1', '2', '3'],
+      attribution: '© Google Maps',
+      maxZoom: 22, maxNativeZoom: 22,
+    }).addTo(map);
   }, [mapLayer]);
 
   useEffect(() => {
@@ -198,12 +190,12 @@ export default function HistoricoMap({ route, stops = [], addresses = [] }: Hist
                     background: mapLayer === cfg.key ? 'rgba(0,122,255,0.07)' : 'white',
                   }}
                 >
-                  <div style={{ width: '96px', height: '64px', borderRadius: '6px', overflow: 'hidden', background: cfg.fallback, position: 'relative' }}>
-                    <img src={cfg.imgUrl} alt={cfg.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    {cfg.key === 'hibrido' && (
-                      <img src="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/7/69/46"
-                        alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                    )}
+                  <div style={{ width: '96px', height: '64px', borderRadius: '6px', overflow: 'hidden', background: cfg.fallback }}>
+                    <img
+                      src={`https://mt0.google.com/vt/lyrs=${cfg.lyrs}&x=94&y=145&z=8`}
+                      alt={cfg.label}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
                   </div>
                   <span style={{ fontSize: '11px', fontWeight: mapLayer === cfg.key ? 700 : 600, color: mapLayer === cfg.key ? '#007AFF' : '#555' }}>
                     {cfg.label}
