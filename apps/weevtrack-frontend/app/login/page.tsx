@@ -40,17 +40,44 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundImage: 'url(/login-bg.jpg)',
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
+      background: 'linear-gradient(135deg, #0A0E1E 0%, #0D1B3E 40%, #0A1628 70%, #050810 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       position: 'relative',
+      overflow: 'hidden',
     }}>
-      {/* overlay escuro para legibilidade */}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(10, 14, 30, 0.65)', backdropFilter: 'blur(1px)' }} />
+      {/* Orbs animados */}
+      <div style={{
+        position: 'absolute', width: 600, height: 600, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(0,122,255,0.12) 0%, transparent 70%)',
+        top: '-150px', left: '-100px', animation: 'orbFloat1 12s ease-in-out infinite',
+      }} />
+      <div style={{
+        position: 'absolute', width: 400, height: 400, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(0,122,255,0.08) 0%, transparent 70%)',
+        bottom: '-100px', right: '-50px', animation: 'orbFloat2 15s ease-in-out infinite',
+      }} />
+      <div style={{
+        position: 'absolute', width: 300, height: 300, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(52,199,89,0.06) 0%, transparent 70%)',
+        top: '40%', right: '20%', animation: 'orbFloat3 18s ease-in-out infinite',
+      }} />
+      <style>{`
+        @keyframes orbFloat1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, 40px) scale(1.05); }
+          66% { transform: translate(-20px, 20px) scale(0.95); }
+        }
+        @keyframes orbFloat2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-40px, -30px) scale(1.08); }
+        }
+        @keyframes orbFloat3 {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(20px, -40px); }
+        }
+      `}</style>
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3rem 1.5rem', width: '100%' }}>
 
         {/* Logo */}
