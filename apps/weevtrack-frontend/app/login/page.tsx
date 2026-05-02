@@ -82,10 +82,11 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ width: 80, height: 80, borderRadius: 16, background: '#007AFF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', position: 'relative' }}>
-            <div style={{ position: 'absolute', width: 56, height: 56, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)' }} />
-            <div style={{ position: 'absolute', width: 36, height: 36, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.5)' }} />
-            <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'white' }} />
+          <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#007AFF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+            <svg width="36" height="46" viewBox="0 0 14 18" fill="none">
+              <path d="M7 1C4.24 1 2 3.24 2 6C2 9.75 7 17.5 7 17.5C7 17.5 12 9.75 12 6C12 3.24 9.76 1 7 1Z" fill="white"/>
+              <circle cx="7" cy="6" r="2" fill="#007AFF"/>
+            </svg>
           </div>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, color: '#F0F0F5', margin: 0 }}>WeevTrack</h1>
           <p style={{ color: 'white', fontSize: '0.875rem', marginTop: 4, fontWeight: 700 }}>Rastreamento Veicular Inteligente</p>

@@ -802,6 +802,7 @@ export default function DashboardPage() {
   const [centerTrigger, setCenterTrigger] = useState(0);
   const [panelMinimized, setPanelMinimized] = useState(false);
   const [desktopPanelCollapsed, setDesktopPanelCollapsed] = useState(false);
+  const [listCollapsed, setListCollapsed] = useState(false);
   const [vehiclePrefs, setVehiclePrefs] = useState<Record<number, DevicePref>>({});
   const [menuDeviceId, setMenuDeviceId] = useState<number | null>(null);
   const [infoDeviceId, setInfoDeviceId] = useState<number | null>(null);
@@ -969,13 +970,15 @@ export default function DashboardPage() {
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14 z-20"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <circle cx="7" cy="7" r="2.5" fill="white"/>
-              <path d="M7 1v2.5M7 10.5V13M1 7h2.5M10.5 7H13" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
-            </svg>
+          <div className="md:hidden flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+              <svg width="14" height="18" viewBox="0 0 14 18" fill="none">
+                <path d="M7 1C4.24 1 2 3.24 2 6C2 9.75 7 17.5 7 17.5C7 17.5 12 9.75 12 6C12 3.24 9.76 1 7 1Z" fill="white"/>
+                <circle cx="7" cy="6" r="2" fill="#007AFF"/>
+              </svg>
+            </div>
+            <span className="font-bold text-base" style={{ color: 'var(--text-hi)' }}>WeevTrack</span>
           </div>
-          <span className="font-bold text-base" style={{ color: 'var(--text-hi)' }}>WeevTrack</span>
           {asUserName && (
             <span className="text-xs px-2 py-0.5 rounded-full font-medium"
               style={{ background: 'rgba(255,149,0,0.15)', color: '#FF9500' }}>
@@ -1051,56 +1054,77 @@ export default function DashboardPage() {
 
         {/* Desktop sidebar */}
         <div className="hidden md:flex flex-col flex-none overflow-hidden"
-          style={{ width: '280px', borderRight: '1px solid var(--bg-border)', background: 'var(--bg-page)' }}>
-          <div className="flex-shrink-0 p-3" style={{ borderBottom: '1px solid var(--bg-border)' }}>
-            <div className="relative mb-2">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24"
-                fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-              <input type="text" placeholder="Buscar veículo..." value={search} onChange={e => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus:outline-none"
-                style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }} />
-            </div>
-            <div className="flex gap-1 flex-wrap">
-              {filterTabs.map(f => (
-                <button key={f.key} onClick={() => setFilter(f.key)}
-                  className="flex-1 text-xs py-1 rounded-lg font-medium transition-all"
-                  style={{ background: filter === f.key ? '#007AFF' : 'var(--bg-input)', color: filter === f.key ? 'white' : 'var(--text-lo)', minWidth: '48px' }}>
-                  {f.label} ({f.count})
-                </button>
-              ))}
-            </div>
-            {user.administrator && !asUser && (
-              <button onClick={() => setMergeMode(m => !m)}
-                className="w-full mt-2 text-xs py-1.5 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all"
-                style={{
-                  background: mergeMode ? 'rgba(255,149,0,0.15)' : 'var(--bg-input)',
-                  color: mergeMode ? '#FF9500' : 'var(--text-lo)',
-                  border: mergeMode ? '1px solid rgba(255,149,0,0.3)' : '1px solid transparent',
-                }}>
-                🌐 {mergeMode ? `Frota total (${displayDevices.length})` : 'Frota total — todos clientes'}
-              </button>
-            )}
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          style={{ width: listCollapsed ? 44 : 280, borderRight: '1px solid var(--bg-border)', background: 'var(--bg-page)', transition: 'width 0.2s ease' }}>
+          <button
+            onClick={() => setListCollapsed(c => !c)}
+            title={listCollapsed ? 'Expandir lista' : 'Recolher lista'}
+            style={{
+              height: 44, display: 'flex', alignItems: 'center', flexShrink: 0,
+              justifyContent: listCollapsed ? 'center' : 'flex-end',
+              padding: listCollapsed ? 0 : '0 12px',
+              borderBottom: '1px solid var(--bg-border)',
+              background: 'transparent', border: 'none', cursor: 'pointer',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+              {listCollapsed
+                ? <polyline points="9 18 15 12 9 6"/>
+                : <polyline points="15 18 9 12 15 6"/>}
+            </svg>
+          </button>
+          {!listCollapsed && (
+            <>
+              <div className="flex-shrink-0 p-3" style={{ borderBottom: '1px solid var(--bg-border)' }}>
+                <div className="relative mb-2">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24"
+                    fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                  <input type="text" placeholder="Buscar veículo..." value={search} onChange={e => setSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus:outline-none"
+                    style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }} />
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {filterTabs.map(f => (
+                    <button key={f.key} onClick={() => setFilter(f.key)}
+                      className="flex-1 text-xs py-1 rounded-lg font-medium transition-all"
+                      style={{ background: filter === f.key ? '#007AFF' : 'var(--bg-input)', color: filter === f.key ? 'white' : 'var(--text-lo)', minWidth: '48px' }}>
+                      {f.label} ({f.count})
+                    </button>
+                  ))}
+                </div>
+                {user.administrator && !asUser && (
+                  <button onClick={() => setMergeMode(m => !m)}
+                    className="w-full mt-2 text-xs py-1.5 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-all"
+                    style={{
+                      background: mergeMode ? 'rgba(255,149,0,0.15)' : 'var(--bg-input)',
+                      color: mergeMode ? '#FF9500' : 'var(--text-lo)',
+                      border: mergeMode ? '1px solid rgba(255,149,0,0.3)' : '1px solid transparent',
+                    }}>
+                    🌐 {mergeMode ? `Frota total (${displayDevices.length})` : 'Frota total — todos clientes'}
+                  </button>
+                )}
               </div>
-            ) : filteredDevices.length === 0 ? (
-              <div className="text-center py-12 px-6">
-                <p className="text-sm" style={{ color: 'var(--text-lo)' }}>Nenhum dispositivo</p>
+              <div className="flex-1 overflow-y-auto">
+                {loading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : filteredDevices.length === 0 ? (
+                  <div className="text-center py-12 px-6">
+                    <p className="text-sm" style={{ color: 'var(--text-lo)' }}>Nenhum dispositivo</p>
+                  </div>
+                ) : filteredDevices.map(device => (
+                  <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
+                    isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
+                    vehicleType={vehiclePrefs[device.id]?.vehicleType}
+                    licenseStatus={licenses[String(device.id)]?.status}
+                    onSelect={() => { const nid = selectedId === device.id ? null : device.id; setSelectedId(nid); if (nid) setDesktopPanelCollapsed(false); }}
+                    onMenu={() => setMenuDeviceId(device.id)} />
+                ))}
               </div>
-            ) : filteredDevices.map(device => (
-              <DeviceListItem key={device.id} device={device} pos={posMap[device.id]}
-                isSelected={selectedId === device.id} clientName={assignments[device.id] || ''}
-                vehicleType={vehiclePrefs[device.id]?.vehicleType}
-                licenseStatus={licenses[String(device.id)]?.status}
-                onSelect={() => { const nid = selectedId === device.id ? null : device.id; setSelectedId(nid); if (nid) setDesktopPanelCollapsed(false); }}
-                onMenu={() => setMenuDeviceId(device.id)} />
-            ))}
-          </div>
+            </>
+          )}
         </div>
 
         {/* Map — zIndex:0 creates stacking context, trapping Leaflet internals (z 200-700)
