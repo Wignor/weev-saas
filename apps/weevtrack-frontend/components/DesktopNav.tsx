@@ -90,19 +90,15 @@ export default function DesktopNav() {
     else { document.body.classList.remove('nav-collapsed'); localStorage.removeItem('nav_collapsed'); }
   }
 
-  const tabs = isDistribuidor
-    ? [
-        { key: 'distribuidor', href: '/distribuidor', label: 'Meu Painel' },
-        { key: 'perfil',       href: '/perfil',       label: 'Perfil' },
-      ]
-    : [
-        { key: 'dashboard',  href: '/dashboard',  label: 'Veículos' },
-        { key: 'historico',  href: '/historico',  label: 'Trajetos' },
-        { key: 'alertas',    href: '/alertas',    label: 'Alertas' },
-        { key: 'relatorios', href: '/relatorios', label: 'Relatórios' },
-        ...(isAdmin ? [{ key: 'gestao', href: '/gestao', label: 'Gestão' }] : []),
-        { key: 'perfil',     href: '/perfil',     label: 'Perfil' },
-      ];
+  const tabs = [
+    ...(isDistribuidor ? [{ key: 'distribuidor', href: '/distribuidor', label: 'Meu Painel' }] : []),
+    { key: 'dashboard',  href: '/dashboard',  label: 'Veículos' },
+    { key: 'historico',  href: '/historico',  label: 'Trajetos' },
+    { key: 'alertas',    href: '/alertas',    label: 'Alertas' },
+    { key: 'relatorios', href: '/relatorios', label: 'Relatórios' },
+    ...(isAdmin ? [{ key: 'gestao', href: '/gestao', label: 'Gestão' }] : []),
+    { key: 'perfil',     href: '/perfil',     label: 'Perfil' },
+  ];
 
   const W = collapsed ? 64 : 220;
 

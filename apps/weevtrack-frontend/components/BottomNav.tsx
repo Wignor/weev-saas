@@ -99,7 +99,11 @@ export default function BottomNav() {
     } catch { /* silencioso */ }
   }, []);
 
-  const tabs = isDistribuidor ? distribuidorTabs : isAdmin ? [...baseTabs, gestaoTab] : baseTabs;
+  const tabs = [
+    ...(isDistribuidor ? distribuidorTabs.slice(0, 1) : []),
+    ...baseTabs,
+    ...(isAdmin ? [gestaoTab] : []),
+  ];
 
   return (
     <nav
