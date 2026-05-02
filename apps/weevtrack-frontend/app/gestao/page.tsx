@@ -60,6 +60,7 @@ export default function GestaoPage() {
   const [profileUser, setProfileUser] = useState<TUser | null>(null);
   const [distMap, setDistMap] = useState<Record<string, number[]>>({});
   const [distCredits, setDistCredits] = useState<Record<string, number>>({});
+  const [creditQty, setCreditQty] = useState(1);
   const [usersSearch, setUsersSearch] = useState('');
   const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
   const filteredUsers = sortedUsers.filter(u =>
@@ -577,34 +578,54 @@ export default function GestaoPage() {
                           );
                         })()}
 
-                        {/* Créditos de licença — só aparece quando o usuário selecionado é distribuidor */}
+                        {/* Transferir Créditos — só aparece quando o usuário selecionado é distribuidor */}
                         {(user.role === 'distribuidor' || user.role === 'distribuidor_geral') && (() => {
                           const credits = distCredits[String(user.id)] ?? 0;
+                          const creditColor = credits === 0 ? '#FF3B30' : credits <= 3 ? '#FF9500' : '#34C759';
+                          const creditBg = credits === 0 ? 'rgba(255,59,48,0.1)' : credits <= 3 ? 'rgba(255,149,0,0.12)' : 'rgba(52,199,89,0.1)';
                           return (
-                            <div className="mb-4 p-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
-                              <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-2">Créditos de licença</p>
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-xs px-2.5 py-1 rounded-full font-bold"
-                                  style={{
-                                    background: credits === 0 ? 'rgba(255,59,48,0.1)' : credits <= 3 ? 'rgba(255,149,0,0.12)' : 'rgba(52,199,89,0.1)',
-                                    color: credits === 0 ? '#FF3B30' : credits <= 3 ? '#FF9500' : '#34C759',
-                                  }}>
-                                  {credits} crédito{credits !== 1 ? 's' : ''} disponível{credits !== 1 ? 'is' : ''}
-                                </span>
-                                <div className="flex items-center gap-1">
-                                  {[1, 5, 10].map(n => (
-                                    <button key={n}
-                                      onClick={() => giveCredits(user.id, n)}
-                                      className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
-                                      style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF' }}>
-                                      +{n}
+                            <div className="mb-4 rounded-xl overflow-hidden" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)' }}>
+                              {/* Header */}
+                              <div className="px-4 py-2.5" style={{ background: 'rgba(139,92,246,0.12)', borderBottom: '1px solid rgba(139,92,246,0.15)' }}>
+                                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8B5CF6' }}>Transferir Créditos</p>
+                              </div>
+                              {/* Saldo atual */}
+                              <div className="px-4 pt-3 pb-2">
+                                <p className="text-xs mb-2" style={{ color: 'var(--text-lo)' }}>Saldo de <strong style={{ color: 'var(--text-hi)' }}>{user.name.split(' ')[0]}</strong></p>
+                                <div className="flex gap-3 mb-3">
+                                  <div className="flex-1 py-3 rounded-xl text-center" style={{ background: creditBg }}>
+                                    <p className="text-2xl font-bold" style={{ color: creditColor }}>{credits}</p>
+                                    <p className="text-xs mt-0.5" style={{ color: creditColor, opacity: 0.8 }}>Mensais</p>
+                                  </div>
+                                </div>
+                                {/* Quick select */}
+                                <p className="text-xs mb-1.5" style={{ color: 'var(--text-lo)' }}>Quantidade:</p>
+                                <div className="flex gap-1.5 mb-2">
+                                  {[1, 5, 10, 30].map(n => (
+                                    <button key={n} onClick={() => setCreditQty(n)}
+                                      className="flex-1 py-1.5 rounded-lg text-xs font-bold"
+                                      style={{ background: creditQty === n ? '#8B5CF6' : 'rgba(139,92,246,0.1)', color: creditQty === n ? 'white' : '#8B5CF6' }}>
+                                      {n}
                                     </button>
                                   ))}
                                 </div>
+                                {/* Input + Transfer */}
+                                <div className="flex gap-2">
+                                  <input type="number" min={1} value={creditQty}
+                                    onChange={e => setCreditQty(Math.max(1, parseInt(e.target.value) || 1))}
+                                    className="w-20 rounded-xl px-3 py-2 text-sm font-bold text-center"
+                                    style={{ background: 'var(--bg-card)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
+                                  />
+                                  <button onClick={() => giveCredits(user.id, creditQty)}
+                                    className="flex-1 py-2 rounded-xl text-sm font-semibold"
+                                    style={{ background: '#8B5CF6', color: 'white' }}>
+                                    Transferir
+                                  </button>
+                                </div>
+                                <p className="text-xs text-center mt-2" style={{ color: 'var(--text-lo)', fontSize: 10 }}>
+                                  1 crédito = 1 mês de licença para 1 dispositivo
+                                </p>
                               </div>
-                              <p className="text-xs t-text-lo mt-2" style={{ fontSize: 10 }}>
-                                Cada crédito = 1 mês de licença para 1 dispositivo
-                              </p>
                             </div>
                           );
                         })()}

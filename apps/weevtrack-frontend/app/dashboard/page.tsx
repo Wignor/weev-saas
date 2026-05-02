@@ -633,67 +633,77 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
   );
 }
 
-/* ── VehicleIcon SVG (side-view, filled, professional) ── */
+/* ── VehicleIcon SVG (top-down view) ── */
 function VehicleIcon({ type, color }: { type: string; color: string }) {
-  const wh = 'rgba(0,0,0,0.32)';  // wheel
-  const gl = 'rgba(0,0,0,0.18)';  // glass
+  const wh = 'rgba(0,0,0,0.38)';
+  const gl = 'rgba(255,255,255,0.18)';
   switch (type) {
     case 'motorcycle': return (
-      <svg width="28" height="22" viewBox="0 0 28 22">
-        <circle cx="6" cy="16" r="5" fill={color}/>
-        <circle cx="6" cy="16" r="2.2" fill={wh}/>
-        <circle cx="22" cy="16" r="5" fill={color}/>
-        <circle cx="22" cy="16" r="2.2" fill={wh}/>
-        <path d="M6 16 L11 8 L17 8 L22 16" fill="none" stroke={color} strokeWidth="3" strokeLinejoin="bevel"/>
-        <rect x="9" y="5.5" width="8" height="5" rx="1.5" fill={color}/>
-        <path d="M17 8 L22 6" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+      <svg width="14" height="28" viewBox="0 0 14 28">
+        <rect x="1" y="0.5" width="12" height="5" rx="2.5" fill={wh}/>
+        <rect x="1" y="22.5" width="12" height="5" rx="2.5" fill={wh}/>
+        <rect x="5.5" y="4.5" width="3" height="19" rx="1.5" fill={color}/>
+        <ellipse cx="7" cy="10" rx="4" ry="3.5" fill={color}/>
+        <ellipse cx="7" cy="17.5" rx="3.5" ry="3.5" fill={color}/>
+        <path d="M1.5 7.5 H12.5" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
       </svg>
     );
     case 'truck': return (
-      <svg width="28" height="22" viewBox="0 0 28 22">
-        <rect x="0" y="8" width="14" height="10" rx="1.5" fill={color}/>
-        <path d="M14 10 L18 7 L27 7 L27 18 L14 18 Z" fill={color}/>
-        <rect x="15" y="8.5" width="7" height="4.5" rx="0.5" fill={gl}/>
-        <circle cx="4.5" cy="19.5" r="2.5" fill={wh}/>
-        <circle cx="22" cy="19.5" r="2.5" fill={wh}/>
+      <svg width="22" height="36" viewBox="0 0 22 36">
+        <rect x="3" y="0.5" width="16" height="12" rx="3" fill={color}/>
+        <rect x="5" y="2.5" width="12" height="7" rx="1.5" fill={gl}/>
+        <rect x="3.5" y="14" width="15" height="21" rx="1.5" fill={color}/>
+        <rect x="0" y="1.5" width="4" height="7.5" rx="2" fill={wh}/>
+        <rect x="18" y="1.5" width="4" height="7.5" rx="2" fill={wh}/>
+        <rect x="0" y="21" width="4" height="6" rx="1.5" fill={wh}/>
+        <rect x="0" y="28" width="4" height="6" rx="1.5" fill={wh}/>
+        <rect x="18" y="21" width="4" height="6" rx="1.5" fill={wh}/>
+        <rect x="18" y="28" width="4" height="6" rx="1.5" fill={wh}/>
       </svg>
     );
     case 'bus': return (
-      <svg width="28" height="22" viewBox="0 0 28 22">
-        <rect x="0" y="5" width="28" height="13" rx="2" fill={color}/>
-        <rect x="2" y="7.5" width="5" height="4" rx="0.5" fill={gl}/>
-        <rect x="9" y="7.5" width="5" height="4" rx="0.5" fill={gl}/>
-        <rect x="16" y="7.5" width="5" height="4" rx="0.5" fill={gl}/>
-        <circle cx="6" cy="19.5" r="2.5" fill={wh}/>
-        <circle cx="22" cy="19.5" r="2.5" fill={wh}/>
+      <svg width="22" height="38" viewBox="0 0 22 38">
+        <rect x="3" y="1.5" width="16" height="35" rx="4" fill={color}/>
+        <rect x="4" y="5" width="6" height="4" rx="1" fill={gl}/>
+        <rect x="12" y="5" width="6" height="4" rx="1" fill={gl}/>
+        <rect x="4" y="13" width="6" height="4" rx="1" fill={gl}/>
+        <rect x="12" y="13" width="6" height="4" rx="1" fill={gl}/>
+        <rect x="4" y="21" width="6" height="4" rx="1" fill={gl}/>
+        <rect x="12" y="21" width="6" height="4" rx="1" fill={gl}/>
+        <rect x="0" y="3" width="4" height="7.5" rx="2" fill={wh}/>
+        <rect x="18" y="3" width="4" height="7.5" rx="2" fill={wh}/>
+        <rect x="0" y="24" width="4" height="7.5" rx="2" fill={wh}/>
+        <rect x="18" y="24" width="4" height="7.5" rx="2" fill={wh}/>
       </svg>
     );
     case 'pickup': return (
-      <svg width="28" height="22" viewBox="0 0 28 22">
-        <path d="M0 14 L2 9 Q3 7 5.5 7 L14 7 Q15.5 7 16 9 L17.5 14 Z" fill={color}/>
-        <rect x="17.5" y="9" width="10.5" height="9" rx="1" fill={color}/>
-        <path d="M8 13.5 L9.5 9 L14 9 L15.5 13.5 Z" fill={gl}/>
-        <rect x="0" y="14" width="28" height="4" rx="1" fill={color}/>
-        <circle cx="7" cy="19.5" r="2.5" fill={wh}/>
-        <circle cx="21" cy="19.5" r="2.5" fill={wh}/>
+      <svg width="22" height="36" viewBox="0 0 22 36">
+        <rect x="3" y="0.5" width="16" height="16" rx="3" fill={color}/>
+        <rect x="5" y="2.5" width="12" height="10" rx="1.5" fill={gl}/>
+        <rect x="3.5" y="18" width="15" height="17" rx="1.5" fill={color}/>
+        <rect x="5.5" y="20" width="11" height="13" rx="0.5" fill="rgba(0,0,0,0.15)"/>
+        <rect x="0" y="1.5" width="4" height="7.5" rx="2" fill={wh}/>
+        <rect x="18" y="1.5" width="4" height="7.5" rx="2" fill={wh}/>
+        <rect x="0" y="24" width="4" height="7.5" rx="2" fill={wh}/>
+        <rect x="18" y="24" width="4" height="7.5" rx="2" fill={wh}/>
       </svg>
     );
     case 'boat': return (
-      <svg width="28" height="22" viewBox="0 0 28 22">
-        <path d="M0 15 L2.5 10 L25 10 L28 15 Q14 20 0 15 Z" fill={color}/>
-        <rect x="8" y="6" width="11" height="6" rx="1.5" fill={color}/>
-        <rect x="10" y="7.5" width="7" height="3" rx="0.5" fill={gl}/>
-        <line x1="14" y1="6" x2="14" y2="3" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-        <path d="M14 3 L19 5.5" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+      <svg width="22" height="36" viewBox="0 0 22 36">
+        <path d="M11 1 L19 5 L20 26 Q19 34 11 35 Q3 34 2 26 L3 5 Z" fill={color}/>
+        <rect x="5" y="9" width="12" height="11" rx="2.5" fill={color}/>
+        <rect x="7" y="11" width="8" height="7" rx="1.5" fill={gl}/>
       </svg>
     );
     default: return ( // car
-      <svg width="28" height="22" viewBox="0 0 28 22">
-        <path d="M2 13 L4.5 8 Q5.5 6 8 6 L20 6 Q22.5 6 23.5 8 L26 13 H2 Z" fill={color}/>
-        <rect x="1" y="13" width="26" height="5" rx="1.5" fill={color}/>
-        <path d="M7.5 12.5 L9.5 7.5 L18.5 7.5 L20.5 12.5 Z" fill={gl}/>
-        <circle cx="7.5" cy="19" r="3" fill={wh}/>
-        <circle cx="20.5" cy="19" r="3" fill={wh}/>
+      <svg width="22" height="34" viewBox="0 0 22 34">
+        <rect x="0" y="5" width="4" height="8" rx="2" fill={wh}/>
+        <rect x="18" y="5" width="4" height="8" rx="2" fill={wh}/>
+        <rect x="0" y="21" width="4" height="8" rx="2" fill={wh}/>
+        <rect x="18" y="21" width="4" height="8" rx="2" fill={wh}/>
+        <path d="M4 4 Q4 1 11 0.5 Q18 1 18 4 L18.5 8 L18.5 26 L18 30 Q18 33 11 33.5 Q4 33 4 30 L3.5 26 L3.5 8 Z" fill={color}/>
+        <path d="M5.5 5 Q6 2 11 1.5 Q16 2 16.5 5 L17 10 L5 10 Z" fill={gl}/>
+        <path d="M5.5 29 Q6 32 11 32.5 Q16 32 16.5 29 L17 24 L5 24 Z" fill={gl}/>
       </svg>
     );
   }
