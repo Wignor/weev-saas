@@ -9,6 +9,7 @@ import GeofenceSection from '@/components/GeofenceSection';
 type TClient = { id: number; name: string; email: string; phone?: string; };
 type TDevice = { id: number; name: string; uniqueId: string; status: string; };
 type TLicInfo = { expiresAt: string; daysLeft: number; status: string };
+type TMyDevice = TDevice & { lastUpdate: string; license: TLicInfo | null };
 
 function getUserFromCookie() {
   if (typeof document === 'undefined') return { name: '', role: '', administrator: false };
@@ -40,6 +41,8 @@ export default function DistribuidorPage() {
   const [allDevices, setAllDevices] = useState<TDevice[]>([]);
   const [credits, setCredits] = useState(0);
   const [licenses, setLicenses] = useState<Record<string, TLicInfo>>({});
+  const [myDevices, setMyDevices] = useState<TMyDevice[]>([]);
+  const [myDevicesLoading, setMyDevicesLoading] = useState(true);
 
   useEffect(() => {
     const u = getUserFromCookie();
@@ -50,6 +53,7 @@ export default function DistribuidorPage() {
     setUser(u);
     loadClients();
     loadLicenses();
+    loadMyDevices();
   }, []);
 
   async function loadLicenses() {
@@ -61,6 +65,37 @@ export default function DistribuidorPage() {
         setLicenses(data.licenses ?? {});
       }
     } catch { /* silencioso */ }
+  }
+
+  async function loadMyDevices() {
+    setMyDevicesLoading(true);
+    try {
+      const res = await fetch('/api/distribuidor/my-devices');
+      if (res.ok) {
+        const data = await res.json();
+        setMyDevices(Array.isArray(data.devices) ? data.devices : []);
+      }
+    } catch { /* silencioso */ }
+    setMyDevicesLoading(false);
+  }
+
+  async function activateMyLicense(deviceId: number) {
+    const res = await fetch('/api/distribuidor/my-devices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setCredits(data.credits);
+      setMyDevices(prev => prev.map(d => d.id === deviceId
+        ? { ...d, license: { expiresAt: data.expiresAt, daysLeft: data.daysLeft, status: data.status } }
+        : d
+      ));
+      flash(`✅ Licença ativada — expira em ${data.daysLeft} dias`);
+    } else {
+      flash(`❌ ${data.error || 'Erro ao ativar licença'}`);
+    }
   }
 
   async function loadClients() {
@@ -232,6 +267,56 @@ export default function DistribuidorPage() {
             border: `1px solid ${msg.startsWith('✅') ? 'rgba(52,199,89,0.2)' : 'rgba(255,59,48,0.2)'}`,
           }}>
           {msg}
+        </div>
+      )}
+
+      {/* Meus Dispositivos */}
+      {(myDevicesLoading || myDevices.length > 0) && (
+        <div className="flex-shrink-0 mx-4 mt-3 rounded-xl overflow-hidden"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+          <div className="flex items-center justify-between px-4 py-2.5"
+            style={{ borderBottom: '1px solid var(--bg-border)', background: 'rgba(0,122,255,0.06)' }}>
+            <div className="flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                <rect x="1" y="3" width="15" height="13" rx="2"/>
+                <path d="M16 8h5l2 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+              </svg>
+              <p className="text-xs font-bold" style={{ color: '#007AFF' }}>Meus Dispositivos</p>
+            </div>
+            <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+              style={{ background: 'rgba(0,122,255,0.1)', color: '#007AFF' }}>
+              {myDevices.length}
+            </span>
+          </div>
+          {myDevicesLoading ? (
+            <div className="flex justify-center py-4">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"/>
+            </div>
+          ) : myDevices.map((dev, i) => {
+            const lic = dev.license;
+            const licColor = !lic ? '#6B7280' : lic.status === 'expired' ? '#FF3B30' : lic.status === 'expiring' ? '#FF9500' : '#34C759';
+            const licLabel = !lic ? 'Sem licença' : lic.status === 'expired' ? 'Expirado' : lic.status === 'expiring' ? `${lic.daysLeft}d` : `${lic.daysLeft}d`;
+            return (
+              <div key={dev.id} className="flex items-center gap-3 px-4 py-3"
+                style={{ borderTop: i > 0 ? '1px solid var(--bg-border)' : 'none' }}>
+                <div className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ background: dev.status === 'online' ? '#34C759' : '#6B7280' }}/>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold t-text-hi truncate">{dev.name}</p>
+                  <p className="text-xs t-text-lo">{dev.uniqueId.slice(-8)}</p>
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0"
+                  style={{ background: `${licColor}18`, color: licColor }}>
+                  {licLabel}
+                </span>
+                <button onClick={() => activateMyLicense(dev.id)}
+                  className="text-xs px-2.5 py-1 rounded-lg font-semibold flex-shrink-0"
+                  style={{ background: 'rgba(0,122,255,0.1)', color: '#007AFF' }}>
+                  +31d
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
