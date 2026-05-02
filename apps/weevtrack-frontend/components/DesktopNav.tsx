@@ -55,9 +55,8 @@ export default function DesktopNav() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-  if (!pathname || pathname === '/login') return null;
-
   useEffect(() => {
+    if (!pathname || pathname === '/login') return;
     try {
       const raw = document.cookie.split('; ').find(r => r.startsWith('wt_user='))?.split('=').slice(1).join('=');
       if (raw) { const u = JSON.parse(decodeURIComponent(raw)); setIsAdmin(!!u.administrator); }
@@ -67,7 +66,9 @@ export default function DesktopNav() {
     setCollapsed(isCollapsed);
     if (isCollapsed) document.body.classList.add('nav-collapsed');
     else document.body.classList.remove('nav-collapsed');
-  }, []);
+  }, [pathname]);
+
+  if (!pathname || pathname === '/login') return null;
 
   function toggle() {
     const next = !collapsed;
