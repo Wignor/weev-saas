@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Fragment } from 'react';
 import dynamic from 'next/dynamic';
 import BottomNav from '@/components/BottomNav';
 import PushNotificationSetup from '@/components/PushNotificationSetup';
@@ -894,11 +894,11 @@ export default function DashboardPage() {
 
   const displayDevices = mergeMode ? allDevices : devices;
   const displayPositions = mergeMode ? allPositions : positions;
-  const posMap = Object.fromEntries(displayPositions.map((p) => [p.deviceId, p]));
-  const selectedDevice = displayDevices.find((d) => d.id === selectedId);
-  const mapVehiclePrefs: Record<number, string> = Object.fromEntries(
+  const posMap = useMemo(() => Object.fromEntries(displayPositions.map((p) => [p.deviceId, p])), [displayPositions]);
+  const selectedDevice = useMemo(() => displayDevices.find((d) => d.id === selectedId), [displayDevices, selectedId]);
+  const mapVehiclePrefs: Record<number, string> = useMemo(() => Object.fromEntries(
     displayDevices.map(d => [d.id, vehiclePrefs[d.id]?.vehicleType || detectVehicleType(d.name)])
-  );
+  ), [displayDevices, vehiclePrefs]);
 
   function getEffectiveStatus(device: TraccarDevice, pos?: TraccarPosition): DeviceStatus {
     const lic = licenses[String(device.id)];

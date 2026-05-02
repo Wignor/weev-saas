@@ -55,6 +55,8 @@ export default function DesktopNav() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
+  if (!pathname || pathname === '/login') return null;
+
   useEffect(() => {
     try {
       const raw = document.cookie.split('; ').find(r => r.startsWith('wt_user='))?.split('=').slice(1).join('=');
