@@ -179,9 +179,12 @@ export default function GestaoPage() {
     if (res.ok) {
       const data = await res.json();
       setDistCredits(prev => ({ ...prev, [String(distributorId)]: data.credits }));
-      flash(`✅ +${amount} crédito${amount > 1 ? 's' : ''} adicionado${amount > 1 ? 's' : ''} — saldo: ${data.credits}`);
+      const abs = Math.abs(amount);
+      const action = amount > 0 ? 'adicionado' : 'subtraído';
+      flash(`✅ ${amount > 0 ? '+' : '−'}${abs} crédito${abs !== 1 ? 's' : ''} ${action} — saldo: ${data.credits}`);
     } else {
-      flash('❌ Erro ao adicionar créditos');
+      const err = await res.json().catch(() => ({}));
+      flash(`❌ ${err.error || 'Erro ao alterar créditos'}`);
     }
   }
 
@@ -609,7 +612,7 @@ export default function GestaoPage() {
                                     </button>
                                   ))}
                                 </div>
-                                {/* Input + Transfer */}
+                                {/* Input + Adicionar / Subtrair */}
                                 <div className="flex gap-2">
                                   <input type="number" min={1} value={creditQty}
                                     onChange={e => setCreditQty(Math.max(1, parseInt(e.target.value) || 1))}
@@ -619,7 +622,12 @@ export default function GestaoPage() {
                                   <button onClick={() => giveCredits(user.id, creditQty)}
                                     className="flex-1 py-2 rounded-xl text-sm font-semibold"
                                     style={{ background: '#8B5CF6', color: 'white' }}>
-                                    Transferir
+                                    + Adicionar
+                                  </button>
+                                  <button onClick={() => giveCredits(user.id, -creditQty)}
+                                    className="flex-1 py-2 rounded-xl text-sm font-semibold"
+                                    style={{ background: 'rgba(255,59,48,0.12)', color: '#FF3B30', border: '1px solid rgba(255,59,48,0.2)' }}>
+                                    − Subtrair
                                   </button>
                                 </div>
                                 <p className="text-xs text-center mt-2" style={{ color: 'var(--text-lo)', fontSize: 10 }}>
