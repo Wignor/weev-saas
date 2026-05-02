@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef } from 'react';
 
@@ -143,7 +143,7 @@ export default function ContratoPage({ params }: { params: { token: string } }) 
 
   if (step === 'loading') return (
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f9fa' }}>
-      <div style={{ width: 32, height: 32, border: '3px solid #007AFF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+      <div style={{ width: 32, height: 32, border: '3px solid #00C9A7', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
     </div>
   );
 
@@ -177,8 +177,8 @@ export default function ContratoPage({ params }: { params: { token: string } }) 
         Sua assinatura foi registrada com sucesso.<br />
         Em breve a Weev entrará em contato.
       </p>
-      <div style={{ marginTop: 28, padding: '14px 20px', borderRadius: 14, background: 'rgba(0,122,255,0.08)', border: '1px solid rgba(0,122,255,0.2)', textAlign: 'center', maxWidth: 320 }}>
-        <p style={{ fontSize: 13, color: '#007AFF', fontWeight: 600 }}>📞 Suporte: (19) 99978-0601</p>
+      <div style={{ marginTop: 28, padding: '14px 20px', borderRadius: 14, background: 'rgba(0,201,167,0.08)', border: '1px solid rgba(0,201,167,0.2)', textAlign: 'center', maxWidth: 320 }}>
+        <p style={{ fontSize: 13, color: '#00C9A7', fontWeight: 600 }}>📞 Suporte: (19) 99978-0601</p>
         <p style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>Weev Consultoria e Serviços</p>
       </div>
     </div>
@@ -196,7 +196,7 @@ export default function ContratoPage({ params }: { params: { token: string } }) 
         {/* Header */}
         <header style={{ background: '#1a1a2e', color: 'white', padding: '16px 20px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#007AFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#00C9A7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <circle cx="7" cy="7" r="2.5" fill="white"/>
                 <path d="M7 1v2.5M7 10.5V13M1 7h2.5M10.5 7H13" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
@@ -212,8 +212,8 @@ export default function ContratoPage({ params }: { params: { token: string } }) 
         {/* Reading step */}
         {step === 'reading' && (
           <>
-            <div style={{ background: 'rgba(0,122,255,0.08)', borderBottom: '1px solid rgba(0,122,255,0.15)', padding: '10px 16px', flexShrink: 0 }}>
-              <p style={{ margin: 0, fontSize: 12, color: '#007AFF', fontWeight: 600 }}>
+            <div style={{ background: 'rgba(0,201,167,0.08)', borderBottom: '1px solid rgba(0,201,167,0.15)', padding: '10px 16px', flexShrink: 0 }}>
+              <p style={{ margin: 0, fontSize: 12, color: '#00C9A7', fontWeight: 600 }}>
                 📋 Leia o contrato até o final para assinar
               </p>
             </div>
@@ -230,7 +230,7 @@ export default function ContratoPage({ params }: { params: { token: string } }) 
               {scrolled ? (
                 <button
                   onClick={() => { setStep('signing'); setTimeout(initCanvas, 100); }}
-                  style={{ width: '100%', background: '#007AFF', color: 'white', fontWeight: 700, fontSize: 15, padding: 16, borderRadius: 14, border: 'none', cursor: 'pointer' }}
+                  style={{ width: '100%', background: '#00C9A7', color: 'white', fontWeight: 700, fontSize: 15, padding: 16, borderRadius: 14, border: 'none', cursor: 'pointer' }}
                 >
                   Li e aceito — Prosseguir para assinar
                 </button>
@@ -295,7 +295,7 @@ export default function ContratoPage({ params }: { params: { token: string } }) 
                 <div>
                   <video ref={videoRef} autoPlay playsInline style={{ width: '100%', borderRadius: 12, background: '#000', display: 'block' }} />
                   <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <button onClick={captureSelfie} style={{ flex: 1, background: '#007AFF', color: 'white', fontWeight: 700, padding: 12, borderRadius: 12, border: 'none', cursor: 'pointer', fontSize: 14 }}>
+                    <button onClick={captureSelfie} style={{ flex: 1, background: '#00C9A7', color: 'white', fontWeight: 700, padding: 12, borderRadius: 12, border: 'none', cursor: 'pointer', fontSize: 14 }}>
                       📸 Capturar
                     </button>
                     <button onClick={discardSelfie} style={{ padding: '12px 16px', background: '#f3f4f6', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 13, color: '#6B7280' }}>

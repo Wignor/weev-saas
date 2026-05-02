@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import type { Map as LeafletMap, Marker } from 'leaflet';
@@ -29,59 +29,73 @@ function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'ca
   const safeName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const label = safeName ? `<div style="margin-top:3px;background:rgba(0,0,0,0.72);color:#fff;font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;text-align:center;pointer-events:none">${safeName}</div>` : '';
 
+  const wh = 'rgba(0,0,0,0.42)';
+  const gl = 'rgba(255,255,255,0.28)';
+  const bd = 'rgba(255,255,255,0.92)';
+
   let shape: string;
   switch (vehicleType) {
     case 'motorcycle':
       shape = `
-        <circle cx="14" cy="31" r="6" fill="white" opacity="0.9"/>
-        <circle cx="14" cy="31" r="2.5" fill="${color}" opacity="0.5"/>
-        <circle cx="34" cy="31" r="6" fill="white" opacity="0.9"/>
-        <circle cx="34" cy="31" r="2.5" fill="${color}" opacity="0.5"/>
-        <path d="M14 31 L19 20 L25 20 L34 31" stroke="white" stroke-width="3" fill="none" stroke-linejoin="bevel"/>
-        <rect x="17" y="14" width="10" height="7" rx="2" fill="white" opacity="0.9"/>
-        <path d="M25 20 L31 17" stroke="white" stroke-width="2.5" stroke-linecap="round"/>`;
+        <rect x="18" y="9.5" width="12" height="5" rx="2.5" fill="${wh}"/>
+        <rect x="18" y="33.5" width="12" height="5" rx="2.5" fill="${wh}"/>
+        <rect x="22.5" y="13.5" width="3" height="19" rx="1.5" fill="${bd}"/>
+        <ellipse cx="24" cy="19.5" rx="4" ry="3.5" fill="${bd}"/>
+        <ellipse cx="24" cy="27.5" rx="3.5" ry="3.5" fill="${bd}"/>
+        <path d="M19 17.5 H29" stroke="${bd}" stroke-width="1.8" stroke-linecap="round"/>`;
       break;
     case 'truck':
       shape = `
-        <rect x="8" y="19" width="16" height="11" rx="1.5" fill="white" opacity="0.9"/>
-        <path d="M24 21 L29 17 L40 17 L40 30 L24 30 Z" fill="white"/>
-        <rect x="25" y="18.5" width="9" height="5.5" rx="0.5" fill="${color}" opacity="0.4"/>
-        <circle cx="13" cy="31" r="3" fill="${color}" stroke="white" stroke-width="2"/>
-        <circle cx="35" cy="31" r="3" fill="${color}" stroke="white" stroke-width="2"/>`;
+        <rect x="13" y="7" width="4" height="8" rx="2" fill="${wh}"/>
+        <rect x="31" y="7" width="4" height="8" rx="2" fill="${wh}"/>
+        <rect x="13" y="26.5" width="4" height="6" rx="1.5" fill="${wh}"/>
+        <rect x="13" y="33.5" width="4" height="6" rx="1.5" fill="${wh}"/>
+        <rect x="31" y="26.5" width="4" height="6" rx="1.5" fill="${wh}"/>
+        <rect x="31" y="33.5" width="4" height="6" rx="1.5" fill="${wh}"/>
+        <rect x="17" y="6" width="14" height="13" rx="3" fill="${bd}"/>
+        <rect x="18.5" y="7.5" width="11" height="8" rx="1.5" fill="${gl}"/>
+        <rect x="17" y="20.5" width="14" height="21.5" rx="2" fill="${bd}"/>`;
       break;
     case 'bus':
       shape = `
-        <rect x="9" y="12" width="30" height="18" rx="2" fill="white" opacity="0.9"/>
-        <rect x="11" y="15" width="6" height="5" rx="0.5" fill="${color}" opacity="0.45"/>
-        <rect x="20" y="15" width="6" height="5" rx="0.5" fill="${color}" opacity="0.45"/>
-        <rect x="29" y="15" width="6" height="5" rx="0.5" fill="${color}" opacity="0.45"/>
-        <circle cx="15" cy="31" r="3" fill="${color}" stroke="white" stroke-width="2"/>
-        <circle cx="33" cy="31" r="3" fill="${color}" stroke="white" stroke-width="2"/>`;
+        <rect x="13" y="5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="31" y="5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="13" y="34.5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="31" y="34.5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="17" y="4" width="14" height="40" rx="4.5" fill="${bd}"/>
+        <rect x="18.5" y="8" width="5" height="4" rx="1" fill="${gl}"/>
+        <rect x="25.5" y="8" width="5" height="4" rx="1" fill="${gl}"/>
+        <rect x="18.5" y="16" width="5" height="4" rx="1" fill="${gl}"/>
+        <rect x="25.5" y="16" width="5" height="4" rx="1" fill="${gl}"/>
+        <rect x="18.5" y="24" width="5" height="4" rx="1" fill="${gl}"/>
+        <rect x="25.5" y="24" width="5" height="4" rx="1" fill="${gl}"/>`;
       break;
     case 'pickup':
       shape = `
-        <path d="M9 30 L11 22 H26 L27.5 30 Z" fill="white" opacity="0.9"/>
-        <rect x="27.5" y="20" width="13" height="10" rx="1" fill="white" opacity="0.6"/>
-        <path d="M12 29 L14 23.5 H24 L25.5 29 Z" fill="${color}" opacity="0.35"/>
-        <line x1="27.5" y1="20" x2="27.5" y2="30" stroke="white" stroke-width="1.5"/>
-        <rect x="9" y="30" width="32" height="4" rx="1" fill="white" opacity="0.7"/>
-        <circle cx="15" cy="31" r="3" fill="${color}" stroke="white" stroke-width="2"/>
-        <circle cx="36" cy="31" r="3" fill="${color}" stroke="white" stroke-width="2"/>`;
+        <rect x="13" y="6" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="31" y="6" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="13" y="33.5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="31" y="33.5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="17" y="5" width="14" height="18" rx="3" fill="${bd}"/>
+        <rect x="18.5" y="7" width="11" height="12" rx="1.5" fill="${gl}"/>
+        <rect x="17" y="25" width="14" height="18" rx="2" fill="${bd}"/>
+        <rect x="18.5" y="26.5" width="11" height="15" rx="0.5" fill="rgba(0,0,0,0.14)"/>`;
       break;
     case 'boat':
       shape = `
-        <path d="M10 26 L14 16 H34 L38 26 Z" fill="white" opacity="0.9"/>
-        <path d="M7 28 Q24 34 41 28" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
-        <path d="M24 12 V16" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-        <path d="M24 12 L32 18" stroke="white" stroke-width="2" opacity="0.7" stroke-linecap="round"/>`;
+        <path d="M24 5 L33 9 L34 33 Q32 42 24 43 Q16 42 14 33 L15 9 Z" fill="${bd}"/>
+        <rect x="19" y="13" width="10" height="13" rx="2.5" fill="${bd}"/>
+        <rect x="20.5" y="14.5" width="7" height="9" rx="1.5" fill="${gl}"/>`;
       break;
     default: // car
       shape = `
-        <path d="M9 29 L11 21.5 H37 L39 29 H9 Z" fill="white"/>
-        <path d="M11 21.5 L14 14 H34 L37 21.5" fill="white" opacity="0.7"/>
-        <path d="M15 21 L17 15.5 H31 L33 21 Z" fill="${color}" opacity="0.3"/>
-        <circle cx="16" cy="30" r="3.5" fill="${color}" stroke="white" stroke-width="2"/>
-        <circle cx="32" cy="30" r="3.5" fill="${color}" stroke="white" stroke-width="2"/>`;
+        <rect x="13" y="11" width="4" height="8" rx="2" fill="${wh}"/>
+        <rect x="31" y="11" width="4" height="8" rx="2" fill="${wh}"/>
+        <rect x="13" y="29" width="4" height="8" rx="2" fill="${wh}"/>
+        <rect x="31" y="29" width="4" height="8" rx="2" fill="${wh}"/>
+        <path d="M17 11 Q17 8 24 7.5 Q31 8 31 11 L31.5 15 L31.5 33 L31 37 Q31 40 24 40.5 Q17 40 17 37 L16.5 33 L16.5 15 Z" fill="${bd}"/>
+        <path d="M18.5 12 Q19 9 24 8.5 Q29 9 29.5 12 L30 17 L18 17 Z" fill="${gl}"/>
+        <path d="M18.5 36 Q19 39 24 39.5 Q29 39 29.5 36 L30 31 L18 31 Z" fill="${gl}"/>`;
   }
 
   return `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto">

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -209,13 +209,13 @@ export default function DistribuidorPage() {
   }).length;
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
+    <div className="sidebar-offset flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
 
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
         <div className="flex items-center gap-2">
-          <a href="/dashboard" className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 no-underline"
+          <a href="/dashboard" className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 no-underline"
             style={{ background: 'var(--bg-border)' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5" strokeLinecap="round">
               <polyline points="15 18 9 12 15 6"/>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { TraccarDevice, TraccarPosition, knotsToKmh } from '@/lib/traccar';
 

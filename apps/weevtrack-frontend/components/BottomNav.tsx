@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -58,9 +58,35 @@ const gestaoTab = {
   ),
 };
 
+const distribuidorTabs = [
+  {
+    href: '/distribuidor',
+    label: 'Meu Painel',
+    icon: (active: boolean) => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#007AFF' : '#6B7280'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+    ),
+  },
+  {
+    href: '/perfil',
+    label: 'Perfil',
+    icon: (active: boolean) => (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#007AFF' : '#6B7280'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    ),
+  },
+];
+
 export default function BottomNav() {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDistribuidor, setIsDistribuidor] = useState(false);
 
   useEffect(() => {
     try {
@@ -68,11 +94,12 @@ export default function BottomNav() {
       if (raw) {
         const u = JSON.parse(decodeURIComponent(raw));
         setIsAdmin(!!u.administrator);
+        setIsDistribuidor(u.role === 'distribuidor' || u.role === 'distribuidor_geral');
       }
     } catch { /* silencioso */ }
   }, []);
 
-  const tabs = isAdmin ? [...baseTabs, gestaoTab] : baseTabs;
+  const tabs = isDistribuidor ? distribuidorTabs : isAdmin ? [...baseTabs, gestaoTab] : baseTabs;
 
   return (
     <nav

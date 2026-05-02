@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 
@@ -44,7 +44,7 @@ export default function ComprovantePage({ params }: { params: { token: string } 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ width: 36, height: 36, border: '3px solid #007AFF', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.9s linear infinite' }} />
+      <div style={{ width: 36, height: 36, border: '3px solid #00C9A7', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.9s linear infinite' }} />
     </div>
   );
 
@@ -52,7 +52,7 @@ export default function ComprovantePage({ params }: { params: { token: string } 
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, background: '#f0f2f5' }}>
       <div style={{ fontSize: 52, marginBottom: 16 }}>⚠️</div>
       <p style={{ fontSize: 17, fontWeight: 700, color: '#1a1a2e', textAlign: 'center' }}>{error}</p>
-      <button onClick={() => history.back()} style={{ marginTop: 20, background: '#007AFF', color: 'white', border: 'none', borderRadius: 10, padding: '10px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>← Voltar</button>
+      <button onClick={() => history.back()} style={{ marginTop: 20, background: '#00C9A7', color: 'white', border: 'none', borderRadius: 10, padding: '10px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>← Voltar</button>
     </div>
   );
 
@@ -84,7 +84,7 @@ export default function ComprovantePage({ params }: { params: { token: string } 
       <div className="no-print" style={{ position: 'sticky', top: 0, zIndex: 100, background: '#1a1a2e', padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
         <button onClick={() => history.back()} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', borderRadius: 8, padding: '7px 14px', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>← Voltar</button>
         <span style={{ color: 'white', fontWeight: 700, fontSize: 14 }}>📄 Comprovante do Contrato</span>
-        <button onClick={() => window.print()} style={{ background: '#007AFF', color: 'white', border: 'none', borderRadius: 8, padding: '7px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>🖨️ Imprimir / PDF</button>
+        <button onClick={() => window.print()} style={{ background: '#00C9A7', color: 'white', border: 'none', borderRadius: 8, padding: '7px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>🖨️ Imprimir / PDF</button>
       </div>
 
       {/* Conteúdo imprimível */}

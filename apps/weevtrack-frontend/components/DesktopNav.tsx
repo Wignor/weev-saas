@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -33,6 +33,14 @@ function NavIcon({ path, active }: { path: string; active: boolean }) {
         <polyline points="10 9 9 9 8 9"/>
       </svg>
     ),
+    distribuidor: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round">
+        <rect x="3" y="3" width="7" height="7" rx="1"/>
+        <rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/>
+        <rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+    ),
     gestao: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -53,13 +61,18 @@ function NavIcon({ path, active }: { path: string; active: boolean }) {
 export default function DesktopNav() {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDistribuidor, setIsDistribuidor] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     if (!pathname || pathname === '/login') return;
     try {
       const raw = document.cookie.split('; ').find(r => r.startsWith('wt_user='))?.split('=').slice(1).join('=');
-      if (raw) { const u = JSON.parse(decodeURIComponent(raw)); setIsAdmin(!!u.administrator); }
+      if (raw) {
+        const u = JSON.parse(decodeURIComponent(raw));
+        setIsAdmin(!!u.administrator);
+        setIsDistribuidor(u.role === 'distribuidor' || u.role === 'distribuidor_geral');
+      }
     } catch { /**/ }
     const saved = localStorage.getItem('nav_collapsed');
     const isCollapsed = saved === '1';
@@ -77,14 +90,19 @@ export default function DesktopNav() {
     else { document.body.classList.remove('nav-collapsed'); localStorage.removeItem('nav_collapsed'); }
   }
 
-  const tabs = [
-    { key: 'dashboard', href: '/dashboard', label: 'Veículos' },
-    { key: 'historico', href: '/historico', label: 'Trajetos' },
-    { key: 'alertas',   href: '/alertas',   label: 'Alertas' },
-    { key: 'relatorios',href: '/relatorios', label: 'Relatórios' },
-    ...(isAdmin ? [{ key: 'gestao', href: '/gestao', label: 'Gestão' }] : []),
-    { key: 'perfil',    href: '/perfil',     label: 'Perfil' },
-  ];
+  const tabs = isDistribuidor
+    ? [
+        { key: 'distribuidor', href: '/distribuidor', label: 'Meu Painel' },
+        { key: 'perfil',       href: '/perfil',       label: 'Perfil' },
+      ]
+    : [
+        { key: 'dashboard',  href: '/dashboard',  label: 'Veículos' },
+        { key: 'historico',  href: '/historico',  label: 'Trajetos' },
+        { key: 'alertas',    href: '/alertas',    label: 'Alertas' },
+        { key: 'relatorios', href: '/relatorios', label: 'Relatórios' },
+        ...(isAdmin ? [{ key: 'gestao', href: '/gestao', label: 'Gestão' }] : []),
+        { key: 'perfil',     href: '/perfil',     label: 'Perfil' },
+      ];
 
   const W = collapsed ? 64 : 220;
 
@@ -108,9 +126,9 @@ export default function DesktopNav() {
           width: 28, height: 28, borderRadius: '50%', background: '#007AFF',
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="2.5" fill="white"/>
-            <path d="M7 1v2.5M7 10.5V13M1 7h2.5M10.5 7H13" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
+          <svg width="14" height="18" viewBox="0 0 14 18" fill="none">
+            <path d="M7 1C4.24 1 2 3.24 2 6C2 9.75 7 17.5 7 17.5C7 17.5 12 9.75 12 6C12 3.24 9.76 1 7 1Z" fill="white"/>
+            <circle cx="7" cy="6" r="2" fill="#007AFF"/>
           </svg>
         </div>
         {!collapsed && (
