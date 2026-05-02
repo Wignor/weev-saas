@@ -41,8 +41,8 @@ export default function DistribuidorPage() {
   const [allDevices, setAllDevices] = useState<TDevice[]>([]);
   const [credits, setCredits] = useState(0);
   const [licenses, setLicenses] = useState<Record<string, TLicInfo>>({});
-  const [myDevices, setMyDevices] = useState<TMyDevice[]>([]);
-  const [myDevicesLoading, setMyDevicesLoading] = useState(true);
+  const [ownDevices, setOwnDevices] = useState<TMyDevice[]>([]);
+  const [ownDevicesLoading, setOwnDevicesLoading] = useState(true);
 
   useEffect(() => {
     const u = getUserFromCookie();
@@ -68,15 +68,15 @@ export default function DistribuidorPage() {
   }
 
   async function loadMyDevices() {
-    setMyDevicesLoading(true);
+    setOwnDevicesLoading(true);
     try {
       const res = await fetch('/api/distribuidor/my-devices');
       if (res.ok) {
         const data = await res.json();
-        setMyDevices(Array.isArray(data.devices) ? data.devices : []);
+        setOwnDevices(Array.isArray(data.devices) ? data.devices : []);
       }
     } catch { /* silencioso */ }
-    setMyDevicesLoading(false);
+    setOwnDevicesLoading(false);
   }
 
   async function activateMyLicense(deviceId: number) {
@@ -88,7 +88,7 @@ export default function DistribuidorPage() {
     const data = await res.json();
     if (res.ok) {
       setCredits(data.credits);
-      setMyDevices(prev => prev.map(d => d.id === deviceId
+      setOwnDevices(prev => prev.map(d => d.id === deviceId
         ? { ...d, license: { expiresAt: data.expiresAt, daysLeft: data.daysLeft, status: data.status } }
         : d
       ));
@@ -202,7 +202,7 @@ export default function DistribuidorPage() {
 
   const assignedIds = Object.values(clientDevices).flat().map(d => d.id);
   const unassigned = allDevices.filter(d => !assignedIds.includes(d.id));
-  const myDevices = selectedClient ? (clientDevices[selectedClient.id] || []) : [];
+  const selectedClientDevices = selectedClient ? (clientDevices[selectedClient.id] || []) : [];
   const online = clients.filter(c => {
     const devs = clientDevices[c.id] || [];
     return devs.some(d => d.status === 'online');
@@ -271,7 +271,7 @@ export default function DistribuidorPage() {
       )}
 
       {/* Meus Dispositivos */}
-      {(myDevicesLoading || myDevices.length > 0) && (
+      {(ownDevicesLoading || ownDevices.length > 0) && (
         <div className="flex-shrink-0 mx-4 mt-3 rounded-xl overflow-hidden"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
           <div className="flex items-center justify-between px-4 py-2.5"
@@ -285,14 +285,14 @@ export default function DistribuidorPage() {
             </div>
             <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
               style={{ background: 'rgba(0,122,255,0.1)', color: '#007AFF' }}>
-              {myDevices.length}
+              {ownDevices.length}
             </span>
           </div>
-          {myDevicesLoading ? (
+          {ownDevicesLoading ? (
             <div className="flex justify-center py-4">
               <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"/>
             </div>
-          ) : myDevices.map((dev, i) => {
+          ) : ownDevices.map((dev, i) => {
             const lic = dev.license;
             const licColor = !lic ? '#6B7280' : lic.status === 'expired' ? '#FF3B30' : lic.status === 'expiring' ? '#FF9500' : '#34C759';
             const licLabel = !lic ? 'Sem licença' : lic.status === 'expired' ? 'Expirado' : lic.status === 'expiring' ? `${lic.daysLeft}d` : `${lic.daysLeft}d`;
@@ -388,13 +388,13 @@ export default function DistribuidorPage() {
                       ) : (
                         <>
                           <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-3">
-                            Atribuídos a {client.name} ({myDevices.length})
+                            Atribuídos a {client.name} ({selectedClientDevices.length})
                           </p>
-                          {myDevices.length === 0 ? (
+                          {selectedClientDevices.length === 0 ? (
                             <p className="text-xs t-text-lo mb-4 text-center py-2">Nenhum dispositivo atribuído</p>
                           ) : (
                             <div className="space-y-2 mb-4">
-                              {myDevices.map(device => {
+                              {selectedClientDevices.map(device => {
                                 const lic = licenses[String(device.id)];
                                 const licColor = !lic ? '#6B7280' : lic.status === 'expired' ? '#FF3B30' : lic.status === 'expiring' ? '#FF9500' : '#34C759';
                                 const licLabel = !lic ? 'Sem licença' : lic.status === 'expired' ? 'Expirado' : `${lic.daysLeft}d`;
