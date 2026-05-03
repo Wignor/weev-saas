@@ -44,8 +44,9 @@ export default function PushNotificationSetup() {
     }
     if (Notification.permission === 'denied') { setStatus('denied'); return; }
     if (Notification.permission === 'granted') {
-      // Auto-resubscribe silently on every app open to keep server subscription fresh
-      doSubscribe().then(ok => setStatus(ok ? 'subscribed' : 'idle'));
+      // Permission already granted — hide button immediately, re-register silently in background
+      setStatus('subscribed');
+      doSubscribe();
     }
   }, []);
 
