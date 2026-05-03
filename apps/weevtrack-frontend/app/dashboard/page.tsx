@@ -638,7 +638,7 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
   const gl = 'rgba(255,255,255,0.18)';
   switch (type) {
     case 'motorcycle': return (
-      <svg width="14" height="28" viewBox="0 0 14 28">
+      <svg width="10" height="20" viewBox="0 0 14 28">
         <rect x="5.5" y="4.5" width="3" height="19" rx="1.5" fill={color}/>
         <ellipse cx="7" cy="10" rx="4" ry="3.5" fill={color}/>
         <ellipse cx="7" cy="17.5" rx="3.5" ry="3.5" fill={color}/>
@@ -646,14 +646,14 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
       </svg>
     );
     case 'truck': return (
-      <svg width="22" height="36" viewBox="0 0 22 36">
+      <svg width="16" height="26" viewBox="0 0 22 36">
         <rect x="3" y="0.5" width="16" height="12" rx="3" fill={color}/>
         <rect x="5" y="2.5" width="12" height="7" rx="1.5" fill={gl}/>
         <rect x="3.5" y="14" width="15" height="21" rx="1.5" fill={color}/>
       </svg>
     );
     case 'bus': return (
-      <svg width="22" height="38" viewBox="0 0 22 38">
+      <svg width="16" height="28" viewBox="0 0 22 38">
         <rect x="3" y="1.5" width="16" height="35" rx="4" fill={color}/>
         <rect x="4" y="5" width="6" height="4" rx="1" fill={gl}/>
         <rect x="12" y="5" width="6" height="4" rx="1" fill={gl}/>
@@ -664,7 +664,7 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
       </svg>
     );
     case 'pickup': return (
-      <svg width="22" height="36" viewBox="0 0 22 36">
+      <svg width="16" height="26" viewBox="0 0 22 36">
         <rect x="3" y="0.5" width="16" height="16" rx="3" fill={color}/>
         <rect x="5" y="2.5" width="12" height="10" rx="1.5" fill={gl}/>
         <rect x="3.5" y="18" width="15" height="17" rx="1.5" fill={color}/>
@@ -672,14 +672,14 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
       </svg>
     );
     case 'boat': return (
-      <svg width="22" height="36" viewBox="0 0 22 36">
+      <svg width="16" height="26" viewBox="0 0 22 36">
         <path d="M11 1 L19 5 L20 26 Q19 34 11 35 Q3 34 2 26 L3 5 Z" fill={color}/>
         <rect x="5" y="9" width="12" height="11" rx="2.5" fill={color}/>
         <rect x="7" y="11" width="8" height="7" rx="1.5" fill={gl}/>
       </svg>
     );
     default: return ( // car
-      <svg width="22" height="34" viewBox="0 0 22 34">
+      <svg width="16" height="24" viewBox="0 0 22 34">
         <path d="M2 4 Q2 1 11 0.5 Q20 1 20 4 L20.5 8 L20.5 26 L20 30 Q20 33 11 33.5 Q2 33 2 30 L1.5 26 L1.5 8 Z" fill={color}/>
         <path d="M3.5 5 Q4 2 11 1.5 Q18 2 18.5 5 L19 10 L3 10 Z" fill={gl}/>
         <path d="M3.5 29 Q4 32 11 32.5 Q18 32 18.5 29 L19 24 L3 24 Z" fill={gl}/>

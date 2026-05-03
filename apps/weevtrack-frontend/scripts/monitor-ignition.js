@@ -116,10 +116,10 @@ async function sendPush(sub, payload) {
     console.log(`[push] OK → ${sub.endpoint.slice(-30)}`);
   } catch (err) {
     console.error(`[push] ERRO ${err.statusCode || err.message} → ${sub.endpoint.slice(-30)}`);
-    if (err.statusCode === 410 || err.statusCode === 404) {
+    if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 400) {
       const subs = readSubs();
       writeJSON(SUBS_FILE, subs.filter((s) => s.endpoint !== sub.endpoint));
-      console.log(`[push] Subscrição removida (endpoint inválido)`);
+      console.log(`[push] Subscrição removida (endpoint inválido/expirado)`);
     }
   }
 }
@@ -210,8 +210,13 @@ async function check() {
     function subsForDevice(deviceId) {
       const clientId = assignments[deviceId];
       const clientSubs = clientId ? (clientSubsMap[clientId] || []) : [];
-      if (clientSubs.length > 0) return clientSubs;
-      return adminSubs;
+      // Admins always get notified; clients assigned to the device also get notified
+      const seen = new Set();
+      const result = [];
+      for (const s of [...adminSubs, ...clientSubs]) {
+        if (!seen.has(s.endpoint)) { seen.add(s.endpoint); result.push(s); }
+      }
+      return result;
     }
 
     const prevState = readJSON(STATE_FILE);
