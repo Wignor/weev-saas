@@ -62,6 +62,7 @@ export default function GestaoPage() {
   const [distCredits, setDistCredits] = useState<Record<string, number>>({});
   const [creditQty, setCreditQty] = useState(1);
   const [usersSearch, setUsersSearch] = useState('');
+  const [listCollapsed, setListCollapsed] = useState(false);
   const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
   const filteredUsers = sortedUsers.filter(u =>
     !usersSearch || u.name.toLowerCase().includes(usersSearch.toLowerCase()) || u.email.toLowerCase().includes(usersSearch.toLowerCase())
@@ -310,6 +311,176 @@ export default function GestaoPage() {
 
   const unassigned = allDevices.filter(d => !userDevices.find(ud => ud.id === d.id));
 
+  const detailPanel = selectedUser ? (
+    <div>
+      <div className="mb-4 p-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+        <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-2">Função do usuário</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {(Object.entries(ROLES) as [UserRole, typeof ROLES[UserRole]][]).map(([key, cfg]) => (
+            <button key={key}
+              onClick={async () => {
+                const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+                  method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ role: key }),
+                });
+                if (res.ok) {
+                  setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, role: key } : u));
+                  setSelectedUser(prev => prev ? { ...prev, role: key } : prev);
+                  flash(`✅ Função alterada para ${cfg.label}`);
+                }
+              }}
+              className="text-left px-2.5 py-2 rounded-lg transition-all"
+              style={{ background: selectedUser.role === key ? cfg.bg : 'var(--bg-page)', border: `1px solid ${selectedUser.role === key ? cfg.color + '50' : 'var(--bg-border)'}` }}>
+              <p className="text-xs font-semibold" style={{ color: selectedUser.role === key ? cfg.color : 'var(--text-hi)' }}>{cfg.label}</p>
+              <p className="text-xs t-text-lo leading-tight" style={{ fontSize: 10 }}>{cfg.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {(() => {
+        const distributors = users.filter(u => u.role === 'distribuidor' || u.role === 'distribuidor_geral');
+        const currentDistId = Object.entries(distMap).find(([, ids]) => ids.includes(selectedUser.id))?.[0];
+        const currentDist = users.find(u => String(u.id) === currentDistId);
+        if (distributors.length === 0) return null;
+        return (
+          <div className="mb-4 p-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+            <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-2">Distribuidor responsável</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button onClick={async () => {
+                await fetch('/api/admin/distribuidor', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId: selectedUser.id }) });
+                setDistMap(prev => { const next = { ...prev }; for (const k of Object.keys(next)) next[k] = next[k].filter(id => id !== selectedUser.id); return next; });
+                flash('✅ Desvinculado');
+              }} className="text-xs px-2.5 py-1.5 rounded-lg font-medium" style={{ background: currentDistId ? 'rgba(107,114,128,0.12)' : 'var(--bg-page)', color: 'var(--text-lo)', border: '1px solid var(--bg-border)' }}>
+                Nenhum
+              </button>
+              {distributors.map(dist => {
+                const isActive = String(dist.id) === currentDistId;
+                return (
+                  <button key={dist.id} onClick={async () => {
+                    await fetch('/api/admin/distribuidor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ distributorId: dist.id, clientId: selectedUser.id }) });
+                    setDistMap(prev => { const next = { ...prev }; for (const k of Object.keys(next)) next[k] = next[k].filter(id => id !== selectedUser.id); if (!next[String(dist.id)]) next[String(dist.id)] = []; next[String(dist.id)].push(selectedUser.id); return next; });
+                    flash(`✅ Atribuído a ${dist.name.split(' ')[0]}`);
+                  }} className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
+                  style={{ background: isActive ? 'rgba(139,92,246,0.15)' : 'var(--bg-page)', color: isActive ? '#8B5CF6' : 'var(--text-lo)', border: `1px solid ${isActive ? 'rgba(139,92,246,0.4)' : 'var(--bg-border)'}` }}>
+                    {dist.name.split(' ')[0]}
+                  </button>
+                );
+              })}
+            </div>
+            {currentDist && <p className="text-xs mt-2" style={{ color: '#8B5CF6' }}>Gerenciado por: <strong>{currentDist.name}</strong></p>}
+          </div>
+        );
+      })()}
+
+      {(selectedUser.role === 'distribuidor' || selectedUser.role === 'distribuidor_geral') && (() => {
+        const credits = distCredits[String(selectedUser.id)] ?? 0;
+        const creditColor = credits === 0 ? '#FF3B30' : credits <= 3 ? '#FF9500' : '#34C759';
+        const creditBg = credits === 0 ? 'rgba(255,59,48,0.1)' : credits <= 3 ? 'rgba(255,149,0,0.12)' : 'rgba(52,199,89,0.1)';
+        return (
+          <div className="mb-4 rounded-xl overflow-hidden" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)' }}>
+            <div className="px-4 py-2.5" style={{ background: 'rgba(139,92,246,0.12)', borderBottom: '1px solid rgba(139,92,246,0.15)' }}>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8B5CF6' }}>Transferir Créditos</p>
+            </div>
+            <div className="px-4 pt-3 pb-2">
+              <p className="text-xs mb-2" style={{ color: 'var(--text-lo)' }}>Saldo de <strong style={{ color: 'var(--text-hi)' }}>{selectedUser.name.split(' ')[0]}</strong></p>
+              <div className="flex gap-3 mb-3">
+                <div className="flex-1 py-3 rounded-xl text-center" style={{ background: creditBg }}>
+                  <p className="text-2xl font-bold" style={{ color: creditColor }}>{credits}</p>
+                  <p className="text-xs mt-0.5" style={{ color: creditColor, opacity: 0.8 }}>Mensais</p>
+                </div>
+              </div>
+              <p className="text-xs mb-1.5" style={{ color: 'var(--text-lo)' }}>Quantidade:</p>
+              <div className="flex gap-1.5 mb-2">
+                {[1, 5, 10, 30].map(n => (
+                  <button key={n} onClick={() => setCreditQty(n)} className="flex-1 py-1.5 rounded-lg text-xs font-bold"
+                    style={{ background: creditQty === n ? '#8B5CF6' : 'rgba(139,92,246,0.1)', color: creditQty === n ? 'white' : '#8B5CF6' }}>{n}</button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input type="number" min={1} value={creditQty} onChange={e => setCreditQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-20 rounded-xl px-3 py-2 text-sm font-bold text-center"
+                  style={{ background: 'var(--bg-card)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }} />
+                <button onClick={() => giveCredits(selectedUser.id, creditQty)} className="flex-1 py-2 rounded-xl text-sm font-semibold" style={{ background: '#8B5CF6', color: 'white' }}>+ Adicionar</button>
+                <button onClick={() => giveCredits(selectedUser.id, -creditQty)} className="flex-1 py-2 rounded-xl text-sm font-semibold" style={{ background: 'rgba(255,59,48,0.12)', color: '#FF3B30', border: '1px solid rgba(255,59,48,0.2)' }}>− Subtrair</button>
+              </div>
+              <p className="text-xs text-center mt-2" style={{ color: 'var(--text-lo)', fontSize: 10 }}>1 crédito = 1 mês de licença para 1 dispositivo</p>
+            </div>
+          </div>
+        );
+      })()}
+
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setContratoModalUser(selectedUser)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5"
+          style={{ background: 'rgba(0,122,255,0.1)', color: '#007AFF', border: '1px solid rgba(0,122,255,0.2)' }}>📄 Contrato</button>
+        <button onClick={() => setFaturaModalUser(selectedUser)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5"
+          style={{ background: 'rgba(52,199,89,0.1)', color: '#34C759', border: '1px solid rgba(52,199,89,0.2)' }}>💰 Faturas</button>
+      </div>
+
+      {loadingDevices ? (
+        <div className="flex justify-center py-4"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+      ) : (
+        <>
+          <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-3">Atribuídos a {selectedUser.name} ({userDevices.length})</p>
+          {userDevices.length === 0 ? (
+            <p className="text-xs t-text-lo mb-4 text-center py-2">Nenhum dispositivo atribuído ainda</p>
+          ) : (
+            <div className="space-y-2 mb-4">
+              {userDevices.map(device => (
+                <div key={device.id} className="rounded-xl px-3 py-2.5" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium t-text-hi truncate">{device.name}</p>
+                        <p className="text-xs t-text-lo">{device.uniqueId}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {(() => {
+                        const lic = licenses[String(device.id)];
+                        const licColor = !lic ? '#6B7280' : lic.status === 'expired' ? '#FF3B30' : lic.status === 'expiring' ? '#FF9500' : '#34C759';
+                        const licLabel = !lic ? 'Sem licença' : lic.status === 'expired' ? 'Expirado' : `${lic.daysLeft}d`;
+                        return <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold" style={{ background: `${licColor}18`, color: licColor }}>{licLabel}</span>;
+                      })()}
+                      {[{ label: '−1d', days: -1 }, { label: '+1d', days: 1 }, { label: '+1m', days: 31 }].map(({ label, days }) => (
+                        <button key={label} onClick={() => renewLicense(device.id, selectedUser.id, days)}
+                          className="text-xs px-2 py-1 rounded-lg font-medium"
+                          style={{ background: days < 0 ? 'rgba(255,59,48,0.1)' : 'rgba(0,122,255,0.12)', color: days < 0 ? '#FF3B30' : '#007AFF' }}>{label}</button>
+                      ))}
+                      <button onClick={() => removeDevice(device.id)} className="text-xs px-2 py-1 rounded-lg font-medium" style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}>Remover</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => sendCmd(device.id, 'engineStop')} className="text-xs py-1.5 rounded-lg font-medium" style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}>🔒 Bloquear</button>
+                    <button onClick={() => sendCmd(device.id, 'engineResume')} className="text-xs py-1.5 rounded-lg font-medium" style={{ background: 'rgba(52,199,89,0.1)', color: '#34C759' }}>🔓 Desbloquear</button>
+                  </div>
+                  <GeofenceSection deviceId={device.id} apiBase="/api/admin/geofences" onMessage={flash} />
+                </div>
+              ))}
+            </div>
+          )}
+          {unassigned.length > 0 && (
+            <>
+              <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-3">Disponíveis para atribuir</p>
+              <div className="space-y-2">
+                {unassigned.map(device => (
+                  <div key={device.id} className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
+                      <div><p className="text-sm font-medium t-text-hi">{device.name}</p><p className="text-xs t-text-lo">{device.uniqueId}</p></div>
+                    </div>
+                    <button onClick={() => assignDevice(device.id)} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(0,122,255,0.15)', color: '#007AFF' }}>Atribuir</button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className="flex flex-col sidebar-offset" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
       {/* Header */}
@@ -385,7 +556,7 @@ export default function GestaoPage() {
 
       {/* Feedback */}
       {msg && (
-        <div className="mx-4 mt-3 rounded-xl px-4 py-2 text-sm text-center font-medium"
+        <div className="flex-shrink-0 mx-4 mt-3 rounded-xl px-4 py-2 text-sm text-center font-medium"
           style={{
             background: msg.startsWith('✅') ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)',
             color: msg.startsWith('✅') ? '#34C759' : '#FF3B30',
@@ -395,44 +566,54 @@ export default function GestaoPage() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto pb-20">
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : activeTab === 'clientes' ? (
-
-          /* ─── CLIENTES TAB ─── */
-          <>
-            {users.length > 0 && (
-              <div className="px-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--bg-border)', background: 'var(--bg-card)' }}>
-                <div className="relative">
-                  <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
-                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  </svg>
-                  <input type="text" placeholder="Buscar cliente..." value={usersSearch}
-                    onChange={e => setUsersSearch(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus:outline-none"
-                    style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }} />
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left panel: list */}
+        <div className="flex flex-col flex-none overflow-hidden"
+          style={{ width: listCollapsed ? 44 : 340, borderRight: '1px solid var(--bg-border)', background: 'var(--bg-page)', transition: 'width 0.2s ease', flexShrink: 0 }}>
+          <button onClick={() => setListCollapsed(c => !c)}
+            title={listCollapsed ? 'Expandir lista' : 'Recolher lista'}
+            style={{ height: 44, display: 'flex', alignItems: 'center', flexShrink: 0, justifyContent: listCollapsed ? 'center' : 'flex-end', padding: listCollapsed ? 0 : '0 12px', borderBottom: '1px solid var(--bg-border)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+              {listCollapsed ? <polyline points="9 18 15 12 9 6"/> : <polyline points="15 18 9 12 15 6"/>}
+            </svg>
+          </button>
+          {!listCollapsed && (
+            <div className="flex-1 overflow-y-auto">
+              {loading ? (
+                <div className="flex justify-center py-16">
+                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                 </div>
-              </div>
-            )}
-            {users.length === 0 ? (
-              <div className="text-center py-12 px-8">
-                <div className="text-5xl mb-4">👥</div>
-                <p className="t-text-lo text-sm">Nenhum cliente cadastrado</p>
-                <p className="t-text-lo text-xs mt-1">Toque em "+ Novo cliente" para adicionar</p>
-              </div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="text-center py-12 px-8">
-                <p className="t-text-lo text-sm">Nenhum cliente encontrado</p>
-              </div>
-            ) : (
-              <div className="mt-2" style={{ borderTop: '1px solid var(--bg-border)' }}>
-                {filteredUsers.map(user => (
-                  <div key={user.id}>
-                    <div className="flex items-center gap-3 px-4 py-3"
-                      style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
+              ) : activeTab === 'clientes' ? (
+                <>
+                  {users.length > 0 && (
+                    <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--bg-border)', background: 'var(--bg-card)' }}>
+                      <div className="relative">
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+                          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input type="text" placeholder="Buscar cliente..." value={usersSearch}
+                          onChange={e => setUsersSearch(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus:outline-none"
+                          style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }} />
+                      </div>
+                    </div>
+                  )}
+                  {users.length === 0 ? (
+                    <div className="text-center py-12 px-8">
+                      <div className="text-5xl mb-4">👥</div>
+                      <p className="t-text-lo text-sm">Nenhum cliente cadastrado</p>
+                      <p className="t-text-lo text-xs mt-1">Toque em "+ Novo cliente" para adicionar</p>
+                    </div>
+                  ) : filteredUsers.length === 0 ? (
+                    <div className="text-center py-12 px-8">
+                      <p className="t-text-lo text-sm">Nenhum cliente encontrado</p>
+                    </div>
+                  ) : (
+                    <div className="mt-2" style={{ borderTop: '1px solid var(--bg-border)' }}>
+                      {filteredUsers.map(user => (
+                        <div key={user.id}>
+                          <div className="flex items-center gap-3 px-4 py-3"
+                            style={{ background: selectedUser?.id === user.id ? 'rgba(0,122,255,0.08)' : 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
                       <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                         style={{ background: 'rgba(0,122,255,0.15)' }}>
                         <span className="font-bold text-sm" style={{ color: '#007AFF' }}>
@@ -496,284 +677,8 @@ export default function GestaoPage() {
                     </div>
 
                     {selectedUser?.id === user.id && (
-                      <div className="px-4 py-4" style={{ background: 'var(--bg-page)', borderBottom: '1px solid var(--bg-border)' }}>
-                        {/* Função / Role */}
-                        <div className="mb-4 p-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
-                          <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-2">Função do usuário</p>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {(Object.entries(ROLES) as [UserRole, typeof ROLES[UserRole]][]).map(([key, cfg]) => (
-                              <button key={key}
-                                onClick={async () => {
-                                  const res = await fetch(`/api/admin/users/${user.id}`, {
-                                    method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ role: key }),
-                                  });
-                                  if (res.ok) {
-                                    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role: key } : u));
-                                    flash(`✅ Função alterada para ${cfg.label}`);
-                                  }
-                                }}
-                                className="text-left px-2.5 py-2 rounded-lg transition-all"
-                                style={{
-                                  background: user.role === key ? cfg.bg : 'var(--bg-page)',
-                                  border: `1px solid ${user.role === key ? cfg.color + '50' : 'var(--bg-border)'}`,
-                                }}>
-                                <p className="text-xs font-semibold" style={{ color: user.role === key ? cfg.color : 'var(--text-hi)' }}>{cfg.label}</p>
-                                <p className="text-xs t-text-lo leading-tight" style={{ fontSize: 10 }}>{cfg.desc}</p>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Distribuidor responsável */}
-                        {(() => {
-                          const distributors = users.filter(u => u.role === 'distribuidor' || u.role === 'distribuidor_geral');
-                          const currentDistId = Object.entries(distMap).find(([, ids]) => ids.includes(user.id))?.[0];
-                          const currentDist = users.find(u => String(u.id) === currentDistId);
-                          if (distributors.length === 0) return null;
-                          return (
-                            <div className="mb-4 p-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
-                              <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-2">Distribuidor responsável</p>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <button
-                                  onClick={async () => {
-                                    await fetch('/api/admin/distribuidor', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId: user.id }) });
-                                    setDistMap(prev => {
-                                      const next = { ...prev };
-                                      for (const k of Object.keys(next)) next[k] = next[k].filter(id => id !== user.id);
-                                      return next;
-                                    });
-                                    flash('✅ Desvinculado');
-                                  }}
-                                  className="text-xs px-2.5 py-1.5 rounded-lg font-medium"
-                                  style={{ background: currentDistId ? 'rgba(107,114,128,0.12)' : 'var(--bg-page)', color: currentDistId ? 'var(--text-lo)' : 'var(--text-lo)', border: '1px solid var(--bg-border)' }}>
-                                  Nenhum
-                                </button>
-                                {distributors.map(dist => {
-                                  const isActive = String(dist.id) === currentDistId;
-                                  return (
-                                    <button key={dist.id}
-                                      onClick={async () => {
-                                        await fetch('/api/admin/distribuidor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ distributorId: dist.id, clientId: user.id }) });
-                                        setDistMap(prev => {
-                                          const next = { ...prev };
-                                          for (const k of Object.keys(next)) next[k] = next[k].filter(id => id !== user.id);
-                                          if (!next[String(dist.id)]) next[String(dist.id)] = [];
-                                          next[String(dist.id)].push(user.id);
-                                          return next;
-                                        });
-                                        flash(`✅ Atribuído a ${dist.name.split(' ')[0]}`);
-                                      }}
-                                      className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
-                                      style={{ background: isActive ? 'rgba(139,92,246,0.15)' : 'var(--bg-page)', color: isActive ? '#8B5CF6' : 'var(--text-lo)', border: `1px solid ${isActive ? 'rgba(139,92,246,0.4)' : 'var(--bg-border)'}` }}>
-                                      {dist.name.split(' ')[0]}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              {currentDist && (
-                                <p className="text-xs mt-2" style={{ color: '#8B5CF6' }}>
-                                  Gerenciado por: <strong>{currentDist.name}</strong>
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })()}
-
-                        {/* Transferir Créditos — só aparece quando o usuário selecionado é distribuidor */}
-                        {(user.role === 'distribuidor' || user.role === 'distribuidor_geral') && (() => {
-                          const credits = distCredits[String(user.id)] ?? 0;
-                          const creditColor = credits === 0 ? '#FF3B30' : credits <= 3 ? '#FF9500' : '#34C759';
-                          const creditBg = credits === 0 ? 'rgba(255,59,48,0.1)' : credits <= 3 ? 'rgba(255,149,0,0.12)' : 'rgba(52,199,89,0.1)';
-                          return (
-                            <div className="mb-4 rounded-xl overflow-hidden" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.2)' }}>
-                              {/* Header */}
-                              <div className="px-4 py-2.5" style={{ background: 'rgba(139,92,246,0.12)', borderBottom: '1px solid rgba(139,92,246,0.15)' }}>
-                                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8B5CF6' }}>Transferir Créditos</p>
-                              </div>
-                              {/* Saldo atual */}
-                              <div className="px-4 pt-3 pb-2">
-                                <p className="text-xs mb-2" style={{ color: 'var(--text-lo)' }}>Saldo de <strong style={{ color: 'var(--text-hi)' }}>{user.name.split(' ')[0]}</strong></p>
-                                <div className="flex gap-3 mb-3">
-                                  <div className="flex-1 py-3 rounded-xl text-center" style={{ background: creditBg }}>
-                                    <p className="text-2xl font-bold" style={{ color: creditColor }}>{credits}</p>
-                                    <p className="text-xs mt-0.5" style={{ color: creditColor, opacity: 0.8 }}>Mensais</p>
-                                  </div>
-                                </div>
-                                {/* Quick select */}
-                                <p className="text-xs mb-1.5" style={{ color: 'var(--text-lo)' }}>Quantidade:</p>
-                                <div className="flex gap-1.5 mb-2">
-                                  {[1, 5, 10, 30].map(n => (
-                                    <button key={n} onClick={() => setCreditQty(n)}
-                                      className="flex-1 py-1.5 rounded-lg text-xs font-bold"
-                                      style={{ background: creditQty === n ? '#8B5CF6' : 'rgba(139,92,246,0.1)', color: creditQty === n ? 'white' : '#8B5CF6' }}>
-                                      {n}
-                                    </button>
-                                  ))}
-                                </div>
-                                {/* Input + Adicionar / Subtrair */}
-                                <div className="flex gap-2">
-                                  <input type="number" min={1} value={creditQty}
-                                    onChange={e => setCreditQty(Math.max(1, parseInt(e.target.value) || 1))}
-                                    className="w-20 rounded-xl px-3 py-2 text-sm font-bold text-center"
-                                    style={{ background: 'var(--bg-card)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
-                                  />
-                                  <button onClick={() => giveCredits(user.id, creditQty)}
-                                    className="flex-1 py-2 rounded-xl text-sm font-semibold"
-                                    style={{ background: '#8B5CF6', color: 'white' }}>
-                                    + Adicionar
-                                  </button>
-                                  <button onClick={() => giveCredits(user.id, -creditQty)}
-                                    className="flex-1 py-2 rounded-xl text-sm font-semibold"
-                                    style={{ background: 'rgba(255,59,48,0.12)', color: '#FF3B30', border: '1px solid rgba(255,59,48,0.2)' }}>
-                                    − Subtrair
-                                  </button>
-                                </div>
-                                <p className="text-xs text-center mt-2" style={{ color: 'var(--text-lo)', fontSize: 10 }}>
-                                  1 crédito = 1 mês de licença para 1 dispositivo
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Contrato + Faturas buttons */}
-                        <div className="flex gap-2 mb-4">
-                          <button
-                            onClick={() => setContratoModalUser(user)}
-                            className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5"
-                            style={{ background: 'rgba(0,122,255,0.1)', color: '#007AFF', border: '1px solid rgba(0,122,255,0.2)' }}
-                          >
-                            📄 Contrato
-                          </button>
-                          <button
-                            onClick={() => setFaturaModalUser(user)}
-                            className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5"
-                            style={{ background: 'rgba(52,199,89,0.1)', color: '#34C759', border: '1px solid rgba(52,199,89,0.2)' }}
-                          >
-                            💰 Faturas
-                          </button>
-                        </div>
-
-                        {loadingDevices ? (
-                          <div className="flex justify-center py-4">
-                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                          </div>
-                        ) : (
-                          <>
-                            <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-3">
-                              Atribuídos a {user.name} ({userDevices.length})
-                            </p>
-                            {userDevices.length === 0 ? (
-                              <p className="text-xs t-text-lo mb-4 text-center py-2">Nenhum dispositivo atribuído ainda</p>
-                            ) : (
-                              <div className="space-y-2 mb-4">
-                                {userDevices.map(device => (
-                                  <div key={device.id} className="rounded-xl px-3 py-2.5"
-                                    style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
-                                    <div className="flex items-center justify-between mb-2">
-                                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-medium t-text-hi truncate">{device.name}</p>
-                                          <p className="text-xs t-text-lo">{device.uniqueId}</p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                                        {(() => {
-                                          const lic = licenses[String(device.id)];
-                                          const licColor = !lic ? '#6B7280' : lic.status === 'expired' ? '#FF3B30' : lic.status === 'expiring' ? '#FF9500' : '#34C759';
-                                          const licLabel = !lic ? 'Sem licença' : lic.status === 'expired' ? 'Expirado' : `${lic.daysLeft}d`;
-                                          return (
-                                            <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
-                                              style={{ background: `${licColor}18`, color: licColor }}>
-                                              {licLabel}
-                                            </span>
-                                          );
-                                        })()}
-                                        {[
-                                          { label: '−1d', days: -1 },
-                                          { label: '+1d', days: 1 },
-                                          { label: '+1m', days: 31 },
-                                        ].map(({ label, days }) => (
-                                          <button key={label}
-                                            onClick={() => renewLicense(device.id, selectedUser!.id, days)}
-                                            className="text-xs px-2 py-1 rounded-lg font-medium"
-                                            style={{
-                                              background: days < 0 ? 'rgba(255,59,48,0.1)' : 'rgba(0,122,255,0.12)',
-                                              color: days < 0 ? '#FF3B30' : '#007AFF',
-                                            }}
-                                            title={days < 0 ? 'Remover 1 dia' : days === 1 ? 'Adicionar 1 dia' : 'Adicionar 1 mês'}
-                                          >
-                                            {label}
-                                          </button>
-                                        ))}
-                                        <button
-                                          onClick={() => removeDevice(device.id)}
-                                          className="text-xs px-2 py-1 rounded-lg font-medium"
-                                          style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}
-                                        >
-                                          Remover
-                                        </button>
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <button
-                                        onClick={() => sendCmd(device.id, 'engineStop')}
-                                        className="text-xs py-1.5 rounded-lg font-medium"
-                                        style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}
-                                      >
-                                        🔒 Bloquear
-                                      </button>
-                                      <button
-                                        onClick={() => sendCmd(device.id, 'engineResume')}
-                                        className="text-xs py-1.5 rounded-lg font-medium"
-                                        style={{ background: 'rgba(52,199,89,0.1)', color: '#34C759' }}
-                                      >
-                                        🔓 Desbloquear
-                                      </button>
-                                    </div>
-                                    <GeofenceSection
-                                      deviceId={device.id}
-                                      apiBase="/api/admin/geofences"
-                                      onMessage={flash}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {unassigned.length > 0 && (
-                              <>
-                                <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-3">
-                                  Disponíveis para atribuir
-                                </p>
-                                <div className="space-y-2">
-                                  {unassigned.map(device => (
-                                    <div key={device.id} className="flex items-center justify-between rounded-xl px-3 py-2.5"
-                                      style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
-                                        <div>
-                                          <p className="text-sm font-medium t-text-hi">{device.name}</p>
-                                          <p className="text-xs t-text-lo">{device.uniqueId}</p>
-                                        </div>
-                                      </div>
-                                      <button
-                                        onClick={() => assignDevice(device.id)}
-                                        className="text-xs px-2.5 py-1 rounded-lg font-medium"
-                                        style={{ background: 'rgba(0,122,255,0.15)', color: '#007AFF' }}
-                                      >
-                                        Atribuir
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </>
-                            )}
-                          </>
-                        )}
+                      <div className="md:hidden px-4 py-4" style={{ background: 'var(--bg-page)', borderBottom: '1px solid var(--bg-border)' }}>
+                        {detailPanel}
                       </div>
                     )}
                   </div>
@@ -891,6 +796,23 @@ export default function GestaoPage() {
             )}
           </>
         )}
+            </div>
+          )}
+        </div>
+
+        {/* Right panel (desktop only) */}
+        <div className="hidden md:flex flex-1 flex-col overflow-y-auto" style={{ background: 'var(--bg-page)' }}>
+          {selectedUser ? (
+            <div className="px-6 py-4 pb-24">{detailPanel}</div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="text-4xl mb-3">👤</div>
+                <p className="text-sm t-text-lo">Selecione um cliente para ver os detalhes</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modal: Novo cliente */}

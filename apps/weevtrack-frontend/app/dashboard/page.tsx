@@ -875,7 +875,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData();
-    intervalRef.current = setInterval(fetchData, 10000);
+    intervalRef.current = setInterval(fetchData, 3000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchData]);
 
@@ -894,7 +894,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (mergeMode) {
       fetchAllFleet();
-      mergeIntervalRef.current = setInterval(fetchAllFleet, 10000);
+      mergeIntervalRef.current = setInterval(fetchAllFleet, 3000);
     } else {
       if (mergeIntervalRef.current) clearInterval(mergeIntervalRef.current);
       setAllDevices([]);

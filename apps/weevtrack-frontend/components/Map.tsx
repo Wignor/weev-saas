@@ -189,12 +189,26 @@ export default function VehicleMap({
     }).addTo(map);
   }, [mapLayer]);
 
-  // Recalculate size when map becomes visible (mobile toggle)
+  // Recalculate size + auto-fit when map becomes visible (mobile toggle)
   useEffect(() => {
     if (!visible || !mapRef.current) return;
-    const timer = setTimeout(() => { mapRef.current?.invalidateSize(); }, 50);
+    const timer = setTimeout(() => {
+      mapRef.current?.invalidateSize();
+      if (!hasFittedRef.current) {
+        const L = require('leaflet');
+        const valid = positions.filter(p => p.valid && !(p.latitude === 0 && p.longitude === 0));
+        if (valid.length === 1) {
+          mapRef.current?.setView([valid[0].latitude, valid[0].longitude], 15);
+          hasFittedRef.current = true;
+        } else if (valid.length > 1) {
+          const bounds = L.latLngBounds(valid.map(p => [p.latitude, p.longitude]));
+          mapRef.current?.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 });
+          hasFittedRef.current = true;
+        }
+      }
+    }, 150);
     return () => clearTimeout(timer);
-  }, [visible]);
+  }, [visible, positions]);
 
   // Update markers + auto-fit on first load
   useEffect(() => {

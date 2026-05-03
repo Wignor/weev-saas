@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 
@@ -11,6 +11,29 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return output;
 }
 
+async function doSubscribe(): Promise<boolean> {
+  try {
+    const { key } = await fetch('/api/push/vapid-public').then(r => r.json());
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(key).buffer as ArrayBuffer,
+      });
+    }
+    // Always re-register with server to keep endpoint fresh
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub.toJSON()),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function PushNotificationSetup() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'subscribed' | 'denied' | 'unsupported'>('idle');
 
@@ -19,25 +42,20 @@ export default function PushNotificationSetup() {
       setStatus('unsupported');
       return;
     }
-    if (Notification.permission === 'granted') setStatus('subscribed');
-    else if (Notification.permission === 'denied') setStatus('denied');
+    if (Notification.permission === 'denied') { setStatus('denied'); return; }
+    if (Notification.permission === 'granted') {
+      // Auto-resubscribe silently on every app open to keep server subscription fresh
+      doSubscribe().then(ok => setStatus(ok ? 'subscribed' : 'idle'));
+    }
   }, []);
 
   async function subscribe() {
     setStatus('loading');
     try {
-      const { key } = await fetch('/api/push/vapid-public').then((r) => r.json());
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(key).buffer as ArrayBuffer,
-      });
-      await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sub.toJSON()),
-      });
-      setStatus('subscribed');
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { setStatus(perm === 'denied' ? 'denied' : 'idle'); return; }
+      const ok = await doSubscribe();
+      setStatus(ok ? 'subscribed' : 'idle');
     } catch {
       setStatus('idle');
     }
@@ -60,7 +78,7 @@ export default function PushNotificationSetup() {
         </div>
       </div>
       {status === 'denied' ? (
-        <span className="text-xs text-danger flex-shrink-0">Bloqueado</span>
+        <span className="text-xs text-danger flex-shrink-0">Bloqueado nas configurações</span>
       ) : (
         <button
           onClick={subscribe}
