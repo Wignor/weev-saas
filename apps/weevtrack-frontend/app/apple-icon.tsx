@@ -14,30 +14,26 @@ export default function AppleIcon() {
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-        {/* Pin shape: circle head + rotated square tail */}
-        <div style={{ position: 'relative', width: 80, height: 112, display: 'flex' }}>
-          {/* Circle (pin head) */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {/* Pin head — white circle with blue dot */}
           <div style={{
-            position: 'absolute',
-            top: 0, left: 0,
-            width: 80, height: 80,
-            borderRadius: '50%',
+            width: 80,
+            height: 80,
+            borderRadius: 40,
             background: 'white',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#007AFF' }} />
+            <div style={{ width: 28, height: 28, borderRadius: 14, background: '#007AFF' }} />
           </div>
-          {/* Tail: rotated square creating diamond tip */}
+          {/* Pin tail — rotated white square overlapping circle */}
           <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 20,
-            width: 40,
-            height: 40,
+            width: 38,
+            height: 38,
             background: 'white',
             transform: 'rotate(45deg)',
+            marginTop: -22,
           }} />
         </div>
       </div>
