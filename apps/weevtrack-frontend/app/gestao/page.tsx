@@ -568,11 +568,12 @@ export default function GestaoPage() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel: list */}
-        <div className="flex flex-col flex-none overflow-hidden"
-          style={{ width: listCollapsed ? 44 : 340, borderRight: '1px solid var(--bg-border)', background: 'var(--bg-page)', transition: 'width 0.2s ease', flexShrink: 0 }}>
+        <div className={`flex flex-col flex-none overflow-hidden w-full ${listCollapsed ? 'md:w-[44px]' : 'md:w-[340px]'}`}
+          style={{ borderRight: '1px solid var(--bg-border)', background: 'var(--bg-page)', transition: 'width 0.2s ease', flexShrink: 0 }}>
           <button onClick={() => setListCollapsed(c => !c)}
             title={listCollapsed ? 'Expandir lista' : 'Recolher lista'}
-            style={{ height: 44, display: 'flex', alignItems: 'center', flexShrink: 0, justifyContent: listCollapsed ? 'center' : 'flex-end', padding: listCollapsed ? 0 : '0 12px', borderBottom: '1px solid var(--bg-border)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+            className="hidden md:flex"
+            style={{ height: 44, alignItems: 'center', flexShrink: 0, justifyContent: listCollapsed ? 'center' : 'flex-end', padding: listCollapsed ? 0 : '0 12px', borderBottom: '1px solid var(--bg-border)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
               {listCollapsed ? <polyline points="9 18 15 12 9 6"/> : <polyline points="15 18 9 12 15 6"/>}
             </svg>
