@@ -29,6 +29,7 @@ function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'ca
   const safeName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const label = safeName ? `<div style="margin-top:3px;background:rgba(0,0,0,0.72);color:#fff;font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;text-align:center;pointer-events:none">${safeName}</div>` : '';
 
+  const wh = 'rgba(0,0,0,0.42)';
   const gl = 'rgba(255,255,255,0.28)';
   const bd = 'rgba(255,255,255,0.92)';
 
@@ -36,33 +37,49 @@ function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'ca
   switch (vehicleType) {
     case 'motorcycle':
       shape = `
-        <rect x="21" y="9" width="6" height="30" rx="3" fill="${bd}"/>
-        <ellipse cx="24" cy="18" rx="5.5" ry="4.5" fill="${bd}"/>
-        <ellipse cx="24" cy="31" rx="4.5" ry="4" fill="${bd}"/>
-        <line x1="19" y1="18" x2="29" y2="18" stroke="${gl}" stroke-width="1.5" stroke-linecap="round"/>`;
+        <rect x="18" y="9.5" width="12" height="5" rx="2.5" fill="${wh}"/>
+        <rect x="18" y="33.5" width="12" height="5" rx="2.5" fill="${wh}"/>
+        <rect x="22.5" y="13.5" width="3" height="19" rx="1.5" fill="${bd}"/>
+        <ellipse cx="24" cy="19.5" rx="4" ry="3.5" fill="${bd}"/>
+        <ellipse cx="24" cy="27.5" rx="3.5" ry="3.5" fill="${bd}"/>
+        <path d="M19 17.5 H29" stroke="${bd}" stroke-width="1.8" stroke-linecap="round"/>`;
       break;
     case 'truck':
       shape = `
-        <rect x="14" y="6" width="20" height="13" rx="3" fill="${bd}"/>
-        <rect x="15.5" y="7.5" width="17" height="8" rx="1.5" fill="${gl}"/>
-        <rect x="14" y="20.5" width="20" height="21.5" rx="2" fill="${bd}"/>`;
+        <rect x="13" y="7" width="4" height="8" rx="2" fill="${wh}"/>
+        <rect x="31" y="7" width="4" height="8" rx="2" fill="${wh}"/>
+        <rect x="13" y="26.5" width="4" height="6" rx="1.5" fill="${wh}"/>
+        <rect x="13" y="33.5" width="4" height="6" rx="1.5" fill="${wh}"/>
+        <rect x="31" y="26.5" width="4" height="6" rx="1.5" fill="${wh}"/>
+        <rect x="31" y="33.5" width="4" height="6" rx="1.5" fill="${wh}"/>
+        <rect x="17" y="6" width="14" height="13" rx="3" fill="${bd}"/>
+        <rect x="18.5" y="7.5" width="11" height="8" rx="1.5" fill="${gl}"/>
+        <rect x="17" y="20.5" width="14" height="21.5" rx="2" fill="${bd}"/>`;
       break;
     case 'bus':
       shape = `
-        <rect x="14" y="4" width="20" height="40" rx="4.5" fill="${bd}"/>
-        <rect x="16" y="8" width="7" height="4" rx="1" fill="${gl}"/>
-        <rect x="25" y="8" width="7" height="4" rx="1" fill="${gl}"/>
-        <rect x="16" y="16" width="7" height="4" rx="1" fill="${gl}"/>
-        <rect x="25" y="16" width="7" height="4" rx="1" fill="${gl}"/>
-        <rect x="16" y="24" width="7" height="4" rx="1" fill="${gl}"/>
-        <rect x="25" y="24" width="7" height="4" rx="1" fill="${gl}"/>`;
+        <rect x="13" y="5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="31" y="5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="13" y="34.5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="31" y="34.5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="17" y="4" width="14" height="40" rx="4.5" fill="${bd}"/>
+        <rect x="18.5" y="8" width="5" height="4" rx="1" fill="${gl}"/>
+        <rect x="25.5" y="8" width="5" height="4" rx="1" fill="${gl}"/>
+        <rect x="18.5" y="16" width="5" height="4" rx="1" fill="${gl}"/>
+        <rect x="25.5" y="16" width="5" height="4" rx="1" fill="${gl}"/>
+        <rect x="18.5" y="24" width="5" height="4" rx="1" fill="${gl}"/>
+        <rect x="25.5" y="24" width="5" height="4" rx="1" fill="${gl}"/>`;
       break;
     case 'pickup':
       shape = `
-        <rect x="14" y="5" width="20" height="18" rx="3" fill="${bd}"/>
-        <rect x="15.5" y="7" width="17" height="12" rx="1.5" fill="${gl}"/>
-        <rect x="14" y="25" width="20" height="18" rx="2" fill="${bd}"/>
-        <rect x="15.5" y="26.5" width="17" height="15" rx="0.5" fill="rgba(0,0,0,0.14)"/>`;
+        <rect x="13" y="6" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="31" y="6" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="13" y="33.5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="31" y="33.5" width="4" height="8.5" rx="2" fill="${wh}"/>
+        <rect x="17" y="5" width="14" height="18" rx="3" fill="${bd}"/>
+        <rect x="18.5" y="7" width="11" height="12" rx="1.5" fill="${gl}"/>
+        <rect x="17" y="25" width="14" height="18" rx="2" fill="${bd}"/>
+        <rect x="18.5" y="26.5" width="11" height="15" rx="0.5" fill="rgba(0,0,0,0.14)"/>`;
       break;
     case 'boat':
       shape = `
@@ -72,9 +89,13 @@ function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'ca
       break;
     default: // car
       shape = `
-        <path d="M14 12 Q14 8 24 7 Q34 8 34 12 L34 16 L34 32 L34 36 Q34 40 24 41 Q14 40 14 36 L14 32 L14 16 Z" fill="${bd}"/>
-        <path d="M16 13 Q17.5 9.5 24 9 Q30.5 9.5 32 13 L33 18 L15 18 Z" fill="${gl}"/>
-        <path d="M16 35 Q17.5 38.5 24 39 Q30.5 38.5 32 35 L33 30 L15 30 Z" fill="${gl}"/>`;
+        <rect x="13" y="11" width="4" height="8" rx="2" fill="${wh}"/>
+        <rect x="31" y="11" width="4" height="8" rx="2" fill="${wh}"/>
+        <rect x="13" y="29" width="4" height="8" rx="2" fill="${wh}"/>
+        <rect x="31" y="29" width="4" height="8" rx="2" fill="${wh}"/>
+        <path d="M17 11 Q17 8 24 7.5 Q31 8 31 11 L31.5 15 L31.5 33 L31 37 Q31 40 24 40.5 Q17 40 17 37 L16.5 33 L16.5 15 Z" fill="${bd}"/>
+        <path d="M18.5 12 Q19 9 24 8.5 Q29 9 29.5 12 L30 17 L18 17 Z" fill="${gl}"/>
+        <path d="M18.5 36 Q19 39 24 39.5 Q29 39 29.5 36 L30 31 L18 31 Z" fill="${gl}"/>`;
   }
 
   return `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto">

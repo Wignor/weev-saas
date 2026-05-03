@@ -635,13 +635,10 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
 
 /* ── VehicleIcon SVG (top-down view) ── */
 function VehicleIcon({ type, color }: { type: string; color: string }) {
-  const wh = 'rgba(0,0,0,0.38)';
   const gl = 'rgba(255,255,255,0.18)';
   switch (type) {
     case 'motorcycle': return (
       <svg width="14" height="28" viewBox="0 0 14 28">
-        <rect x="1" y="0.5" width="12" height="5" rx="2.5" fill={wh}/>
-        <rect x="1" y="22.5" width="12" height="5" rx="2.5" fill={wh}/>
         <rect x="5.5" y="4.5" width="3" height="19" rx="1.5" fill={color}/>
         <ellipse cx="7" cy="10" rx="4" ry="3.5" fill={color}/>
         <ellipse cx="7" cy="17.5" rx="3.5" ry="3.5" fill={color}/>
@@ -653,12 +650,6 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
         <rect x="3" y="0.5" width="16" height="12" rx="3" fill={color}/>
         <rect x="5" y="2.5" width="12" height="7" rx="1.5" fill={gl}/>
         <rect x="3.5" y="14" width="15" height="21" rx="1.5" fill={color}/>
-        <rect x="0" y="1.5" width="4" height="7.5" rx="2" fill={wh}/>
-        <rect x="18" y="1.5" width="4" height="7.5" rx="2" fill={wh}/>
-        <rect x="0" y="21" width="4" height="6" rx="1.5" fill={wh}/>
-        <rect x="0" y="28" width="4" height="6" rx="1.5" fill={wh}/>
-        <rect x="18" y="21" width="4" height="6" rx="1.5" fill={wh}/>
-        <rect x="18" y="28" width="4" height="6" rx="1.5" fill={wh}/>
       </svg>
     );
     case 'bus': return (
@@ -670,10 +661,6 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
         <rect x="12" y="13" width="6" height="4" rx="1" fill={gl}/>
         <rect x="4" y="21" width="6" height="4" rx="1" fill={gl}/>
         <rect x="12" y="21" width="6" height="4" rx="1" fill={gl}/>
-        <rect x="0" y="3" width="4" height="7.5" rx="2" fill={wh}/>
-        <rect x="18" y="3" width="4" height="7.5" rx="2" fill={wh}/>
-        <rect x="0" y="24" width="4" height="7.5" rx="2" fill={wh}/>
-        <rect x="18" y="24" width="4" height="7.5" rx="2" fill={wh}/>
       </svg>
     );
     case 'pickup': return (
@@ -682,10 +669,6 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
         <rect x="5" y="2.5" width="12" height="10" rx="1.5" fill={gl}/>
         <rect x="3.5" y="18" width="15" height="17" rx="1.5" fill={color}/>
         <rect x="5.5" y="20" width="11" height="13" rx="0.5" fill="rgba(0,0,0,0.15)"/>
-        <rect x="0" y="1.5" width="4" height="7.5" rx="2" fill={wh}/>
-        <rect x="18" y="1.5" width="4" height="7.5" rx="2" fill={wh}/>
-        <rect x="0" y="24" width="4" height="7.5" rx="2" fill={wh}/>
-        <rect x="18" y="24" width="4" height="7.5" rx="2" fill={wh}/>
       </svg>
     );
     case 'boat': return (
@@ -697,13 +680,9 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
     );
     default: return ( // car
       <svg width="22" height="34" viewBox="0 0 22 34">
-        <rect x="0" y="5" width="4" height="8" rx="2" fill={wh}/>
-        <rect x="18" y="5" width="4" height="8" rx="2" fill={wh}/>
-        <rect x="0" y="21" width="4" height="8" rx="2" fill={wh}/>
-        <rect x="18" y="21" width="4" height="8" rx="2" fill={wh}/>
-        <path d="M4 4 Q4 1 11 0.5 Q18 1 18 4 L18.5 8 L18.5 26 L18 30 Q18 33 11 33.5 Q4 33 4 30 L3.5 26 L3.5 8 Z" fill={color}/>
-        <path d="M5.5 5 Q6 2 11 1.5 Q16 2 16.5 5 L17 10 L5 10 Z" fill={gl}/>
-        <path d="M5.5 29 Q6 32 11 32.5 Q16 32 16.5 29 L17 24 L5 24 Z" fill={gl}/>
+        <path d="M2 4 Q2 1 11 0.5 Q20 1 20 4 L20.5 8 L20.5 26 L20 30 Q20 33 11 33.5 Q2 33 2 30 L1.5 26 L1.5 8 Z" fill={color}/>
+        <path d="M3.5 5 Q4 2 11 1.5 Q18 2 18.5 5 L19 10 L3 10 Z" fill={gl}/>
+        <path d="M3.5 29 Q4 32 11 32.5 Q18 32 18.5 29 L19 24 L3 24 Z" fill={gl}/>
       </svg>
     );
   }
