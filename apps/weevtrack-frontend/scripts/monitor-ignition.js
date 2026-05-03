@@ -209,14 +209,12 @@ async function check() {
 
     function subsForDevice(deviceId) {
       const clientId = assignments[deviceId];
-      const clientSubs = clientId ? (clientSubsMap[clientId] || []) : [];
-      // Admins always get notified; clients assigned to the device also get notified
-      const seen = new Set();
-      const result = [];
-      for (const s of [...adminSubs, ...clientSubs]) {
-        if (!seen.has(s.endpoint)) { seen.add(s.endpoint); result.push(s); }
+      if (clientId) {
+        // Device assigned to a client → notify only that client
+        return clientSubsMap[clientId] || [];
       }
-      return result;
+      // Device not assigned to anyone → notify admins
+      return adminSubs;
     }
 
     const prevState = readJSON(STATE_FILE);
