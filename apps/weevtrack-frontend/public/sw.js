@@ -14,19 +14,16 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  const data = event.data?.json() ?? {};
+  let data = {};
+  try { data = event.data?.json() ?? {}; } catch { data = { title: 'WeevTrack', body: event.data?.text() || '' }; }
   const sound = data.sound !== false;
-  const vibrate = data.vibrate !== false;
   event.waitUntil(
     self.registration.showNotification(data.title || 'WeevTrack', {
       body: data.body || '',
-      icon: '/api/pwa-icon?size=192',
-      badge: '/api/pwa-icon?size=72',
+      icon: '/favicon.svg',
       data: { url: data.url || '/dashboard' },
-      tag: data.tag || 'weevtrack',
-      renotify: true,
+      tag: `wt-${Date.now()}`,
       silent: !sound,
-      vibrate: vibrate ? [200, 100, 200] : [0],
     })
   );
 });
