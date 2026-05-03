@@ -24,7 +24,7 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Credenciais inválidas'); return; }
       if (data.administrator) {
-        router.push('/gestao');
+        router.push('/dashboard');
       } else if (data.role === 'distribuidor' || data.role === 'distribuidor_geral') {
         router.push('/distribuidor');
       } else {
