@@ -303,8 +303,6 @@ export default function VehicleMap({
       lineJoin: 'round',
       lineCap: 'round',
     }).addTo(map);
-
-    markersRef.current.forEach(m => m.bringToFront());
   }, [selectedDeviceId, liveTrail]);
 
   return (
