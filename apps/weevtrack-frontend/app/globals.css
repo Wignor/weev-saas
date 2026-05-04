@@ -62,6 +62,12 @@ html, body {
 }
 .slide-up { animation: slideUp 0.25s ease-out; }
 
+/* In-app toast animation */
+@keyframes wt-slide-down {
+  from { transform: translateY(-16px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
 /* Status badges */
 .badge-online  { background: rgba(52,199,89,0.15);  color: #34C759; }
 .badge-parado  { background: rgba(255,149,0,0.15);  color: #FF9500; }

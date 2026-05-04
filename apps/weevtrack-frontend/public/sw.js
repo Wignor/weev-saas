@@ -23,10 +23,16 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     (async () => {
+      // Show system notification (works when app is in background)
       try {
         await self.registration.showNotification(title, { body, tag: title + body });
       } catch (e) {
         await self.registration.showNotification('WeevTrack', { body });
+      }
+      // Also post to any open app windows for in-app toast (foreground)
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const client of clientList) {
+        client.postMessage({ type: 'PUSH_NOTIFICATION', title, body, url });
       }
     })()
   );

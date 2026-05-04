@@ -1,6 +1,7 @@
 ﻿import type { Metadata } from 'next';
 import './globals.css';
 import DesktopNav from '@/components/DesktopNav';
+import ForegroundNotification from '@/components/ForegroundNotification';
 
 export const metadata: Metadata = {
   title: 'WeevTrack — Rastreamento Veicular',
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <DesktopNav />
+        <ForegroundNotification />
         {children}
         <script
           dangerouslySetInnerHTML={{
