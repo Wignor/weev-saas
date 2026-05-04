@@ -806,6 +806,9 @@ export default function DashboardPage() {
   const [allPositions, setAllPositions] = useState<TraccarPosition[]>([]);
   const [mergeFetching, setMergeFetching] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const liveTrailRef = useRef<Map<number, [number, number][]>>(new Map());
+  const prevPosRef = useRef<Map<number, [number, number]>>(new Map());
+  const [liveTrail, setLiveTrail] = useState<Map<number, [number, number][]>>(new Map());
   const mergeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const mobileListRef = useRef<HTMLDivElement>(null);
   const pullStartY = useRef(0);
@@ -855,13 +858,30 @@ export default function DashboardPage() {
       if (devRes.status === 401) { window.location.href = '/login'; return; }
       const [devData, posData] = await Promise.all([devRes.json(), posRes.json()]);
       if (Array.isArray(devData)) setDevices(devData);
-      if (Array.isArray(posData)) setPositions(posData);
+      if (Array.isArray(posData)) {
+        setPositions(posData);
+        let changed = false;
+        for (const pos of posData as TraccarPosition[]) {
+          if (!pos.valid || (pos.latitude === 0 && pos.longitude === 0)) continue;
+          const prev = prevPosRef.current.get(pos.deviceId);
+          if (!prev || Math.abs(prev[0] - pos.latitude) > 0.000005 || Math.abs(prev[1] - pos.longitude) > 0.000005) {
+            prevPosRef.current.set(pos.deviceId, [pos.latitude, pos.longitude]);
+            const existing = liveTrailRef.current.get(pos.deviceId) || [];
+            liveTrailRef.current.set(pos.deviceId, [...existing, [pos.latitude, pos.longitude] as [number, number]].slice(-500));
+            changed = true;
+          }
+        }
+        if (changed) setLiveTrail(new Map(liveTrailRef.current));
+      }
       setLastUpdate(new Date());
     } catch { /**/ }
     finally { setLoading(false); }
   }, [asUser]);
 
   useEffect(() => {
+    liveTrailRef.current.clear();
+    prevPosRef.current.clear();
+    setLiveTrail(new Map());
     fetchData();
     intervalRef.current = setInterval(fetchData, 3000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
@@ -1125,6 +1145,7 @@ export default function DashboardPage() {
             visible={mobileView === 'mapa'}
             centerTrigger={centerTrigger}
             vehiclePrefs={mapVehiclePrefs}
+            liveTrail={liveTrail}
           />
 
           {/* Mobile — barra minimizada */}

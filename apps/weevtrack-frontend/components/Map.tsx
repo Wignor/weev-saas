@@ -12,6 +12,7 @@ interface MapProps {
   visible?: boolean;
   centerTrigger?: number;
   vehiclePrefs?: Record<number, string>;
+  liveTrail?: Map<number, [number, number][]>;
 }
 
 function getMarkerColor(device: TraccarDevice, position?: TraccarPosition): string {
@@ -111,7 +112,7 @@ function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'ca
 
 export default function VehicleMap({
   devices = [], positions = [], selectedDeviceId, onDeviceSelect,
-  visible = true, centerTrigger = 0, vehiclePrefs = {},
+  visible = true, centerTrigger = 0, vehiclePrefs = {}, liveTrail,
 }: MapProps) {
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<globalThis.Map<number, Marker>>(new Map());
@@ -121,6 +122,7 @@ export default function VehicleMap({
   const labelsLayerRef = useRef<unknown>(null);
   const isDarkRef = useRef(false);
   const animationsRef = useRef<globalThis.Map<number, number>>(new globalThis.Map());
+  const polylineRef = useRef<unknown | null>(null);
   type MapLayerType = 'normal' | 'hibrido' | 'satelite' | 'terreno';
   const [mapLayer, setMapLayer] = useState<MapLayerType>('normal');
   const [showMapPanel, setShowMapPanel] = useState(false);
@@ -242,7 +244,7 @@ export default function VehicleMap({
         const marker = markersRef.current.get(device.id)!;
         const from = marker.getLatLng();
         if (Math.abs(from.lat - pos.latitude) > 0.000005 || Math.abs(from.lng - pos.longitude) > 0.000005) {
-          animateMarker(marker, device.id, from.lat, from.lng, pos.latitude, pos.longitude, 5000);
+          animateMarker(marker, device.id, from.lat, from.lng, pos.latitude, pos.longitude, 2800);
         }
         marker.setIcon(icon);
       } else {
@@ -279,6 +281,31 @@ export default function VehicleMap({
     const marker = markersRef.current.get(selectedDeviceId);
     if (marker) mapRef.current.flyTo(marker.getLatLng(), 17, { duration: 0.5 });
   }, [centerTrigger, selectedDeviceId]);
+
+  // Live trail polyline for selected device
+  useEffect(() => {
+    if (!mapRef.current || typeof window === 'undefined') return;
+    const L = require('leaflet');
+    const map = mapRef.current as LeafletMap;
+
+    if (polylineRef.current) {
+      try { map.removeLayer(polylineRef.current as Parameters<LeafletMap['removeLayer']>[0]); } catch { /**/ }
+      polylineRef.current = null;
+    }
+    if (selectedDeviceId === null || !liveTrail) return;
+    const trail = liveTrail.get(selectedDeviceId);
+    if (!trail || trail.length < 2) return;
+
+    polylineRef.current = L.polyline(trail, {
+      color: '#007AFF',
+      weight: 4,
+      opacity: 0.75,
+      lineJoin: 'round',
+      lineCap: 'round',
+    }).addTo(map);
+
+    markersRef.current.forEach(m => m.bringToFront());
+  }, [selectedDeviceId, liveTrail]);
 
   return (
     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
