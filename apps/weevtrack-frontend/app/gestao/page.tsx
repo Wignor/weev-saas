@@ -62,7 +62,6 @@ export default function GestaoPage() {
   const [distCredits, setDistCredits] = useState<Record<string, number>>({});
   const [creditQty, setCreditQty] = useState(1);
   const [usersSearch, setUsersSearch] = useState('');
-  const [listCollapsed, setListCollapsed] = useState(false);
   const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
   const filteredUsers = sortedUsers.filter(u =>
     !usersSearch || u.name.toLowerCase().includes(usersSearch.toLowerCase()) || u.email.toLowerCase().includes(usersSearch.toLowerCase())
@@ -111,11 +110,7 @@ export default function GestaoPage() {
   }
 
   async function selectUser(user: TUser) {
-    if (selectedUser?.id === user.id) {
-      setSelectedUser(null);
-      setUserDevices([]);
-      return;
-    }
+    if (selectedUser?.id === user.id) return;
     setUserDevices([]);
     setSelectedUser(user);
     setLoadingDevices(true);
@@ -567,19 +562,9 @@ export default function GestaoPage() {
       )}
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left panel: list */}
-        <div className={`flex flex-col flex-none overflow-hidden w-full ${listCollapsed ? 'md:w-[44px]' : 'md:w-[340px]'}`}
-          style={{ borderRight: '1px solid var(--bg-border)', background: 'var(--bg-page)', transition: 'width 0.2s ease', flexShrink: 0 }}>
-          <button onClick={() => setListCollapsed(c => !c)}
-            title={listCollapsed ? 'Expandir lista' : 'Recolher lista'}
-            className="hidden md:flex"
-            style={{ height: 44, alignItems: 'center', flexShrink: 0, justifyContent: listCollapsed ? 'center' : 'flex-end', padding: listCollapsed ? 0 : '0 12px', borderBottom: '1px solid var(--bg-border)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
-              {listCollapsed ? <polyline points="9 18 15 12 9 6"/> : <polyline points="15 18 9 12 15 6"/>}
-            </svg>
-          </button>
-          {!listCollapsed && (
-            <div className="flex-1 overflow-y-auto">
+        {/* List */}
+        <div className="flex flex-col flex-none overflow-hidden w-full" style={{ background: 'var(--bg-page)' }}>
+          <div className="flex-1 overflow-y-auto">
               {loading ? (
                 <div className="flex justify-center py-16">
                   <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -645,13 +630,10 @@ export default function GestaoPage() {
                         </a>
                         <button
                           onClick={() => selectUser(user)}
-                          className="text-xs px-2.5 py-1 rounded-lg font-medium transition-all"
-                          style={{
-                            background: selectedUser?.id === user.id ? '#007AFF' : 'var(--bg-border)',
-                            color: selectedUser?.id === user.id ? 'white' : 'var(--text-lo)',
-                          }}
+                          className="text-xs px-2.5 py-1 rounded-lg font-medium"
+                          style={{ background: 'var(--bg-border)', color: 'var(--text-lo)' }}
                         >
-                          {selectedUser?.id === user.id ? 'Fechar' : 'Dispositivos'}
+                          Ver
                         </button>
                         <button
                           onClick={() => resetPassword(user.id, user.name)}
@@ -677,11 +659,6 @@ export default function GestaoPage() {
                       </div>
                     </div>
 
-                    {selectedUser?.id === user.id && (
-                      <div className="md:hidden px-4 py-4" style={{ background: 'var(--bg-page)', borderBottom: '1px solid var(--bg-border)' }}>
-                        {detailPanel}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -797,24 +774,38 @@ export default function GestaoPage() {
             )}
           </>
         )}
-            </div>
-          )}
-        </div>
-
-        {/* Right panel (desktop only) */}
-        <div className="hidden md:flex flex-1 flex-col overflow-y-auto" style={{ background: 'var(--bg-page)' }}>
-          {selectedUser ? (
-            <div className="px-6 py-4 pb-24">{detailPanel}</div>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="text-4xl mb-3">👤</div>
-                <p className="text-sm t-text-lo">Selecione um cliente para ver os detalhes</p>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
+
+      {/* Full-screen client detail overlay */}
+      {selectedUser && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', flexDirection: 'column', background: 'var(--bg-page)' }}>
+          <header style={{ height: 56, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)', flexShrink: 0 }}>
+            <button
+              onClick={() => { setSelectedUser(null); setUserDevices([]); }}
+              style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-border)', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5" strokeLinecap="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(0,122,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontWeight: 700, fontSize: 16, color: '#007AFF' }}>{selectedUser.name.charAt(0).toUpperCase()}</span>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-hi)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{selectedUser.name}</p>
+              <p style={{ fontSize: 11, color: 'var(--text-lo)', margin: 0 }}>{selectedUser.email}</p>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 20, flexShrink: 0, background: ROLES[selectedUser.role]?.bg, color: ROLES[selectedUser.role]?.color }}>
+              {ROLES[selectedUser.role]?.label}
+            </span>
+          </header>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 96px' }}>
+            {detailPanel}
+          </div>
+        </div>
+      )}
 
       {/* Modal: Novo cliente */}
       {showCreate && (
