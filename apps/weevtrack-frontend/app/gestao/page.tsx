@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import ContratoModal from '@/components/ContratoModal';
@@ -62,6 +62,16 @@ export default function GestaoPage() {
   const [distCredits, setDistCredits] = useState<Record<string, number>>({});
   const [creditQty, setCreditQty] = useState(1);
   const [usersSearch, setUsersSearch] = useState('');
+  const [adminId, setAdminId] = useState(0);
+  const [showRenovar, setShowRenovar] = useState(false);
+  const [renovarType, setRenovarType] = useState<'mensal' | 'anual' | 'vitalicio'>('mensal');
+  const [renovarQty, setRenovarQty] = useState(1);
+  const [renovarDevices, setRenovarDevices] = useState<TDevice[]>([]);
+  const [showDeviceSelector, setShowDeviceSelector] = useState(false);
+  const [showTypeSelector, setShowTypeSelector] = useState(false);
+  const [showRenovarConfirm, setShowRenovarConfirm] = useState(false);
+  const [renovarSaving, setRenovarSaving] = useState(false);
+  const [devSelectorSearch, setDevSelectorSearch] = useState('');
   const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
   const filteredUsers = sortedUsers.filter(u =>
     !usersSearch || u.name.toLowerCase().includes(usersSearch.toLowerCase()) || u.email.toLowerCase().includes(usersSearch.toLowerCase())
@@ -82,6 +92,7 @@ export default function GestaoPage() {
       if (raw) {
         const u = JSON.parse(decodeURIComponent(raw));
         if (!u.administrator) router.replace('/dashboard');
+        setAdminId(u.id || 0);
       } else {
         router.replace('/login');
       }
@@ -306,6 +317,48 @@ export default function GestaoPage() {
 
   const unassigned = allDevices.filter(d => !userDevices.find(ud => ud.id === d.id));
 
+  const RENOVAR_TYPES = {
+    mensal:    { label: 'Licença mensal',    days: 31,   plural: 'mês(es)' },
+    anual:     { label: 'Licença anual',     days: 365,  plural: 'ano(s)' },
+    vitalicio: { label: 'Licença Vitalícia', days: 3650, plural: 'vitalícia(s)' },
+  } as const;
+
+  const deviceOwnerIdMap = useMemo(() => {
+    const map: Record<number, number> = {};
+    for (const [dId, clientName] of Object.entries(assignments)) {
+      const u = users.find(u => u.name === clientName);
+      if (u) map[Number(dId)] = u.id;
+    }
+    return map;
+  }, [assignments, users]);
+
+  const myCredits = distCredits[String(adminId)] ?? 0;
+  const renovarInfo = RENOVAR_TYPES[renovarType];
+  const totalDays = renovarInfo.days * renovarQty;
+  const renovarSummary = `${renovarDevices.length} dispositivo(s) serão renovados por ${renovarQty} ${renovarInfo.plural} e ${renovarDevices.length * renovarQty} licença(s) serão usadas`;
+
+  async function executeRenovar() {
+    setRenovarSaving(true);
+    try {
+      for (const device of renovarDevices) {
+        const userId = deviceOwnerIdMap[device.id] || 0;
+        await fetch('/api/admin/licenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceId: device.id, userId, days: totalDays }),
+        });
+      }
+      setShowRenovarConfirm(false);
+      setShowRenovar(false);
+      setRenovarDevices([]);
+      setRenovarQty(1);
+      setRenovarType('mensal');
+      flash(`✅ ${renovarDevices.length} dispositivo(s) renovado(s) com sucesso`);
+      await loadData();
+    } catch { flash('❌ Erro ao renovar licenças'); }
+    setRenovarSaving(false);
+  }
+
   const detailPanel = selectedUser ? (
     <div>
       <div className="mb-4 p-3 rounded-xl" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
@@ -510,6 +563,16 @@ export default function GestaoPage() {
               <circle cx="12" cy="12" r="3"/>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
+          </button>
+          <button onClick={() => setShowRenovar(true)}
+            className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold flex-shrink-0"
+            style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.2)' }}
+            title="Renovar licenças">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Renovar
           </button>
           <button onClick={() => setShowUsersModal(true)}
             className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold flex-shrink-0"
@@ -803,6 +866,197 @@ export default function GestaoPage() {
           </header>
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 96px' }}>
             {detailPanel}
+          </div>
+        </div>
+      )}
+
+      {/* ── Renovar overlay ── */}
+      {showRenovar && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', flexDirection: 'column', background: 'var(--bg-page)' }}>
+          <header style={{ height: 56, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)', flexShrink: 0 }}>
+            <button onClick={() => setShowRenovar(false)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-border)', border: 'none', cursor: 'pointer' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <h2 style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-hi)', flex: 1, margin: 0 }}>Renovar</h2>
+          </header>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 32px' }}>
+            {/* Balance card */}
+            <div style={{ background: 'linear-gradient(135deg, #1a4fa3 0%, #007AFF 100%)', borderRadius: 16, padding: '16px 20px', marginBottom: 20 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'white', margin: '0 0 10px' }}>WeevTrack</p>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', margin: '0 0 8px' }}>Saldo de licenças</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                {[{ label: 'Por mês', value: myCredits }, { label: 'Anual', value: 0 }, { label: 'Tempo de vida', value: 0 }].map(s => (
+                  <div key={s.label} style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', margin: '0 0 2px' }}>{s.label}</p>
+                    <p style={{ fontSize: 22, fontWeight: 800, color: 'white', margin: 0 }}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* License type */}
+            <button onClick={() => setShowTypeSelector(true)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'var(--bg-card)', border: '1px solid var(--bg-border)', borderRadius: 12, marginBottom: 1, cursor: 'pointer' }}>
+              <span style={{ fontSize: 14, color: 'var(--text-hi)' }}>Tipo de licença</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 14, color: 'var(--text-lo)' }}>{RENOVAR_TYPES[renovarType].label}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </button>
+
+            {/* Quantity */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'var(--bg-card)', border: '1px solid var(--bg-border)', borderRadius: 12, marginBottom: 16, marginTop: 1 }}>
+              <span style={{ fontSize: 14, color: 'var(--text-hi)' }}>Quantidade de licenças</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button onClick={() => setRenovarQty(q => Math.max(1, q - 1))}
+                  style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--bg-border)', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-hi)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-hi)', minWidth: 24, textAlign: 'center' }}>{renovarQty}</span>
+                <button onClick={() => setRenovarQty(q => q + 1)}
+                  style={{ width: 28, height: 28, borderRadius: 8, background: '#007AFF', border: 'none', cursor: 'pointer', fontSize: 18, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+              </div>
+            </div>
+
+            {/* Selected devices IMEIs */}
+            <div style={{ padding: '12px 16px', background: 'var(--bg-card)', border: '1px solid var(--bg-border)', borderRadius: 12, marginBottom: 1, minHeight: 52 }}>
+              {renovarDevices.length === 0 ? (
+                <p style={{ fontSize: 13, color: 'var(--text-lo)', margin: 0 }}>Insira o número IMEI completo. Selecione abaixo.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {renovarDevices.map(d => (
+                    <div key={d.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-hi)', margin: 0 }}>{d.name}</p>
+                        <p style={{ fontSize: 11, color: 'var(--text-lo)', fontFamily: 'monospace', margin: 0 }}>{d.uniqueId}</p>
+                      </div>
+                      <button onClick={() => setRenovarDevices(prev => prev.filter(x => x.id !== d.id))}
+                        style={{ background: 'rgba(255,59,48,0.1)', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', color: '#FF3B30', fontSize: 11 }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Select device button */}
+            <button onClick={() => { setDevSelectorSearch(''); setShowDeviceSelector(true); }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg-card)', border: '1px solid var(--bg-border)', borderRadius: 12, marginBottom: 20, cursor: 'pointer' }}>
+              <span style={{ fontSize: 14, color: '#007AFF', fontWeight: 600 }}>+ Selecionar dispositivo</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+              </svg>
+            </button>
+
+            {/* Summary */}
+            {renovarDevices.length > 0 && (
+              <p style={{ fontSize: 12, color: 'var(--text-lo)', marginBottom: 20, lineHeight: 1.5 }}>{renovarSummary}</p>
+            )}
+
+            {/* Save button */}
+            <button
+              disabled={renovarDevices.length === 0 || renovarSaving}
+              onClick={() => setShowRenovarConfirm(true)}
+              style={{ width: '100%', padding: '15px', borderRadius: 14, background: renovarDevices.length > 0 ? '#007AFF' : 'var(--bg-border)', color: renovarDevices.length > 0 ? 'white' : 'var(--text-lo)', fontSize: 16, fontWeight: 700, border: 'none', cursor: renovarDevices.length > 0 ? 'pointer' : 'not-allowed' }}
+            >
+              Salvar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Device selector overlay ── */}
+      {showDeviceSelector && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', flexDirection: 'column', background: 'var(--bg-page)' }}>
+          <header style={{ height: 56, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)', flexShrink: 0 }}>
+            <button onClick={() => setShowDeviceSelector(false)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-border)', border: 'none', cursor: 'pointer' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <h2 style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-hi)', flex: 1, margin: 0 }}>Selecionar dispositivo</h2>
+          </header>
+
+          <div style={{ padding: '12px 16px', background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)', flexShrink: 0 }}>
+            <div style={{ position: 'relative' }}>
+              <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                type="text" placeholder="Busca por Nome/IMEI" value={devSelectorSearch}
+                onChange={e => setDevSelectorSearch(e.target.value)}
+                style={{ width: '100%', paddingLeft: 34, paddingRight: 12, paddingTop: 10, paddingBottom: 10, borderRadius: 10, background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {allDevices
+              .filter(d => !devSelectorSearch || d.name.toLowerCase().includes(devSelectorSearch.toLowerCase()) || d.uniqueId.includes(devSelectorSearch))
+              .map(device => {
+                const isSelected = renovarDevices.some(x => x.id === device.id);
+                const clientName = assignments[device.id];
+                return (
+                  <div key={device.id}
+                    onClick={() => setRenovarDevices(prev => isSelected ? prev.filter(x => x.id !== device.id) : [...prev, device])}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--bg-border)', background: isSelected ? 'rgba(0,122,255,0.06)' : 'transparent', cursor: 'pointer' }}>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${isSelected ? '#007AFF' : 'var(--bg-border)'}`, background: isSelected ? '#007AFF' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {isSelected && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                    </div>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--bg-card)', border: '1px solid var(--bg-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={device.status === 'online' ? '#34C759' : 'var(--text-lo)'} strokeWidth="1.8" strokeLinecap="round">
+                        <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/>
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 600, fontSize: 14, color: isSelected ? '#007AFF' : 'var(--text-hi)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{device.name}</p>
+                      <p style={{ fontSize: 11, color: 'var(--text-lo)', fontFamily: 'monospace', margin: 0 }}>IMEI:{device.uniqueId}</p>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: device.status === 'online' ? '#34C759' : 'var(--text-lo)', flexShrink: 0 }}>
+                      {device.status === 'online' ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+
+          {renovarDevices.length > 0 && (
+            <div style={{ padding: '12px 16px', background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <span style={{ fontSize: 13, color: 'var(--text-lo)' }}>Dispositivo selecionado: {renovarDevices.length}</span>
+              <button onClick={() => setShowDeviceSelector(false)}
+                style={{ padding: '8px 24px', borderRadius: 20, background: '#007AFF', color: 'white', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer' }}>OK</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Type selector (bottom sheet) ── */}
+      {showTypeSelector && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1300 }} onClick={() => setShowTypeSelector(false)}>
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'var(--bg-card)', borderRadius: '20px 20px 0 0', padding: '20px 0 32px' }} onClick={e => e.stopPropagation()}>
+            <p style={{ textAlign: 'center', fontWeight: 700, fontSize: 16, color: 'var(--text-hi)', margin: '0 0 12px' }}>Tipo de licença</p>
+            {(Object.entries(RENOVAR_TYPES) as [keyof typeof RENOVAR_TYPES, typeof RENOVAR_TYPES[keyof typeof RENOVAR_TYPES]][]).map(([key, info]) => (
+              <button key={key} onClick={() => { setRenovarType(key); setShowTypeSelector(false); }}
+                style={{ width: '100%', padding: '14px 24px', background: 'transparent', border: 'none', textAlign: 'left', fontSize: 16, color: renovarType === key ? '#007AFF' : 'var(--text-hi)', fontWeight: renovarType === key ? 700 : 400, cursor: 'pointer', borderBottom: '1px solid var(--bg-border)' }}>
+                {info.label}
+              </button>
+            ))}
+            <button onClick={() => setShowTypeSelector(false)}
+              style={{ width: '100%', padding: '14px 24px', background: 'transparent', border: 'none', fontSize: 16, color: 'var(--text-lo)', cursor: 'pointer', marginTop: 4 }}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm popup ── */}
+      {showRenovarConfirm && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '24px 20px', width: 'calc(100% - 48px)', maxWidth: 320, textAlign: 'center' }}>
+            <p style={{ fontWeight: 700, fontSize: 17, color: 'var(--text-hi)', margin: '0 0 12px' }}>Lembrar</p>
+            <p style={{ fontSize: 14, color: 'var(--text-lo)', margin: '0 0 24px', lineHeight: 1.5 }}>{renovarSummary}</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setShowRenovarConfirm(false)}
+                style={{ flex: 1, padding: '12px', borderRadius: 10, background: 'var(--bg-border)', border: 'none', fontSize: 15, fontWeight: 600, color: 'var(--text-hi)', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={executeRenovar} disabled={renovarSaving}
+                style={{ flex: 1, padding: '12px', borderRadius: 10, background: '#007AFF', border: 'none', fontSize: 15, fontWeight: 700, color: 'white', cursor: 'pointer', opacity: renovarSaving ? 0.6 : 1 }}>
+                {renovarSaving ? '...' : 'OK'}
+              </button>
+            </div>
           </div>
         </div>
       )}
