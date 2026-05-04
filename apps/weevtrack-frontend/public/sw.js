@@ -1,40 +1,44 @@
-const CACHE_NAME = 'weevtrack-v3';
+const CACHE_NAME = 'weevtrack-v4';
 
-self.addEventListener('install', () => {
-  self.skipWaiting();
-});
+self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('push', (event) => {
-  let data = {};
-  try { data = event.data?.json() ?? {}; } catch { data = { title: 'WeevTrack', body: event.data?.text() || '' }; }
+  let title = 'WeevTrack';
+  let body = '';
+  let url = '/dashboard';
+  try {
+    const d = event.data.json();
+    if (d.title) title = d.title;
+    if (d.body) body = d.body;
+    if (d.url) url = d.url;
+  } catch {}
+
   event.waitUntil(
-    self.registration.showNotification(data.title || 'WeevTrack', {
-      body: data.body || '',
-      data: { url: data.url || '/dashboard' },
-    }).catch(() => {
-      return self.registration.showNotification('WeevTrack', { body: data.body || '' });
-    })
+    (async () => {
+      try {
+        await self.registration.showNotification(title, { body, tag: title + body });
+      } catch (e) {
+        await self.registration.showNotification('WeevTrack', { body });
+      }
+    })()
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const target = event.notification.tag ? '/dashboard' : '/dashboard';
   event.waitUntil(
-    clients.matchAll({ type: 'window' }).then((clientList) => {
-      const url = event.notification.data?.url || '/dashboard';
-      for (const client of clientList) {
-        if ('focus' in client) return client.focus();
-      }
-      return clients.openWindow(url);
+    clients.matchAll({ type: 'window' }).then((list) => {
+      for (const c of list) { if ('focus' in c) return c.focus(); }
+      return clients.openWindow('/dashboard');
     })
   );
 });

@@ -112,7 +112,7 @@ async function getSession() {
 
 async function sendPush(sub, payload) {
   try {
-    await webpush.sendNotification(sub, JSON.stringify(payload));
+    await webpush.sendNotification(sub, JSON.stringify(payload), { TTL: 86400, urgency: 'high' });
     console.log(`[push] OK → ${sub.endpoint.slice(-30)}`);
   } catch (err) {
     console.error(`[push] ERRO ${err.statusCode || err.message} → ${sub.endpoint.slice(-30)}`);
