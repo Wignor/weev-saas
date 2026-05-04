@@ -19,9 +19,9 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'WeevTrack', {
       body: data.body || '',
-      icon: '/apple-icon.png',
-      badge: '/apple-icon.png',
       data: { url: data.url || '/dashboard' },
+    }).catch(() => {
+      return self.registration.showNotification('WeevTrack', { body: data.body || '' });
     })
   );
 });
