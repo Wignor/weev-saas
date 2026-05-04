@@ -638,7 +638,7 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
   const gl = 'rgba(255,255,255,0.18)';
   switch (type) {
     case 'motorcycle': return (
-      <svg width="10" height="20" viewBox="0 0 14 28">
+      <svg width="8" height="15" viewBox="0 0 14 28">
         <rect x="5.5" y="4.5" width="3" height="19" rx="1.5" fill={color}/>
         <ellipse cx="7" cy="10" rx="4" ry="3.5" fill={color}/>
         <ellipse cx="7" cy="17.5" rx="3.5" ry="3.5" fill={color}/>
@@ -646,14 +646,14 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
       </svg>
     );
     case 'truck': return (
-      <svg width="16" height="26" viewBox="0 0 22 36">
+      <svg width="12" height="20" viewBox="0 0 22 36">
         <rect x="3" y="0.5" width="16" height="12" rx="3" fill={color}/>
         <rect x="5" y="2.5" width="12" height="7" rx="1.5" fill={gl}/>
         <rect x="3.5" y="14" width="15" height="21" rx="1.5" fill={color}/>
       </svg>
     );
     case 'bus': return (
-      <svg width="16" height="28" viewBox="0 0 22 38">
+      <svg width="12" height="22" viewBox="0 0 22 38">
         <rect x="3" y="1.5" width="16" height="35" rx="4" fill={color}/>
         <rect x="4" y="5" width="6" height="4" rx="1" fill={gl}/>
         <rect x="12" y="5" width="6" height="4" rx="1" fill={gl}/>
@@ -664,7 +664,7 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
       </svg>
     );
     case 'pickup': return (
-      <svg width="16" height="26" viewBox="0 0 22 36">
+      <svg width="12" height="20" viewBox="0 0 22 36">
         <rect x="3" y="0.5" width="16" height="16" rx="3" fill={color}/>
         <rect x="5" y="2.5" width="12" height="10" rx="1.5" fill={gl}/>
         <rect x="3.5" y="18" width="15" height="17" rx="1.5" fill={color}/>
@@ -672,14 +672,14 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
       </svg>
     );
     case 'boat': return (
-      <svg width="16" height="26" viewBox="0 0 22 36">
+      <svg width="12" height="20" viewBox="0 0 22 36">
         <path d="M11 1 L19 5 L20 26 Q19 34 11 35 Q3 34 2 26 L3 5 Z" fill={color}/>
         <rect x="5" y="9" width="12" height="11" rx="2.5" fill={color}/>
         <rect x="7" y="11" width="8" height="7" rx="1.5" fill={gl}/>
       </svg>
     );
     default: return ( // car
-      <svg width="16" height="24" viewBox="0 0 22 34">
+      <svg width="12" height="18" viewBox="0 0 22 34">
         <path d="M2 4 Q2 1 11 0.5 Q20 1 20 4 L20.5 8 L20.5 26 L20 30 Q20 33 11 33.5 Q2 33 2 30 L1.5 26 L1.5 8 Z" fill={color}/>
         <path d="M3.5 5 Q4 2 11 1.5 Q18 2 18.5 5 L19 10 L3 10 Z" fill={gl}/>
         <path d="M3.5 29 Q4 32 11 32.5 Q18 32 18.5 29 L19 24 L3 24 Z" fill={gl}/>
@@ -704,27 +704,32 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, lice
   const status: DeviceStatus = licenseStatus === 'expired' ? 'expirado' : getStatus(device, pos);
   const speed = pos ? knotsToKmh(pos.speed) : 0;
   const isOffline = status === 'offline' || status === 'expirado';
-  const offlineTag = isOffline ? timeOffline(device.lastUpdate) : null;
   const effectiveType = vehicleType || detectVehicleType(device.name);
   const iconColor = isOffline ? 'var(--text-lo)' : S_COLOR[status];
+  const fixTime = pos?.fixTime
+    ? new Date(pos.fixTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
+  const stateAge = isOffline
+    ? timeOffline(device.lastUpdate)
+    : pos?.fixTime ? fmtDuration(pos.fixTime) : null;
 
   return (
     <div onClick={onSelect} style={{
-      display: 'flex', alignItems: 'center', gap: '12px',
-      padding: '10px 14px 10px 0',
+      display: 'flex', alignItems: 'center', gap: '10px',
+      padding: '8px 12px 8px 0',
       background: isSelected ? 'var(--bg-hover)' : 'transparent',
       borderBottom: '1px solid var(--bg-border)',
       borderLeft: `3px solid ${S_COLOR[status]}`,
-      paddingLeft: '13px',
+      paddingLeft: '11px',
       cursor: 'pointer',
       transition: 'background 0.15s',
     }}>
 
-      {/* Vehicle icon box */}
+      {/* Circular vehicle icon */}
       <div style={{
-        width: '42px', height: '42px', borderRadius: '10px',
-        background: 'var(--bg-input)',
-        border: '1px solid var(--bg-border)',
+        width: '36px', height: '36px', borderRadius: '50%',
+        background: isOffline ? 'var(--bg-input)' : `${S_COLOR[status]}1A`,
+        border: `1.5px solid ${isOffline ? 'var(--bg-border)' : S_COLOR[status]}50`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexShrink: 0,
       }}>
@@ -733,27 +738,31 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, lice
 
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
-          <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-hi)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+        {/* Row 1: name + status */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '2px' }}>
+          <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-hi)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
             {device.name}
           </span>
-          <span style={{ fontSize: '12px', fontWeight: 700, color: S_COLOR[status], flexShrink: 0 }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: S_COLOR[status], flexShrink: 0 }}>
             {S_LABEL[status]}
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {offlineTag && <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-lo)' }}>{offlineTag}</span>}
-          {speed > 0 && <span style={{ fontSize: '11px', fontWeight: 600, color: S_COLOR[status] }}>{speed} km/h</span>}
-          {clientName && <span style={{ fontSize: '11px', color: 'var(--text-lo)' }}>• {clientName}</span>}
-          <span style={{ fontSize: '10px', color: 'var(--text-lo)', fontFamily: 'monospace', opacity: 0.7 }}>
-            {device.uniqueId.slice(-8)}
-          </span>
+        {/* Row 2: speed / state age + client */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px', flexWrap: 'wrap' }}>
+          {speed > 2 && <span style={{ fontSize: '11px', fontWeight: 700, color: S_COLOR[status] }}>{speed} km/h</span>}
+          {stateAge && <span style={{ fontSize: '10px', color: 'var(--text-lo)' }}>há {stateAge}</span>}
+          {fixTime && !isOffline && <span style={{ fontSize: '10px', color: 'var(--text-lo)' }}>· {fixTime}</span>}
+          {clientName && <span style={{ fontSize: '10px', color: 'var(--text-lo)' }}>· {clientName}</span>}
         </div>
+        {/* Row 3: full IMEI */}
+        <span style={{ fontSize: '9.5px', color: 'var(--text-lo)', fontFamily: 'monospace', opacity: 0.6, letterSpacing: '0.02em' }}>
+          {device.uniqueId}
+        </span>
       </div>
 
       {/* Three-dots */}
       <button onClick={e => { e.stopPropagation(); onMenu(); }}
-        style={{ width: '28px', height: '28px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', opacity: 0.5, padding: 0 }}>
+        style={{ width: '26px', height: '26px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', cursor: 'pointer', opacity: 0.5, padding: 0 }}>
         <svg width="4" height="16" viewBox="0 0 4 16" fill="var(--text-lo)">
           <circle cx="2" cy="2" r="1.5"/><circle cx="2" cy="8" r="1.5"/><circle cx="2" cy="14" r="1.5"/>
         </svg>
