@@ -666,56 +666,62 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
   );
 }
 
-/* ── VehicleIcon SVG — iOPGPS style (filled body + mirrors, no wheels) ── */
+/* ── VehicleIcon SVG — outline/contorno estilo realista ── */
 function VehicleIcon({ type, color }: { type: string; color: string }) {
-  const ws = 'rgba(0,0,0,0.22)'; // windshield tint
   switch (type) {
     case 'motorcycle': return (
-      <svg width="14" height="26" viewBox="0 0 14 26" fill="none">
-        <ellipse cx="7" cy="5" rx="5.5" ry="4.5" fill={color}/>
-        <rect x="3.5" y="8.5" width="7" height="9" rx="3.5" fill={color}/>
-        <ellipse cx="7" cy="21" rx="5.5" ry="4.5" fill={color}/>
-        <ellipse cx="7" cy="5" rx="2.5" ry="2" fill={ws}/>
-        <path d="M0.5 5 H13.5" stroke={color} strokeWidth="2.5" strokeLinecap="round"/>
+      <svg width="18" height="30" viewBox="0 0 18 30" fill="none">
+        <ellipse cx="9" cy="3.5" rx="3" ry="1.8" stroke={color} strokeWidth="1.5"/>
+        <line x1="7.5" y1="5" x2="7.5" y2="9" stroke={color} strokeWidth="1.2"/>
+        <line x1="10.5" y1="5" x2="10.5" y2="9" stroke={color} strokeWidth="1.2"/>
+        <line x1="2" y1="8" x2="16" y2="8" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+        <ellipse cx="9" cy="16" rx="4" ry="5" stroke={color} strokeWidth="1.6"/>
+        <path d="M6.5 20.5 Q9 22 11.5 20.5" stroke={color} strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+        <ellipse cx="9" cy="27" rx="3" ry="1.8" stroke={color} strokeWidth="1.5"/>
       </svg>
     );
     case 'truck': return (
-      <svg width="16" height="28" viewBox="0 0 16 28" fill="none">
-        <path d="M2 3 Q2 1 8 0.5 Q14 1 14 3 L14 11 Q14 13 8 13.5 Q2 13 2 11 Z" fill={color}/>
-        <path d="M3.5 3.5 Q4 2 8 1.5 Q12 2 12.5 3.5 L13 7 L3 7 Z" fill={ws}/>
-        <rect x="2" y="14" width="12" height="14" rx="1.5" fill={color}/>
+      <svg width="17" height="31" viewBox="0 0 20 36" fill="none">
+        <path d="M3 1 Q1 1 1 3 L1 11 Q1 13 3 13 L17 13 Q19 13 19 11 L19 3 Q19 1 17 1 Z" stroke={color} strokeWidth="1.8"/>
+        <path d="M2.5 7.5 Q2 6 3 4.5 L17 4.5 Q18 6 17.5 7.5 Z" stroke={color} strokeWidth="1.1" fill="none"/>
+        <line x1="7" y1="13" x2="7" y2="15.5" stroke={color} strokeWidth="1.3"/>
+        <line x1="13" y1="13" x2="13" y2="15.5" stroke={color} strokeWidth="1.3"/>
+        <line x1="7" y1="15" x2="13" y2="15" stroke={color} strokeWidth="1.3"/>
+        <rect x="1" y="16.5" width="18" height="18.5" rx="1.5" stroke={color} strokeWidth="1.8" fill="none"/>
+        <line x1="10" y1="17" x2="10" y2="34.5" stroke={color} strokeWidth="0.9" opacity="0.5"/>
       </svg>
     );
     case 'bus': return (
-      <svg width="14" height="30" viewBox="0 0 14 30" fill="none">
-        <rect x="1" y="1" width="12" height="28" rx="3.5" fill={color}/>
-        <path d="M2.5 2 Q3 1.2 7 1 Q11 1.2 11.5 2 L11.5 6 L2.5 6 Z" fill={ws}/>
-        <rect x="2.5" y="8.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
-        <rect x="8" y="8.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
-        <rect x="2.5" y="13.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
-        <rect x="8" y="13.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
-        <path d="M2.5 27.5 Q3 29.5 7 30 Q11 29.5 11.5 27.5 L11.5 24.5 L2.5 24.5 Z" fill={ws}/>
+      <svg width="16" height="31" viewBox="0 0 18 34" fill="none">
+        <rect x="1" y="1" width="16" height="32" rx="4" stroke={color} strokeWidth="1.8"/>
+        <line x1="2.5" y1="7" x2="15.5" y2="7" stroke={color} strokeWidth="1.2" strokeLinecap="round"/>
+        <rect x="2.5" y="10" width="5" height="4" rx="1" stroke={color} strokeWidth="1" fill="none"/>
+        <rect x="10.5" y="10" width="5" height="4" rx="1" stroke={color} strokeWidth="1" fill="none"/>
+        <rect x="2.5" y="17" width="5" height="4" rx="1" stroke={color} strokeWidth="1" fill="none"/>
+        <rect x="10.5" y="17" width="5" height="4" rx="1" stroke={color} strokeWidth="1" fill="none"/>
+        <line x1="2.5" y1="26" x2="15.5" y2="26" stroke={color} strokeWidth="1.2" strokeLinecap="round"/>
       </svg>
     );
     case 'pickup': return (
-      <svg width="16" height="28" viewBox="0 0 16 28" fill="none">
-        <path d="M2 3 Q2 1 8 0.5 Q14 1 14 3 L14 14 Q14 16 8 16.5 Q2 16 2 14 Z" fill={color}/>
-        <path d="M3.5 3.5 Q4 2 8 1.5 Q12 2 12.5 3.5 L13 7.5 L3 7.5 Z" fill={ws}/>
-        <rect x="2" y="17" width="12" height="11" rx="1.5" fill={color}/>
+      <svg width="20" height="29" viewBox="0 0 22 32" fill="none">
+        <path d="M3 1 Q1 1 1 3 L1 5.5 Q1 7 1 9 L1 19 Q1 20.5 3 20.5 L19 20.5 Q21 20.5 21 19 L21 9 Q21 7 21 5.5 L21 3 Q21 1 19 1 Z" stroke={color} strokeWidth="1.8"/>
+        <path d="M2.5 9 Q2 7 3 5.5 L19 5.5 Q20 7 19.5 9 Z" stroke={color} strokeWidth="1.2" fill="none"/>
+        <rect x="1" y="22.5" width="20" height="8.5" rx="2" stroke={color} strokeWidth="1.8" fill="none"/>
+        <line x1="3.5" y1="22.5" x2="3.5" y2="31" stroke={color} strokeWidth="1" opacity="0.5"/>
+        <line x1="18.5" y1="22.5" x2="18.5" y2="31" stroke={color} strokeWidth="1" opacity="0.5"/>
       </svg>
     );
     case 'universal': return (
-      <svg width="16" height="22" viewBox="0 0 16 22" fill="none">
-        <path d="M8 1C4.13 1 1 4.13 1 8C1 13.25 8 21 8 21C8 21 15 13.25 15 8C15 4.13 11.87 1 8 1Z" fill={color}/>
-        <circle cx="8" cy="8" r="3" fill="rgba(0,0,0,0.25)"/>
-        <circle cx="8" cy="8" r="1.5" fill="rgba(255,255,255,0.55)"/>
+      <svg width="18" height="25" viewBox="0 0 20 28" fill="none">
+        <path d="M10 1 C5 1 1 5 1 10 C1 17.5 10 27 10 27 C10 27 19 17.5 19 10 C19 5 15 1 10 1Z" stroke={color} strokeWidth="2"/>
+        <circle cx="10" cy="10" r="3.5" stroke={color} strokeWidth="1.7"/>
       </svg>
     );
-    default: return ( // car — iOPGPS: rounded body + windshields, no wheels, no mirrors
-      <svg width="18" height="26" viewBox="0 0 18 26" fill="none">
-        <path d="M2 5 Q2 2.5 9 2 Q16 2.5 16 5 L16 22 Q16 24.5 9 25 Q2 24.5 2 22 Z" fill={color}/>
-        <path d="M3.5 5.5 Q4 3.5 9 3 Q14 3.5 14.5 5.5 L15 9.5 L3 9.5 Z" fill={ws}/>
-        <path d="M3.5 20.5 Q4 23 9 23.5 Q14 23 14.5 20.5 L15 17 L3 17 Z" fill={ws}/>
+    default: return ( // car — silhueta orgânica com para-brisas
+      <svg width="16" height="28" viewBox="0 0 17 30" fill="none">
+        <path d="M8.5 1 C5.5 1 2 2.5 2 5 L2 6.5 Q1 9 1 13 L1 20 Q1 24 2 25.5 L2 27 C2 28.5 5.5 29 8.5 29 C11.5 29 15 28.5 15 27 L15 25.5 Q16 24 16 20 L16 13 Q16 9 15 6.5 L15 5 C15 2.5 11.5 1 8.5 1Z" stroke={color} strokeWidth="1.7"/>
+        <path d="M3.5 6.5 Q3 9 3 10.5 L14 10.5 Q14 9 13.5 6.5 Z" stroke={color} strokeWidth="1.1" fill="none"/>
+        <path d="M3 21.5 Q3 23 3.5 25.5 L13.5 25.5 Q14 23 14 21.5 Z" stroke={color} strokeWidth="1.1" fill="none"/>
       </svg>
     );
   }

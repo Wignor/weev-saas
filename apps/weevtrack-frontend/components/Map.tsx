@@ -23,66 +23,73 @@ function getMarkerColor(device: TraccarDevice, position?: TraccarPosition): stri
 
 function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'car', name = ''): string {
   const shadow = isSelected
-    ? 'drop-shadow(0 0 8px rgba(0,122,255,0.9)) drop-shadow(0 3px 10px rgba(0,0,0,0.8))'
-    : 'drop-shadow(0 3px 8px rgba(0,0,0,0.8))';
+    ? `drop-shadow(0 0 6px ${color}) drop-shadow(0 3px 10px rgba(0,0,0,0.9))`
+    : 'drop-shadow(0 2px 6px rgba(0,0,0,0.85))';
   const safeName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const label = safeName ? `<div style="margin-top:3px;background:rgba(0,0,0,0.78);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;text-align:center;pointer-events:none">${safeName}</div>` : '';
 
-  const ws  = 'rgba(0,0,0,0.28)'; // windshield tint
-  const sel = isSelected ? `stroke="white" stroke-width="2.5"` : '';
-  const sc  = isSelected ? 1.3 : 1;
+  const sc  = isSelected ? 1.35 : 1;
+  const sw  = isSelected ? '2.5' : '1.7';   // main stroke width
+  const sw2 = isSelected ? '1.7' : '1.1';   // detail stroke width
+  const sw3 = isSelected ? '2.8' : '2.0';   // guidão / heavy elements
 
   let vw: number, vh: number, shapes: string;
 
   switch (vehicleType) {
     case 'motorcycle':
-      vw = 20; vh = 48;
+      vw = 18; vh = 30;
       shapes = `
-        <ellipse cx="10" cy="9"  rx="9" ry="8"  fill="${color}" ${sel}/>
-        <ellipse cx="10" cy="9"  rx="4" ry="3.5" fill="${ws}"/>
-        <rect    x="7"   y="16" width="6" height="16" rx="3" fill="${color}"/>
-        <ellipse cx="10" cy="39" rx="9" ry="8"  fill="${color}" ${sel}/>
-        <ellipse cx="10" cy="39" rx="4" ry="3.5" fill="${ws}"/>
-        <path d="M1 8 H19" stroke="${color}" stroke-width="4" stroke-linecap="round"/>`;
+        <ellipse cx="9" cy="3.5" rx="3" ry="1.8" stroke="${color}" stroke-width="${sw2}" fill="none"/>
+        <line x1="7.5" y1="5" x2="7.5" y2="9" stroke="${color}" stroke-width="1.2"/>
+        <line x1="10.5" y1="5" x2="10.5" y2="9" stroke="${color}" stroke-width="1.2"/>
+        <line x1="2" y1="8" x2="16" y2="8" stroke="${color}" stroke-width="${sw3}" stroke-linecap="round"/>
+        <ellipse cx="9" cy="16" rx="4" ry="5" stroke="${color}" stroke-width="${sw}" fill="none"/>
+        <path d="M6.5 20.5 Q9 22 11.5 20.5" stroke="${color}" stroke-width="${sw2}" fill="none" stroke-linecap="round"/>
+        <ellipse cx="9" cy="27" rx="3" ry="1.8" stroke="${color}" stroke-width="${sw2}" fill="none"/>`;
       break;
     case 'truck':
-      vw = 22; vh = 54;
+      vw = 20; vh = 36;
       shapes = `
-        <path d="M2 4 Q2 2 11 1.5 Q20 2 20 4 L20 17 Q20 19 11 19.5 Q2 19 2 17 Z" fill="${color}" ${sel}/>
-        <path d="M4 4.5 Q4.5 2.5 11 2 Q17.5 2.5 18 4.5 L18.5 9 L3.5 9 Z" fill="${ws}"/>
-        <rect x="2" y="21" width="18" height="33" rx="2.5" fill="${color}" ${sel}/>`;
+        <path d="M3 1 Q1 1 1 3 L1 11 Q1 13 3 13 L17 13 Q19 13 19 11 L19 3 Q19 1 17 1 Z" stroke="${color}" stroke-width="${sw}" fill="none"/>
+        <path d="M2.5 7.5 Q2 6 3 4.5 L17 4.5 Q18 6 17.5 7.5 Z" stroke="${color}" stroke-width="${sw2}" fill="none"/>
+        <line x1="7" y1="13" x2="7" y2="15.5" stroke="${color}" stroke-width="1.3"/>
+        <line x1="13" y1="13" x2="13" y2="15.5" stroke="${color}" stroke-width="1.3"/>
+        <line x1="7" y1="15" x2="13" y2="15" stroke="${color}" stroke-width="1.3"/>
+        <rect x="1" y="16.5" width="18" height="18.5" rx="1.5" stroke="${color}" stroke-width="${sw}" fill="none"/>
+        <line x1="10" y1="17" x2="10" y2="34.5" stroke="${color}" stroke-width="0.9" opacity="0.45"/>`;
       break;
     case 'bus':
-      vw = 20; vh = 60;
+      vw = 18; vh = 34;
       shapes = `
-        <rect x="1" y="1" width="18" height="58" rx="5" fill="${color}" ${sel}/>
-        <path d="M3 2 Q3.5 1.2 10 1 Q16.5 1.2 17 2 L17 8 L3 8 Z" fill="${ws}"/>
-        <rect x="3"  y="12" width="6" height="5" rx="1.5" fill="${ws}"/>
-        <rect x="11" y="12" width="6" height="5" rx="1.5" fill="${ws}"/>
-        <rect x="3"  y="21" width="6" height="5" rx="1.5" fill="${ws}"/>
-        <rect x="11" y="21" width="6" height="5" rx="1.5" fill="${ws}"/>
-        <path d="M3 52 Q3.5 59 10 59.5 Q16.5 59 17 52 L17 49 L3 49 Z" fill="${ws}"/>`;
+        <rect x="1" y="1" width="16" height="32" rx="4" stroke="${color}" stroke-width="${sw}" fill="none"/>
+        <line x1="2.5" y1="7" x2="15.5" y2="7" stroke="${color}" stroke-width="${sw2}" stroke-linecap="round"/>
+        <rect x="2.5" y="10" width="5" height="4" rx="1" stroke="${color}" stroke-width="1" fill="none"/>
+        <rect x="10.5" y="10" width="5" height="4" rx="1" stroke="${color}" stroke-width="1" fill="none"/>
+        <rect x="2.5" y="17" width="5" height="4" rx="1" stroke="${color}" stroke-width="1" fill="none"/>
+        <rect x="10.5" y="17" width="5" height="4" rx="1" stroke="${color}" stroke-width="1" fill="none"/>
+        <line x1="2.5" y1="26" x2="15.5" y2="26" stroke="${color}" stroke-width="${sw2}" stroke-linecap="round"/>`;
       break;
     case 'pickup':
-      vw = 22; vh = 52;
+      vw = 22; vh = 32;
       shapes = `
-        <path d="M2 4 Q2 2 11 1.5 Q20 2 20 4 L20 19 Q20 21 11 21.5 Q2 21 2 19 Z" fill="${color}" ${sel}/>
-        <path d="M4 4.5 Q4.5 2.5 11 2 Q17.5 2.5 18 4.5 L18.5 9.5 L3.5 9.5 Z" fill="${ws}"/>
-        <rect x="2" y="23" width="18" height="29" rx="2" fill="${color}" ${sel}/>`;
+        <path d="M3 1 Q1 1 1 3 L1 5.5 Q1 7 1 9 L1 19 Q1 20.5 3 20.5 L19 20.5 Q21 20.5 21 19 L21 9 Q21 7 21 5.5 L21 3 Q21 1 19 1 Z" stroke="${color}" stroke-width="${sw}" fill="none"/>
+        <path d="M2.5 9 Q2 7 3 5.5 L19 5.5 Q20 7 19.5 9 Z" stroke="${color}" stroke-width="${sw2}" fill="none"/>
+        <rect x="1" y="22.5" width="20" height="8.5" rx="2" stroke="${color}" stroke-width="${sw}" fill="none"/>
+        <line x1="3.5" y1="22.5" x2="3.5" y2="31" stroke="${color}" stroke-width="1" opacity="0.45"/>
+        <line x1="18.5" y1="22.5" x2="18.5" y2="31" stroke="${color}" stroke-width="1" opacity="0.45"/>`;
       break;
     case 'universal':
-      vw = 28; vh = 40;
+      vw = 20; vh = 28;
       shapes = `
-        <path d="M14 1C7.37 1 2 6.37 2 13C2 22.5 14 39 14 39C14 39 26 22.5 26 13C26 6.37 20.63 1 14 1Z" fill="${color}" stroke="white" stroke-width="1.8"/>
-        <circle cx="14" cy="13" r="5.5" fill="white" opacity="0.3"/>
-        <circle cx="14" cy="13" r="2.8" fill="white" opacity="0.7"/>`;
+        <path d="M10 1 C5 1 1 5 1 10 C1 17.5 10 27 10 27 C10 27 19 17.5 19 10 C19 5 15 1 10 1Z" stroke="${color}" stroke-width="${sw}" fill="none"/>
+        <circle cx="10" cy="10" r="3.5" stroke="${color}" stroke-width="${sw2}" fill="none"/>`;
       break;
-    default: // car — iOPGPS style: rounded body, windshields, no wheels, no mirrors
-      vw = 24; vh = 50;
+    default: // car — silhueta orgânica com para-brisas
+      vw = 17; vh = 30;
       shapes = `
-        <path d="M2 8 Q2 5 12 4.5 Q22 5 22 8 L22 43 Q22 47 12 47.5 Q2 47 2 43 Z" fill="${color}" ${sel}/>
-        <path d="M4 8.5 Q4.5 5.5 12 5 Q19.5 5.5 20 8.5 L20.5 16 L3.5 16 Z" fill="${ws}"/>
-        <path d="M4 41.5 Q4.5 46 12 46.5 Q19.5 46 20 41.5 L20.5 35 L3.5 35 Z" fill="${ws}"/>`;
+        <path d="M8.5 1 C5.5 1 2 2.5 2 5 L2 6.5 Q1 9 1 13 L1 20 Q1 24 2 25.5 L2 27 C2 28.5 5.5 29 8.5 29 C11.5 29 15 28.5 15 27 L15 25.5 Q16 24 16 20 L16 13 Q16 9 15 6.5 L15 5 C15 2.5 11.5 1 8.5 1Z" stroke="${color}" stroke-width="${sw}" fill="none"/>
+        <path d="M3.5 6.5 Q3 9 3 10.5 L14 10.5 Q14 9 13.5 6.5 Z" stroke="${color}" stroke-width="${sw2}" fill="none"/>
+        <path d="M3 21.5 Q3 23 3.5 25.5 L13.5 25.5 Q14 23 14 21.5 Z" stroke="${color}" stroke-width="${sw2}" fill="none"/>`;
   }
 
   const svgW = Math.round(vw * sc);
@@ -217,8 +224,8 @@ export default function VehicleMap({
       const color = getMarkerColor(device, pos);
       const isSelected = selectedDeviceId === device.id;
       const vType = vehiclePrefs[device.id] || 'car';
-      const iw = isSelected ? 37 : 28;
-      const ih = isSelected ? 65 : 50;
+      const iw = isSelected ? 30 : 22;
+      const ih = isSelected ? 49 : 36;
       const icon = L.divIcon({
         html: createVehicleIcon(color, isSelected, vType, device.name),
         className: '',
