@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: 'WeevTrack — Rastreamento Veicular',
   description: 'Plataforma de rastreamento veicular WeevTrack',
   manifest: '/manifest.webmanifest',
-  icons: { icon: '/favicon.svg', shortcut: '/favicon.svg' },
+  icons: { icon: '/favicon.svg', shortcut: '/favicon.svg', apple: '/apple-icon.png' },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

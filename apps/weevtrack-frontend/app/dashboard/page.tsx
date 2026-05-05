@@ -680,34 +680,28 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
       </svg>
     );
     case 'truck': return (
-      <svg width="18" height="28" viewBox="0 0 18 28" fill="none">
-        <path d="M4 3 Q4 1 9 0.5 Q14 1 14 3 L14 11 Q14 13 9 13.5 Q4 13 4 11 Z" fill={color}/>
-        <path d="M5.5 3.5 Q6 2 9 1.5 Q12 2 12.5 3.5 L13 7 L5 7 Z" fill={ws}/>
-        <rect x="0.5" y="4" width="4" height="6" rx="1.5" fill={color}/>
-        <rect x="13.5" y="4" width="4" height="6" rx="1.5" fill={color}/>
-        <rect x="4" y="14" width="10" height="14" rx="1.5" fill={color}/>
+      <svg width="16" height="28" viewBox="0 0 16 28" fill="none">
+        <path d="M2 3 Q2 1 8 0.5 Q14 1 14 3 L14 11 Q14 13 8 13.5 Q2 13 2 11 Z" fill={color}/>
+        <path d="M3.5 3.5 Q4 2 8 1.5 Q12 2 12.5 3.5 L13 7 L3 7 Z" fill={ws}/>
+        <rect x="2" y="14" width="12" height="14" rx="1.5" fill={color}/>
       </svg>
     );
     case 'bus': return (
-      <svg width="16" height="30" viewBox="0 0 16 30" fill="none">
-        <rect x="2" y="1" width="12" height="28" rx="3.5" fill={color}/>
-        <path d="M3.5 2 Q4 1.2 8 1 Q12 1.2 12.5 2 L12.5 6 L3.5 6 Z" fill={ws}/>
-        <rect x="3.5" y="8.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
-        <rect x="9" y="8.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
-        <rect x="3.5" y="13.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
-        <rect x="9" y="13.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
-        <path d="M3.5 27.5 Q4 29.5 8 30 Q12 29.5 12.5 27.5 L12.5 24.5 L3.5 24.5 Z" fill={ws}/>
-        <rect x="-0.5" y="3" width="3.5" height="5" rx="1.2" fill={color}/>
-        <rect x="13" y="3" width="3.5" height="5" rx="1.2" fill={color}/>
+      <svg width="14" height="30" viewBox="0 0 14 30" fill="none">
+        <rect x="1" y="1" width="12" height="28" rx="3.5" fill={color}/>
+        <path d="M2.5 2 Q3 1.2 7 1 Q11 1.2 11.5 2 L11.5 6 L2.5 6 Z" fill={ws}/>
+        <rect x="2.5" y="8.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
+        <rect x="8" y="8.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
+        <rect x="2.5" y="13.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
+        <rect x="8" y="13.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
+        <path d="M2.5 27.5 Q3 29.5 7 30 Q11 29.5 11.5 27.5 L11.5 24.5 L2.5 24.5 Z" fill={ws}/>
       </svg>
     );
     case 'pickup': return (
-      <svg width="18" height="28" viewBox="0 0 18 28" fill="none">
-        <path d="M4 3 Q4 1 9 0.5 Q14 1 14 3 L14 14 Q14 16 9 16.5 Q4 16 4 14 Z" fill={color}/>
-        <path d="M5.5 3.5 Q6 2 9 1.5 Q12 2 12.5 3.5 L13 7.5 L5 7.5 Z" fill={ws}/>
-        <rect x="0.5" y="4.5" width="4" height="6.5" rx="1.5" fill={color}/>
-        <rect x="13.5" y="4.5" width="4" height="6.5" rx="1.5" fill={color}/>
-        <rect x="4" y="17" width="10" height="11" rx="1.5" fill={color}/>
+      <svg width="16" height="28" viewBox="0 0 16 28" fill="none">
+        <path d="M2 3 Q2 1 8 0.5 Q14 1 14 3 L14 14 Q14 16 8 16.5 Q2 16 2 14 Z" fill={color}/>
+        <path d="M3.5 3.5 Q4 2 8 1.5 Q12 2 12.5 3.5 L13 7.5 L3 7.5 Z" fill={ws}/>
+        <rect x="2" y="17" width="12" height="11" rx="1.5" fill={color}/>
       </svg>
     );
     case 'universal': return (
@@ -717,13 +711,11 @@ function VehicleIcon({ type, color }: { type: string; color: string }) {
         <circle cx="8" cy="8" r="1.5" fill="rgba(255,255,255,0.55)"/>
       </svg>
     );
-    default: return ( // car — iOPGPS: rounded body, windshields, side mirrors, no wheels
+    default: return ( // car — iOPGPS: rounded body + windshields, no wheels, no mirrors
       <svg width="18" height="26" viewBox="0 0 18 26" fill="none">
-        <path d="M3.5 5 Q3.5 2.5 9 2 Q14.5 2.5 14.5 5 L14.5 22 Q14.5 24.5 9 25 Q3.5 24.5 3.5 22 Z" fill={color}/>
-        <path d="M5 5.5 Q5.5 3.5 9 3 Q12.5 3.5 13 5.5 L13.5 9.5 L4.5 9.5 Z" fill={ws}/>
-        <path d="M5 20.5 Q5.5 23 9 23.5 Q12.5 23 13 20.5 L13.5 17 L4.5 17 Z" fill={ws}/>
-        <rect x="0.5" y="6.5" width="3.5" height="5.5" rx="1.2" fill={color}/>
-        <rect x="14" y="6.5" width="3.5" height="5.5" rx="1.2" fill={color}/>
+        <path d="M2 5 Q2 2.5 9 2 Q16 2.5 16 5 L16 22 Q16 24.5 9 25 Q2 24.5 2 22 Z" fill={color}/>
+        <path d="M3.5 5.5 Q4 3.5 9 3 Q14 3.5 14.5 5.5 L15 9.5 L3 9.5 Z" fill={ws}/>
+        <path d="M3.5 20.5 Q4 23 9 23.5 Q14 23 14.5 20.5 L15 17 L3 17 Z" fill={ws}/>
       </svg>
     );
   }

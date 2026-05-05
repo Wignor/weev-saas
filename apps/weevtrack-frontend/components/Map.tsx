@@ -46,35 +46,29 @@ function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'ca
         <path d="M1 8 H19" stroke="${color}" stroke-width="4" stroke-linecap="round"/>`;
       break;
     case 'truck':
-      vw = 28; vh = 54;
+      vw = 22; vh = 54;
       shapes = `
-        <path d="M5 4 Q5 2 14 1.5 Q23 2 23 4 L23 17 Q23 19 14 19.5 Q5 19 5 17 Z" fill="${color}" ${sel}/>
-        <path d="M7 4.5 Q7.5 2.5 14 2 Q20.5 2.5 21 4.5 L21.5 9 L6.5 9 Z" fill="${ws}"/>
-        <rect x="0.5" y="5.5" width="5.5" height="9"  rx="2" fill="${color}"/>
-        <rect x="22"  y="5.5" width="5.5" height="9"  rx="2" fill="${color}"/>
-        <rect x="5"   y="21"  width="18"  height="33" rx="2.5" fill="${color}" ${sel}/>`;
+        <path d="M2 4 Q2 2 11 1.5 Q20 2 20 4 L20 17 Q20 19 11 19.5 Q2 19 2 17 Z" fill="${color}" ${sel}/>
+        <path d="M4 4.5 Q4.5 2.5 11 2 Q17.5 2.5 18 4.5 L18.5 9 L3.5 9 Z" fill="${ws}"/>
+        <rect x="2" y="21" width="18" height="33" rx="2.5" fill="${color}" ${sel}/>`;
       break;
     case 'bus':
-      vw = 24; vh = 60;
+      vw = 20; vh = 60;
       shapes = `
-        <rect x="3" y="1" width="18" height="58" rx="5" fill="${color}" ${sel}/>
-        <path d="M5 2 Q5.5 1.2 12 1 Q18.5 1.2 19 2 L19 8 L5 8 Z" fill="${ws}"/>
-        <rect x="5"  y="12" width="6" height="5" rx="1.5" fill="${ws}"/>
-        <rect x="13" y="12" width="6" height="5" rx="1.5" fill="${ws}"/>
-        <rect x="5"  y="21" width="6" height="5" rx="1.5" fill="${ws}"/>
-        <rect x="13" y="21" width="6" height="5" rx="1.5" fill="${ws}"/>
-        <path d="M5 52 Q5.5 59 12 59.5 Q18.5 59 19 52 L19 49 L5 49 Z" fill="${ws}"/>
-        <rect x="0"  y="5"  width="4.5" height="8" rx="1.8" fill="${color}"/>
-        <rect x="19.5" y="5" width="4.5" height="8" rx="1.8" fill="${color}"/>`;
+        <rect x="1" y="1" width="18" height="58" rx="5" fill="${color}" ${sel}/>
+        <path d="M3 2 Q3.5 1.2 10 1 Q16.5 1.2 17 2 L17 8 L3 8 Z" fill="${ws}"/>
+        <rect x="3"  y="12" width="6" height="5" rx="1.5" fill="${ws}"/>
+        <rect x="11" y="12" width="6" height="5" rx="1.5" fill="${ws}"/>
+        <rect x="3"  y="21" width="6" height="5" rx="1.5" fill="${ws}"/>
+        <rect x="11" y="21" width="6" height="5" rx="1.5" fill="${ws}"/>
+        <path d="M3 52 Q3.5 59 10 59.5 Q16.5 59 17 52 L17 49 L3 49 Z" fill="${ws}"/>`;
       break;
     case 'pickup':
-      vw = 28; vh = 52;
+      vw = 22; vh = 52;
       shapes = `
-        <path d="M5 4 Q5 2 14 1.5 Q23 2 23 4 L23 19 Q23 21 14 21.5 Q5 21 5 19 Z" fill="${color}" ${sel}/>
-        <path d="M7 4.5 Q7.5 2.5 14 2 Q20.5 2.5 21 4.5 L21.5 9.5 L6.5 9.5 Z" fill="${ws}"/>
-        <rect x="0.5" y="5.5" width="5.5" height="10" rx="2" fill="${color}"/>
-        <rect x="22"  y="5.5" width="5.5" height="10" rx="2" fill="${color}"/>
-        <rect x="5"   y="23"  width="18"  height="29" rx="2" fill="${color}" ${sel}/>`;
+        <path d="M2 4 Q2 2 11 1.5 Q20 2 20 4 L20 19 Q20 21 11 21.5 Q2 21 2 19 Z" fill="${color}" ${sel}/>
+        <path d="M4 4.5 Q4.5 2.5 11 2 Q17.5 2.5 18 4.5 L18.5 9.5 L3.5 9.5 Z" fill="${ws}"/>
+        <rect x="2" y="23" width="18" height="29" rx="2" fill="${color}" ${sel}/>`;
       break;
     case 'universal':
       vw = 28; vh = 40;
@@ -83,14 +77,12 @@ function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'ca
         <circle cx="14" cy="13" r="5.5" fill="white" opacity="0.3"/>
         <circle cx="14" cy="13" r="2.8" fill="white" opacity="0.7"/>`;
       break;
-    default: // car — iOPGPS style: rounded body, windshields, side mirrors, no wheels
-      vw = 28; vh = 50;
+    default: // car — iOPGPS style: rounded body, windshields, no wheels, no mirrors
+      vw = 24; vh = 50;
       shapes = `
-        <path d="M5 8 Q5 5 14 4.5 Q23 5 23 8 L23 43 Q23 47 14 47.5 Q5 47 5 43 Z" fill="${color}" ${sel}/>
-        <path d="M7 8.5 Q7.5 5.5 14 5 Q20.5 5.5 21 8.5 L21.5 16 L6.5 16 Z" fill="${ws}"/>
-        <path d="M7 41.5 Q7.5 46 14 46.5 Q20.5 46 21 41.5 L21.5 35 L6.5 35 Z" fill="${ws}"/>
-        <rect x="0.5" y="10" width="5.5" height="10" rx="2" fill="${color}"/>
-        <rect x="22"  y="10" width="5.5" height="10" rx="2" fill="${color}"/>`;
+        <path d="M2 8 Q2 5 12 4.5 Q22 5 22 8 L22 43 Q22 47 12 47.5 Q2 47 2 43 Z" fill="${color}" ${sel}/>
+        <path d="M4 8.5 Q4.5 5.5 12 5 Q19.5 5.5 20 8.5 L20.5 16 L3.5 16 Z" fill="${ws}"/>
+        <path d="M4 41.5 Q4.5 46 12 46.5 Q19.5 46 20 41.5 L20.5 35 L3.5 35 Z" fill="${ws}"/>`;
   }
 
   const svgW = Math.round(vw * sc);
