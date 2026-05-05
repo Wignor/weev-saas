@@ -100,12 +100,12 @@ const S_LABEL: Record<DeviceStatus, string> = {
 };
 
 const VEHICLE_TYPES = [
-  { type: 'car',        label: 'Carro',     emoji: '🚗' },
-  { type: 'motorcycle', label: 'Moto',      emoji: '🏍️' },
-  { type: 'truck',      label: 'Caminhão',  emoji: '🚚' },
-  { type: 'bus',        label: 'Ônibus',    emoji: '🚌' },
+  { type: 'car',        label: 'Carro',      emoji: '🚗' },
+  { type: 'motorcycle', label: 'Moto',       emoji: '🏍️' },
+  { type: 'truck',      label: 'Caminhão',   emoji: '🚚' },
+  { type: 'bus',        label: 'Ônibus',     emoji: '🚌' },
   { type: 'pickup',     label: 'Caminhonete', emoji: '🚙' },
-  { type: 'boat',       label: 'Barco',     emoji: '⛵' },
+  { type: 'universal',  label: 'Universal',  emoji: '📍' },
 ];
 
 const NOTIF_ITEMS = [
@@ -261,6 +261,7 @@ interface DeviceDetailProps {
 function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, clientName, isAdmin, variant = 'sheet', licenseInfo }: DeviceDetailProps) {
   const [cmdLoading, setCmdLoading] = useState<string | null>(null);
   const [cmdMsg, setCmdMsg] = useState('');
+  const [confirmCmd, setConfirmCmd] = useState<{ type: string; label: string } | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [renameVal, setRenameVal] = useState(device.name);
   const [deviceName, setDeviceName] = useState(device.name);
@@ -529,7 +530,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
           </button>
         )}
         {canControl && (
-          <button onClick={() => sendCommand('engineStop', 'Bloqueio')} disabled={!!cmdLoading}
+          <button onClick={() => setConfirmCmd({ type: 'engineStop', label: 'Bloquear' })} disabled={!!cmdLoading}
             className="flex flex-col items-center gap-1 rounded-xl py-2 flex-shrink-0 disabled:opacity-50"
             style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.2)', minWidth: '68px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2" strokeLinecap="round">
@@ -539,7 +540,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
           </button>
         )}
         {canControl && (
-          <button onClick={() => sendCommand('engineResume', 'Desbloqueio')} disabled={!!cmdLoading}
+          <button onClick={() => setConfirmCmd({ type: 'engineResume', label: 'Desbloquear' })} disabled={!!cmdLoading}
             className="flex flex-col items-center gap-1 rounded-xl py-2 flex-shrink-0 disabled:opacity-50"
             style={{ background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.2)', minWidth: '68px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2" strokeLinecap="round">
@@ -629,60 +630,109 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
 
       {pos && <p className="text-xs text-center mt-1" style={{ color: 'var(--text-lo)' }}>{pos.latitude.toFixed(6)}, {pos.longitude.toFixed(6)}</p>}
       </>}
+
+      {/* Confirmation popup for block/unblock */}
+      {confirmCmd && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9900, padding: '20px' }}>
+          <div style={{ background: 'var(--bg-card)', borderRadius: 20, padding: '24px 20px', width: '100%', maxWidth: '320px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+            <p style={{ fontWeight: 700, fontSize: 17, color: 'var(--text-hi)', textAlign: 'center', marginBottom: 8 }}>
+              {confirmCmd.type === 'engineStop' ? '🔒 Confirmar Bloqueio' : '🔓 Confirmar Desbloqueio'}
+            </p>
+            <p style={{ fontSize: 13, color: 'var(--text-mid)', textAlign: 'center', marginBottom: 16 }}>
+              Enviar <strong>{confirmCmd.label}</strong> para <strong>{deviceName}</strong>?
+            </p>
+            {speed > 20 && confirmCmd.type === 'engineStop' && (
+              <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.3)', borderRadius: 12, padding: '10px 14px', marginBottom: 16, textAlign: 'center' }}>
+                <p style={{ fontSize: 13, color: '#FF3B30', fontWeight: 700 }}>⚠️ Veículo em movimento: {speed} km/h</p>
+                <p style={{ fontSize: 11, color: '#FF3B30', marginTop: 4, opacity: 0.8 }}>Bloqueio recomendado abaixo de 20 km/h</p>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmCmd(null)}
+                style={{ flex: 1, padding: '13px', borderRadius: 12, border: 'none', background: 'var(--bg-input)', color: 'var(--text-lo)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={() => { sendCommand(confirmCmd.type, confirmCmd.label); setConfirmCmd(null); }}
+                style={{ flex: 1, padding: '13px', borderRadius: 12, border: 'none',
+                  background: confirmCmd.type === 'engineStop' ? '#FF3B30' : '#34C759',
+                  color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                {confirmCmd.label}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ── VehicleIcon SVG (top-down view) ── */
+/* ── VehicleIcon SVG (top-down, stroke-only outline) ── */
 function VehicleIcon({ type, color }: { type: string; color: string }) {
-  const gl = 'rgba(255,255,255,0.18)';
+  const sw = '1.9';
+  const swSm = '1.4';
   switch (type) {
     case 'motorcycle': return (
-      <svg width="8" height="15" viewBox="0 0 14 28">
-        <rect x="5.5" y="4.5" width="3" height="19" rx="1.5" fill={color}/>
-        <ellipse cx="7" cy="10" rx="4" ry="3.5" fill={color}/>
-        <ellipse cx="7" cy="17.5" rx="3.5" ry="3.5" fill={color}/>
-        <path d="M1.5 7.5 H12.5" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+      <svg width="13" height="26" viewBox="0 0 13 26" fill="none">
+        <ellipse cx="6.5" cy="5.5" rx="5.5" ry="4.5" stroke={color} strokeWidth={sw}/>
+        <rect x="4.5" y="9" width="4" height="9" rx="2" stroke={color} strokeWidth={sw}/>
+        <ellipse cx="6.5" cy="21" rx="5.5" ry="4.5" stroke={color} strokeWidth={sw}/>
+        <path d="M1 5 H12" stroke={color} strokeWidth="2.2" strokeLinecap="round"/>
       </svg>
     );
     case 'truck': return (
-      <svg width="12" height="20" viewBox="0 0 22 36">
-        <rect x="3" y="0.5" width="16" height="12" rx="3" fill={color}/>
-        <rect x="5" y="2.5" width="12" height="7" rx="1.5" fill={gl}/>
-        <rect x="3.5" y="14" width="15" height="21" rx="1.5" fill={color}/>
+      <svg width="19" height="28" viewBox="0 0 19 28" fill="none">
+        <rect x="0.5" y="3" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="14.5" y="3" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="0.5" y="13" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="14.5" y="13" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="0.5" y="21" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="14.5" y="21" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="4.5" y="1" width="10" height="9" rx="2.5" stroke={color} strokeWidth={sw}/>
+        <rect x="6" y="2.5" width="7" height="5" rx="1" stroke={color} strokeWidth={swSm}/>
+        <rect x="4.5" y="12" width="10" height="16" rx="1.5" stroke={color} strokeWidth={sw}/>
       </svg>
     );
     case 'bus': return (
-      <svg width="12" height="22" viewBox="0 0 22 38">
-        <rect x="3" y="1.5" width="16" height="35" rx="4" fill={color}/>
-        <rect x="4" y="5" width="6" height="4" rx="1" fill={gl}/>
-        <rect x="12" y="5" width="6" height="4" rx="1" fill={gl}/>
-        <rect x="4" y="13" width="6" height="4" rx="1" fill={gl}/>
-        <rect x="12" y="13" width="6" height="4" rx="1" fill={gl}/>
-        <rect x="4" y="21" width="6" height="4" rx="1" fill={gl}/>
-        <rect x="12" y="21" width="6" height="4" rx="1" fill={gl}/>
+      <svg width="17" height="30" viewBox="0 0 17 30" fill="none">
+        <rect x="2" y="1" width="13" height="28" rx="4" stroke={color} strokeWidth={sw}/>
+        <rect x="3.5" y="4.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
+        <rect x="9.5" y="4.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
+        <rect x="3.5" y="10.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
+        <rect x="9.5" y="10.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
+        <rect x="3.5" y="16.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
+        <rect x="9.5" y="16.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
+        <rect x="-0.5" y="6" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="13.5" y="6" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="-0.5" y="18" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="13.5" y="18" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
       </svg>
     );
     case 'pickup': return (
-      <svg width="12" height="20" viewBox="0 0 22 36">
-        <rect x="3" y="0.5" width="16" height="16" rx="3" fill={color}/>
-        <rect x="5" y="2.5" width="12" height="10" rx="1.5" fill={gl}/>
-        <rect x="3.5" y="18" width="15" height="17" rx="1.5" fill={color}/>
-        <rect x="5.5" y="20" width="11" height="13" rx="0.5" fill="rgba(0,0,0,0.15)"/>
+      <svg width="19" height="28" viewBox="0 0 19 28" fill="none">
+        <rect x="0.5" y="3.5" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="14.5" y="3.5" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="0.5" y="18" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="14.5" y="18" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="4.5" y="1.5" width="10" height="13" rx="2.5" stroke={color} strokeWidth={sw}/>
+        <rect x="6" y="3" width="7" height="8.5" rx="1" stroke={color} strokeWidth={swSm}/>
+        <rect x="4.5" y="16.5" width="10" height="10" rx="1.5" stroke={color} strokeWidth={sw}/>
       </svg>
     );
-    case 'boat': return (
-      <svg width="12" height="20" viewBox="0 0 22 36">
-        <path d="M11 1 L19 5 L20 26 Q19 34 11 35 Q3 34 2 26 L3 5 Z" fill={color}/>
-        <rect x="5" y="9" width="12" height="11" rx="2.5" fill={color}/>
-        <rect x="7" y="11" width="8" height="7" rx="1.5" fill={gl}/>
+    case 'universal': return (
+      <svg width="16" height="22" viewBox="0 0 16 22" fill="none">
+        <path d="M8 1C4.13 1 1 4.13 1 8C1 13.25 8 21 8 21C8 21 15 13.25 15 8C15 4.13 11.87 1 8 1Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="8" cy="8" r="2.8" stroke={color} strokeWidth="1.8"/>
       </svg>
     );
     default: return ( // car
-      <svg width="12" height="18" viewBox="0 0 22 34">
-        <path d="M2 4 Q2 1 11 0.5 Q20 1 20 4 L20.5 8 L20.5 26 L20 30 Q20 33 11 33.5 Q2 33 2 30 L1.5 26 L1.5 8 Z" fill={color}/>
-        <path d="M3.5 5 Q4 2 11 1.5 Q18 2 18.5 5 L19 10 L3 10 Z" fill={gl}/>
-        <path d="M3.5 29 Q4 32 11 32.5 Q18 32 18.5 29 L19 24 L3 24 Z" fill={gl}/>
+      <svg width="20" height="28" viewBox="0 0 20 28" fill="none">
+        <rect x="0.5" y="6" width="4.5" height="7.5" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="15" y="6" width="4.5" height="7.5" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="0.5" y="16.5" width="4.5" height="7.5" rx="2" stroke={color} strokeWidth={swSm}/>
+        <rect x="15" y="16.5" width="4.5" height="7.5" rx="2" stroke={color} strokeWidth={swSm}/>
+        <path d="M5 5 Q5 2.5 10 2 Q15 2.5 15 5 L15 23 Q15 25.5 10 26 Q5 25.5 5 23 Z" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M6 5.5 Q6.5 3.5 10 3 Q13.5 3.5 14 5.5 L14.5 9 L5.5 9 Z" stroke={color} strokeWidth={swSm} strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M6 22 Q6.5 24.5 10 25 Q13.5 24.5 14 22 L14.5 18.5 L5.5 18.5 Z" stroke={color} strokeWidth={swSm} strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     );
   }
@@ -727,9 +777,9 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, lice
 
       {/* Circular vehicle icon */}
       <div style={{
-        width: '36px', height: '36px', borderRadius: '50%',
-        background: isOffline ? 'var(--bg-input)' : `${S_COLOR[status]}1A`,
-        border: `1.5px solid ${isOffline ? 'var(--bg-border)' : S_COLOR[status]}50`,
+        width: '42px', height: '42px', borderRadius: '50%',
+        background: isOffline ? 'var(--bg-input)' : `${S_COLOR[status]}18`,
+        border: `2px solid ${isOffline ? 'var(--bg-border)' : S_COLOR[status]}60`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexShrink: 0,
       }}>
