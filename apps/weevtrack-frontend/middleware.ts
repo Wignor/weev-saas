@@ -7,7 +7,11 @@ export function middleware(request: NextRequest) {
 
   const isLoginPage = pathname === '/login';
   const isApiRoute = pathname.startsWith('/api');
-  const isPublicPage = pathname.startsWith('/contrato');
+  const isPublicPage =
+    pathname.startsWith('/contrato') ||
+    pathname.startsWith('/privacidade') ||
+    pathname.startsWith('/.well-known') ||
+    pathname === '/manifest.webmanifest';
 
   if (isApiRoute || isPublicPage) return NextResponse.next();
 
