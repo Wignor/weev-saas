@@ -666,73 +666,64 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
   );
 }
 
-/* ── VehicleIcon SVG (top-down, stroke-only outline) ── */
+/* ── VehicleIcon SVG — iOPGPS style (filled body + mirrors, no wheels) ── */
 function VehicleIcon({ type, color }: { type: string; color: string }) {
-  const sw = '1.9';
-  const swSm = '1.4';
+  const ws = 'rgba(0,0,0,0.22)'; // windshield tint
   switch (type) {
     case 'motorcycle': return (
-      <svg width="13" height="26" viewBox="0 0 13 26" fill="none">
-        <ellipse cx="6.5" cy="5.5" rx="5.5" ry="4.5" stroke={color} strokeWidth={sw}/>
-        <rect x="4.5" y="9" width="4" height="9" rx="2" stroke={color} strokeWidth={sw}/>
-        <ellipse cx="6.5" cy="21" rx="5.5" ry="4.5" stroke={color} strokeWidth={sw}/>
-        <path d="M1 5 H12" stroke={color} strokeWidth="2.2" strokeLinecap="round"/>
+      <svg width="14" height="26" viewBox="0 0 14 26" fill="none">
+        <ellipse cx="7" cy="5" rx="5.5" ry="4.5" fill={color}/>
+        <rect x="3.5" y="8.5" width="7" height="9" rx="3.5" fill={color}/>
+        <ellipse cx="7" cy="21" rx="5.5" ry="4.5" fill={color}/>
+        <ellipse cx="7" cy="5" rx="2.5" ry="2" fill={ws}/>
+        <path d="M0.5 5 H13.5" stroke={color} strokeWidth="2.5" strokeLinecap="round"/>
       </svg>
     );
     case 'truck': return (
-      <svg width="19" height="28" viewBox="0 0 19 28" fill="none">
-        <rect x="0.5" y="3" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="14.5" y="3" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="0.5" y="13" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="14.5" y="13" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="0.5" y="21" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="14.5" y="21" width="4" height="7" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="4.5" y="1" width="10" height="9" rx="2.5" stroke={color} strokeWidth={sw}/>
-        <rect x="6" y="2.5" width="7" height="5" rx="1" stroke={color} strokeWidth={swSm}/>
-        <rect x="4.5" y="12" width="10" height="16" rx="1.5" stroke={color} strokeWidth={sw}/>
+      <svg width="18" height="28" viewBox="0 0 18 28" fill="none">
+        <path d="M4 3 Q4 1 9 0.5 Q14 1 14 3 L14 11 Q14 13 9 13.5 Q4 13 4 11 Z" fill={color}/>
+        <path d="M5.5 3.5 Q6 2 9 1.5 Q12 2 12.5 3.5 L13 7 L5 7 Z" fill={ws}/>
+        <rect x="0.5" y="4" width="4" height="6" rx="1.5" fill={color}/>
+        <rect x="13.5" y="4" width="4" height="6" rx="1.5" fill={color}/>
+        <rect x="4" y="14" width="10" height="14" rx="1.5" fill={color}/>
       </svg>
     );
     case 'bus': return (
-      <svg width="17" height="30" viewBox="0 0 17 30" fill="none">
-        <rect x="2" y="1" width="13" height="28" rx="4" stroke={color} strokeWidth={sw}/>
-        <rect x="3.5" y="4.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
-        <rect x="9.5" y="4.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
-        <rect x="3.5" y="10.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
-        <rect x="9.5" y="10.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
-        <rect x="3.5" y="16.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
-        <rect x="9.5" y="16.5" width="4" height="3" rx="0.8" stroke={color} strokeWidth={swSm}/>
-        <rect x="-0.5" y="6" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="13.5" y="6" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="-0.5" y="18" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="13.5" y="18" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
+      <svg width="16" height="30" viewBox="0 0 16 30" fill="none">
+        <rect x="2" y="1" width="12" height="28" rx="3.5" fill={color}/>
+        <path d="M3.5 2 Q4 1.2 8 1 Q12 1.2 12.5 2 L12.5 6 L3.5 6 Z" fill={ws}/>
+        <rect x="3.5" y="8.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
+        <rect x="9" y="8.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
+        <rect x="3.5" y="13.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
+        <rect x="9" y="13.5" width="3.5" height="2.5" rx="0.5" fill={ws}/>
+        <path d="M3.5 27.5 Q4 29.5 8 30 Q12 29.5 12.5 27.5 L12.5 24.5 L3.5 24.5 Z" fill={ws}/>
+        <rect x="-0.5" y="3" width="3.5" height="5" rx="1.2" fill={color}/>
+        <rect x="13" y="3" width="3.5" height="5" rx="1.2" fill={color}/>
       </svg>
     );
     case 'pickup': return (
-      <svg width="19" height="28" viewBox="0 0 19 28" fill="none">
-        <rect x="0.5" y="3.5" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="14.5" y="3.5" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="0.5" y="18" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="14.5" y="18" width="4" height="8" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="4.5" y="1.5" width="10" height="13" rx="2.5" stroke={color} strokeWidth={sw}/>
-        <rect x="6" y="3" width="7" height="8.5" rx="1" stroke={color} strokeWidth={swSm}/>
-        <rect x="4.5" y="16.5" width="10" height="10" rx="1.5" stroke={color} strokeWidth={sw}/>
+      <svg width="18" height="28" viewBox="0 0 18 28" fill="none">
+        <path d="M4 3 Q4 1 9 0.5 Q14 1 14 3 L14 14 Q14 16 9 16.5 Q4 16 4 14 Z" fill={color}/>
+        <path d="M5.5 3.5 Q6 2 9 1.5 Q12 2 12.5 3.5 L13 7.5 L5 7.5 Z" fill={ws}/>
+        <rect x="0.5" y="4.5" width="4" height="6.5" rx="1.5" fill={color}/>
+        <rect x="13.5" y="4.5" width="4" height="6.5" rx="1.5" fill={color}/>
+        <rect x="4" y="17" width="10" height="11" rx="1.5" fill={color}/>
       </svg>
     );
     case 'universal': return (
       <svg width="16" height="22" viewBox="0 0 16 22" fill="none">
-        <path d="M8 1C4.13 1 1 4.13 1 8C1 13.25 8 21 8 21C8 21 15 13.25 15 8C15 4.13 11.87 1 8 1Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        <circle cx="8" cy="8" r="2.8" stroke={color} strokeWidth="1.8"/>
+        <path d="M8 1C4.13 1 1 4.13 1 8C1 13.25 8 21 8 21C8 21 15 13.25 15 8C15 4.13 11.87 1 8 1Z" fill={color}/>
+        <circle cx="8" cy="8" r="3" fill="rgba(0,0,0,0.25)"/>
+        <circle cx="8" cy="8" r="1.5" fill="rgba(255,255,255,0.55)"/>
       </svg>
     );
-    default: return ( // car
-      <svg width="20" height="28" viewBox="0 0 20 28" fill="none">
-        <rect x="0.5" y="6" width="4.5" height="7.5" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="15" y="6" width="4.5" height="7.5" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="0.5" y="16.5" width="4.5" height="7.5" rx="2" stroke={color} strokeWidth={swSm}/>
-        <rect x="15" y="16.5" width="4.5" height="7.5" rx="2" stroke={color} strokeWidth={swSm}/>
-        <path d="M5 5 Q5 2.5 10 2 Q15 2.5 15 5 L15 23 Q15 25.5 10 26 Q5 25.5 5 23 Z" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M6 5.5 Q6.5 3.5 10 3 Q13.5 3.5 14 5.5 L14.5 9 L5.5 9 Z" stroke={color} strokeWidth={swSm} strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M6 22 Q6.5 24.5 10 25 Q13.5 24.5 14 22 L14.5 18.5 L5.5 18.5 Z" stroke={color} strokeWidth={swSm} strokeLinecap="round" strokeLinejoin="round"/>
+    default: return ( // car — iOPGPS: rounded body, windshields, side mirrors, no wheels
+      <svg width="18" height="26" viewBox="0 0 18 26" fill="none">
+        <path d="M3.5 5 Q3.5 2.5 9 2 Q14.5 2.5 14.5 5 L14.5 22 Q14.5 24.5 9 25 Q3.5 24.5 3.5 22 Z" fill={color}/>
+        <path d="M5 5.5 Q5.5 3.5 9 3 Q12.5 3.5 13 5.5 L13.5 9.5 L4.5 9.5 Z" fill={ws}/>
+        <path d="M5 20.5 Q5.5 23 9 23.5 Q12.5 23 13 20.5 L13.5 17 L4.5 17 Z" fill={ws}/>
+        <rect x="0.5" y="6.5" width="3.5" height="5.5" rx="1.2" fill={color}/>
+        <rect x="14" y="6.5" width="3.5" height="5.5" rx="1.2" fill={color}/>
       </svg>
     );
   }

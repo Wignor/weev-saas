@@ -23,90 +23,81 @@ function getMarkerColor(device: TraccarDevice, position?: TraccarPosition): stri
 
 function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'car', name = ''): string {
   const shadow = isSelected
-    ? 'drop-shadow(0 0 8px rgba(0,122,255,0.85)) drop-shadow(0 3px 10px rgba(0,0,0,0.7))'
-    : 'drop-shadow(0 3px 8px rgba(0,0,0,0.75))';
+    ? 'drop-shadow(0 0 8px rgba(0,122,255,0.9)) drop-shadow(0 3px 10px rgba(0,0,0,0.8))'
+    : 'drop-shadow(0 3px 8px rgba(0,0,0,0.8))';
   const safeName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const label = safeName ? `<div style="margin-top:3px;background:rgba(0,0,0,0.75);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;text-align:center;pointer-events:none;letter-spacing:0.02em">${safeName}</div>` : '';
+  const label = safeName ? `<div style="margin-top:3px;background:rgba(0,0,0,0.78);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;text-align:center;pointer-events:none">${safeName}</div>` : '';
 
-  const dk = 'rgba(0,0,0,0.32)';   // dark overlay for windshields
-  const wh = 'rgba(0,0,0,0.55)';   // wheels
-  const sel = isSelected ? `stroke="white" stroke-width="2"` : '';
-  const sc = isSelected ? 1.25 : 1;
+  const ws  = 'rgba(0,0,0,0.28)'; // windshield tint
+  const sel = isSelected ? `stroke="white" stroke-width="2.5"` : '';
+  const sc  = isSelected ? 1.3 : 1;
 
-  let svgW: number, svgH: number, svgContent: string;
+  let vw: number, vh: number, shapes: string;
 
   switch (vehicleType) {
     case 'motorcycle':
-      svgW = Math.round(18 * sc); svgH = Math.round(46 * sc);
-      svgContent = `
-        <ellipse cx="9" cy="9" rx="8" ry="7" fill="${color}" ${sel}/>
-        <ellipse cx="9" cy="9" rx="4" ry="3.5" fill="${dk}"/>
-        <rect x="6.5" y="15" width="5" height="16" rx="2.5" fill="${color}"/>
-        <ellipse cx="9" cy="37" rx="8" ry="7" fill="${color}" ${sel}/>
-        <ellipse cx="9" cy="37" rx="4" ry="3.5" fill="${dk}"/>
-        <path d="M1 8 H17" stroke="${color}" stroke-width="3.5" stroke-linecap="round"/>`;
+      vw = 20; vh = 48;
+      shapes = `
+        <ellipse cx="10" cy="9"  rx="9" ry="8"  fill="${color}" ${sel}/>
+        <ellipse cx="10" cy="9"  rx="4" ry="3.5" fill="${ws}"/>
+        <rect    x="7"   y="16" width="6" height="16" rx="3" fill="${color}"/>
+        <ellipse cx="10" cy="39" rx="9" ry="8"  fill="${color}" ${sel}/>
+        <ellipse cx="10" cy="39" rx="4" ry="3.5" fill="${ws}"/>
+        <path d="M1 8 H19" stroke="${color}" stroke-width="4" stroke-linecap="round"/>`;
       break;
     case 'truck':
-      svgW = Math.round(30 * sc); svgH = Math.round(54 * sc);
-      svgContent = `
-        <rect x="0" y="5" width="6" height="11" rx="2.5" fill="${wh}"/>
-        <rect x="24" y="5" width="6" height="11" rx="2.5" fill="${wh}"/>
-        <rect x="0" y="27" width="6" height="11" rx="2.5" fill="${wh}"/>
-        <rect x="24" y="27" width="6" height="11" rx="2.5" fill="${wh}"/>
-        <rect x="0" y="40" width="6" height="11" rx="2.5" fill="${wh}"/>
-        <rect x="24" y="40" width="6" height="11" rx="2.5" fill="${wh}"/>
-        <rect x="6" y="2" width="18" height="17" rx="3.5" fill="${color}" ${sel}/>
-        <rect x="8" y="4" width="14" height="11" rx="2" fill="${dk}"/>
-        <rect x="6" y="22" width="18" height="32" rx="2.5" fill="${color}" ${sel}/>`;
+      vw = 28; vh = 54;
+      shapes = `
+        <path d="M5 4 Q5 2 14 1.5 Q23 2 23 4 L23 17 Q23 19 14 19.5 Q5 19 5 17 Z" fill="${color}" ${sel}/>
+        <path d="M7 4.5 Q7.5 2.5 14 2 Q20.5 2.5 21 4.5 L21.5 9 L6.5 9 Z" fill="${ws}"/>
+        <rect x="0.5" y="5.5" width="5.5" height="9"  rx="2" fill="${color}"/>
+        <rect x="22"  y="5.5" width="5.5" height="9"  rx="2" fill="${color}"/>
+        <rect x="5"   y="21"  width="18"  height="33" rx="2.5" fill="${color}" ${sel}/>`;
       break;
     case 'bus':
-      svgW = Math.round(26 * sc); svgH = Math.round(60 * sc);
-      svgContent = `
-        <rect x="0" y="8" width="5" height="13" rx="2.5" fill="${wh}"/>
-        <rect x="21" y="8" width="5" height="13" rx="2.5" fill="${wh}"/>
-        <rect x="0" y="40" width="5" height="13" rx="2.5" fill="${wh}"/>
-        <rect x="21" y="40" width="5" height="13" rx="2.5" fill="${wh}"/>
-        <rect x="5" y="1" width="16" height="58" rx="5" fill="${color}" ${sel}/>
-        <rect x="7" y="6" width="5" height="5" rx="1.5" fill="${dk}"/>
-        <rect x="14" y="6" width="5" height="5" rx="1.5" fill="${dk}"/>
-        <rect x="7" y="15" width="5" height="5" rx="1.5" fill="${dk}"/>
-        <rect x="14" y="15" width="5" height="5" rx="1.5" fill="${dk}"/>
-        <rect x="7" y="24" width="5" height="5" rx="1.5" fill="${dk}"/>
-        <rect x="14" y="24" width="5" height="5" rx="1.5" fill="${dk}"/>`;
+      vw = 24; vh = 60;
+      shapes = `
+        <rect x="3" y="1" width="18" height="58" rx="5" fill="${color}" ${sel}/>
+        <path d="M5 2 Q5.5 1.2 12 1 Q18.5 1.2 19 2 L19 8 L5 8 Z" fill="${ws}"/>
+        <rect x="5"  y="12" width="6" height="5" rx="1.5" fill="${ws}"/>
+        <rect x="13" y="12" width="6" height="5" rx="1.5" fill="${ws}"/>
+        <rect x="5"  y="21" width="6" height="5" rx="1.5" fill="${ws}"/>
+        <rect x="13" y="21" width="6" height="5" rx="1.5" fill="${ws}"/>
+        <path d="M5 52 Q5.5 59 12 59.5 Q18.5 59 19 52 L19 49 L5 49 Z" fill="${ws}"/>
+        <rect x="0"  y="5"  width="4.5" height="8" rx="1.8" fill="${color}"/>
+        <rect x="19.5" y="5" width="4.5" height="8" rx="1.8" fill="${color}"/>`;
       break;
     case 'pickup':
-      svgW = Math.round(30 * sc); svgH = Math.round(52 * sc);
-      svgContent = `
-        <rect x="0" y="4" width="6" height="13" rx="2.5" fill="${wh}"/>
-        <rect x="24" y="4" width="6" height="13" rx="2.5" fill="${wh}"/>
-        <rect x="0" y="34" width="6" height="13" rx="2.5" fill="${wh}"/>
-        <rect x="24" y="34" width="6" height="13" rx="2.5" fill="${wh}"/>
-        <rect x="6" y="1" width="18" height="24" rx="3.5" fill="${color}" ${sel}/>
-        <rect x="8" y="3" width="14" height="18" rx="2" fill="${dk}"/>
-        <rect x="6" y="28" width="18" height="24" rx="2.5" fill="${color}" ${sel}/>`;
+      vw = 28; vh = 52;
+      shapes = `
+        <path d="M5 4 Q5 2 14 1.5 Q23 2 23 4 L23 19 Q23 21 14 21.5 Q5 21 5 19 Z" fill="${color}" ${sel}/>
+        <path d="M7 4.5 Q7.5 2.5 14 2 Q20.5 2.5 21 4.5 L21.5 9.5 L6.5 9.5 Z" fill="${ws}"/>
+        <rect x="0.5" y="5.5" width="5.5" height="10" rx="2" fill="${color}"/>
+        <rect x="22"  y="5.5" width="5.5" height="10" rx="2" fill="${color}"/>
+        <rect x="5"   y="23"  width="18"  height="29" rx="2" fill="${color}" ${sel}/>`;
       break;
     case 'universal':
-      svgW = Math.round(30 * sc); svgH = Math.round(42 * sc);
-      svgContent = `
-        <path d="M15 1C8.37 1 3 6.37 3 13C3 22.5 15 41 15 41C15 41 27 22.5 27 13C27 6.37 21.63 1 15 1Z" fill="${color}" stroke="white" stroke-width="1.8" ${sel}/>
-        <circle cx="15" cy="13" r="5.5" fill="white" opacity="0.35"/>
-        <circle cx="15" cy="13" r="2.8" fill="white" opacity="0.75"/>`;
+      vw = 28; vh = 40;
+      shapes = `
+        <path d="M14 1C7.37 1 2 6.37 2 13C2 22.5 14 39 14 39C14 39 26 22.5 26 13C26 6.37 20.63 1 14 1Z" fill="${color}" stroke="white" stroke-width="1.8"/>
+        <circle cx="14" cy="13" r="5.5" fill="white" opacity="0.3"/>
+        <circle cx="14" cy="13" r="2.8" fill="white" opacity="0.7"/>`;
       break;
-    default: // car
-      svgW = Math.round(30 * sc); svgH = Math.round(50 * sc);
-      svgContent = `
-        <rect x="0" y="10" width="6" height="12" rx="2.5" fill="${wh}"/>
-        <rect x="24" y="10" width="6" height="12" rx="2.5" fill="${wh}"/>
-        <rect x="0" y="30" width="6" height="12" rx="2.5" fill="${wh}"/>
-        <rect x="24" y="30" width="6" height="12" rx="2.5" fill="${wh}"/>
-        <path d="M6 10 Q6 7 15 6 Q24 7 24 10 L24.5 18 L24.5 36 L24 40 Q24 44 15 44.5 Q6 44 6 40 L5.5 36 L5.5 18 Z" fill="${color}" ${sel}/>
-        <path d="M7.5 11 Q8 8.5 15 8 Q22 8.5 22.5 11 L23 17 L7 17 Z" fill="${dk}"/>
-        <path d="M7.5 39 Q8 41.5 15 42 Q22 41.5 22.5 39 L23 34 L7 34 Z" fill="${dk}"/>`;
+    default: // car — iOPGPS style: rounded body, windshields, side mirrors, no wheels
+      vw = 28; vh = 50;
+      shapes = `
+        <path d="M5 8 Q5 5 14 4.5 Q23 5 23 8 L23 43 Q23 47 14 47.5 Q5 47 5 43 Z" fill="${color}" ${sel}/>
+        <path d="M7 8.5 Q7.5 5.5 14 5 Q20.5 5.5 21 8.5 L21.5 16 L6.5 16 Z" fill="${ws}"/>
+        <path d="M7 41.5 Q7.5 46 14 46.5 Q20.5 46 21 41.5 L21.5 35 L6.5 35 Z" fill="${ws}"/>
+        <rect x="0.5" y="10" width="5.5" height="10" rx="2" fill="${color}"/>
+        <rect x="22"  y="10" width="5.5" height="10" rx="2" fill="${color}"/>`;
   }
 
+  const svgW = Math.round(vw * sc);
+  const svgH = Math.round(vh * sc);
   return `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto">
-    <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${Math.round(svgW/sc)} ${Math.round(svgH/sc)}" fill="none" style="filter:${shadow}">
-      ${svgContent}
+    <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${vw} ${vh}" fill="none" style="filter:${shadow}">
+      ${shapes}
     </svg>
     ${label}
   </div>`;
@@ -234,12 +225,12 @@ export default function VehicleMap({
       const color = getMarkerColor(device, pos);
       const isSelected = selectedDeviceId === device.id;
       const vType = vehiclePrefs[device.id] || 'car';
-      const iw = isSelected ? 38 : 30;
-      const ih = isSelected ? 62 : 50;
+      const iw = isSelected ? 37 : 28;
+      const ih = isSelected ? 65 : 50;
       const icon = L.divIcon({
         html: createVehicleIcon(color, isSelected, vType, device.name),
         className: '',
-        iconSize: [iw, ih + 20],
+        iconSize: [iw, ih + 18],
         iconAnchor: [iw / 2, ih / 2],
       });
 
