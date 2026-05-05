@@ -1,12 +1,14 @@
 ﻿'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import ContratoModal from '@/components/ContratoModal';
 import FaturaModal from '@/components/FaturaModal';
 import ConfigModal from '@/components/ConfigModal';
 import GeofenceSection from '@/components/GeofenceSection';
+
+const BarcodeScanner = lazy(() => import('@/components/BarcodeScanner'));
 
 type UserRole = 'monitor' | 'usuario' | 'distribuidor' | 'distribuidor_geral';
 interface TUser {
@@ -46,6 +48,7 @@ export default function GestaoPage() {
   const [showCreateDevice, setShowCreateDevice] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', phone: '', cpfCnpj: '', role: 'usuario' as UserRole });
   const [newDevice, setNewDevice] = useState({ name: '', uniqueId: '', modelo: '', iccid: '', chip: '' });
+  const [showScanner, setShowScanner] = useState(false);
   const [creating, setCreating] = useState(false);
   const [creatingDevice, setCreatingDevice] = useState(false);
   const [msg, setMsg] = useState('');
@@ -1146,16 +1149,32 @@ export default function GestaoPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium t-text-lo mb-1.5">IMEI / ID único do aparelho</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="Ex: 355488062098989"
-                  value={newDevice.uniqueId}
-                  onChange={e => setNewDevice(prev => ({ ...prev, uniqueId: e.target.value.replace(/\s/g, '') }))}
-                  className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none font-mono tracking-wide"
-                  style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
-                />
-                <p className="text-xs t-text-lo mt-1.5">📦 Consulte a etiqueta ou embalagem do aparelho</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Ex: 355488062098989"
+                    value={newDevice.uniqueId}
+                    onChange={e => setNewDevice(prev => ({ ...prev, uniqueId: e.target.value.replace(/\s/g, '') }))}
+                    className="flex-1 rounded-xl px-4 py-3 text-sm focus:outline-none font-mono tracking-wide"
+                    style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowScanner(true)}
+                    title="Escanear código de barras"
+                    className="flex-shrink-0 flex items-center justify-center rounded-xl px-3"
+                    style={{ background: 'var(--bg-page)', border: '1px solid var(--bg-border)', color: '#007AFF', cursor: 'pointer' }}
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+                      <path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                      <line x1="7" y1="12" x2="7" y2="12"/><line x1="12" y1="12" x2="17" y2="12"/>
+                      <line x1="12" y1="7" x2="12" y2="17"/>
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-xs t-text-lo mt-1.5">📦 Etiqueta do aparelho — ou toque no ícone para escanear</p>
               </div>
               <div>
                 <label className="block text-xs font-medium t-text-lo mb-1.5">Modelo do aparelho</label>
@@ -1376,6 +1395,15 @@ export default function GestaoPage() {
       )}
 
       <BottomNav />
+
+      {showScanner && (
+        <Suspense fallback={null}>
+          <BarcodeScanner
+            onScan={v => { setNewDevice(prev => ({ ...prev, uniqueId: v })); setShowScanner(false); }}
+            onClose={() => setShowScanner(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
