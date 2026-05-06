@@ -81,6 +81,9 @@ function toggleTheme() {
 const S_COLOR: Record<DeviceStatus, string> = {
   movendo: '#34C759', parado: '#007AFF', offline: '#6B7280', expirado: '#FF3B30',
 };
+const S_ORDER: Record<DeviceStatus, number> = {
+  movendo: 0, parado: 1, offline: 2, expirado: 3,
+};
 const S_BG: Record<DeviceStatus, string> = {
   movendo: 'rgba(52,199,89,0.15)', parado: 'rgba(0,122,255,0.15)',
   offline: 'rgba(107,114,128,0.15)', expirado: 'rgba(255,59,48,0.15)',
@@ -977,6 +980,13 @@ export default function DashboardPage() {
     if (filter === 'expirando' && st !== 'expirado') return false;
     if (search && !d.name.toLowerCase().includes(search.toLowerCase()) && !d.uniqueId.includes(search)) return false;
     return true;
+  }).sort((a, b) => {
+    const sa = getEffectiveStatus(a, posMap[a.id]);
+    const sb = getEffectiveStatus(b, posMap[b.id]);
+    if (sa !== sb) return S_ORDER[sa] - S_ORDER[sb];
+    const ta = a.lastUpdate ? new Date(a.lastUpdate).getTime() : 0;
+    const tb = b.lastUpdate ? new Date(b.lastUpdate).getTime() : 0;
+    return tb - ta;
   });
 
   const filterTabs: { key: typeof filter; label: string; count: number }[] = [

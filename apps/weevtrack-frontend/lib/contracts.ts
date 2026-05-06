@@ -142,7 +142,11 @@ Cláusula 4 – DO PRAZO E FIDELIDADE
 
 4.1 – O presente contrato tem prazo mínimo de fidelidade de 6 (seis) meses, contados da data de instalação e ativação do equipamento, renovando-se automaticamente por iguais períodos, salvo notificação de rescisão com antecedência mínima de 30 (trinta) dias do vencimento.
 
-4.2 – Em caso de rescisão antecipada pelo CONTRATANTE dentro do prazo mínimo de fidelidade, será devida multa compensatória equivalente a 50% (cinquenta por cento) das mensalidades restantes até o término do período de fidelidade, sem prejuízo da obrigação de devolução do equipamento.
+4.2 – Em caso de rescisão antecipada pelo CONTRATANTE dentro do prazo mínimo de fidelidade de 6 (seis) meses, serão devidas cumulativamente:
+
+a) Todas as mensalidades restantes até o término do período de carência, contadas a partir do mês seguinte ao da rescisão. Exemplo: rescisão no 2º mês implica o pagamento de 4 (quatro) mensalidades remanescentes;
+
+b) Taxa de desinstalação do equipamento, cobrada por aparelho retirado: R$ 100,00 (cem reais) por veículo para Pessoa Física com menos de 4 (quatro) veículos monitorados; ou R$ 85,00 (oitenta e cinco reais) por veículo para Pessoa Jurídica com 4 (quatro) ou mais veículos monitorados.
 
 4.3 – A rescisão imotivada por iniciativa da CONTRATADA, fora dos casos de inadimplência, não ensejará cobrança de multa ao CONTRATANTE.
 
