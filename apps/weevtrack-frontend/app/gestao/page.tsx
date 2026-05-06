@@ -1066,7 +1066,7 @@ export default function GestaoPage() {
 
       {/* Modal: Novo cliente */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-end"
+        <div className="fixed inset-0 z-[250] flex items-end"
           style={{ background: 'rgba(0,0,0,0.6)' }}
           onClick={() => setShowCreate(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
@@ -1126,7 +1126,7 @@ export default function GestaoPage() {
 
       {/* Modal: Novo dispositivo */}
       {showCreateDevice && (
-        <div className="fixed inset-0 z-50 flex items-end"
+        <div className="fixed inset-0 z-[250] flex items-end"
           style={{ background: 'rgba(0,0,0,0.6)' }}
           onClick={() => setShowCreateDevice(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
@@ -1236,7 +1236,7 @@ export default function GestaoPage() {
 
       {/* Modal: Perfil do cliente */}
       {profileUser && (
-        <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center"
+        <div className="fixed inset-0 z-[250] flex items-end md:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) setProfileUser(null); }}>
           <div className="w-full max-w-sm rounded-t-2xl md:rounded-2xl overflow-hidden slide-up"

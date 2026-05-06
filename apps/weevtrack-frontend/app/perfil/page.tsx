@@ -331,7 +331,7 @@ export default function PerfilPage() {
 
       {/* Modal: Alterar senha */}
       {showPwModal && (
-        <div className="fixed inset-0 z-50 flex items-end"
+        <div className="fixed inset-0 z-[250] flex items-end"
           style={{ background: 'rgba(0,0,0,0.6)' }}
           onClick={() => setShowPwModal(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
