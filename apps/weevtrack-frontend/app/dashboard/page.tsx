@@ -1024,7 +1024,7 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth, transition: 'padding-left 0.2s ease' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth }}>
       {/* ── Header ── */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14 z-20"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>

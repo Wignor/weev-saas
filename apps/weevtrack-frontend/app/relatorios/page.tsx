@@ -194,7 +194,7 @@ export default function RelatoriosPage() {
   const deviceName = devices.find(d => d.id === selectedDevice)?.name;
 
   return (
-    <div className="flex flex-col" style={{ minHeight: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth, transition: 'padding-left 0.2s ease' }}>
+    <div className="flex flex-col" style={{ minHeight: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth }}>
       {/* Header */}
       <header className="flex-shrink-0 flex items-center px-4 h-14 gap-3"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>

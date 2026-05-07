@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import ContratoModal from '@/components/ContratoModal';
 import { useNavWidth } from '@/hooks/useNavWidth';
-import Portal from '@/components/Portal';
 import GeofenceSection from '@/components/GeofenceSection';
 
 type TClient = { id: number; name: string; email: string; phone?: string; };
@@ -309,7 +308,7 @@ export default function DistribuidorPage() {
   ) : null;
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth, transition: 'padding-left 0.2s ease' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth }}>
 
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14"
@@ -516,7 +515,6 @@ export default function DistribuidorPage() {
 
       {/* Modal criar cliente */}
       {showCreate && (
-        <Portal>
         <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
           onClick={e => { if (e.target === e.currentTarget) setShowCreate(false); }}>
           <div className="w-full max-w-lg rounded-t-2xl overflow-hidden"
@@ -561,7 +559,6 @@ export default function DistribuidorPage() {
             </div>
           </div>
         </div>
-        </Portal>
       )}
 
       {contratoUser && (

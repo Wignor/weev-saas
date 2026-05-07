@@ -108,7 +108,7 @@ export default function DesktopNav() {
       style={{
         position: 'fixed', left: 0, top: 0, bottom: 0, width: W,
         background: 'var(--bg-card)', borderRight: '1px solid var(--bg-border)',
-        zIndex: 200, transition: 'width 0.2s ease', overflow: 'hidden', flexShrink: 0,
+        zIndex: 50, transition: 'width 0.2s ease', overflow: 'hidden', flexShrink: 0,
       }}
     >
       {/* Logo */}

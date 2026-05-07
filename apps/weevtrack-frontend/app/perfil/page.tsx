@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import { useNavWidth } from '@/hooks/useNavWidth';
-import Portal from '@/components/Portal';
 
 interface Invoice {
   id: string;
@@ -143,7 +142,7 @@ export default function PerfilPage() {
   }
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth, transition: 'padding-left 0.2s ease' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth }}>
       {/* Header */}
       <header className="flex-shrink-0 flex items-center px-4 h-14 gap-3"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
@@ -334,7 +333,6 @@ export default function PerfilPage() {
 
       {/* Modal: Alterar senha */}
       {showPwModal && (
-        <Portal>
         <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
           onClick={() => setShowPwModal(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-24 slide-up"
@@ -374,7 +372,6 @@ export default function PerfilPage() {
             </div>
           </div>
         </div>
-        </Portal>
       )}
     </div>
   );
