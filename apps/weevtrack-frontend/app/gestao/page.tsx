@@ -1066,8 +1066,8 @@ export default function GestaoPage() {
 
       {/* Modal: Novo cliente */}
       {showCreate && (
-        <div className="fixed inset-0 z-[250] flex items-end"
-          style={{ background: 'rgba(0,0,0,0.6)' }}
+        <div className="fixed inset-0 flex items-end"
+          style={{ background: 'rgba(0,0,0,0.6)', zIndex: 250 }}
           onClick={() => setShowCreate(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -1126,8 +1126,8 @@ export default function GestaoPage() {
 
       {/* Modal: Novo dispositivo */}
       {showCreateDevice && (
-        <div className="fixed inset-0 z-[250] flex items-end"
-          style={{ background: 'rgba(0,0,0,0.6)' }}
+        <div className="fixed inset-0 flex items-end"
+          style={{ background: 'rgba(0,0,0,0.6)', zIndex: 250 }}
           onClick={() => setShowCreateDevice(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -1236,8 +1236,8 @@ export default function GestaoPage() {
 
       {/* Modal: Perfil do cliente */}
       {profileUser && (
-        <div className="fixed inset-0 z-[250] flex items-end md:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+        <div className="fixed inset-0 flex items-end md:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 250 }}
           onClick={e => { if (e.target === e.currentTarget) setProfileUser(null); }}>
           <div className="w-full max-w-sm rounded-t-2xl md:rounded-2xl overflow-hidden slide-up"
             style={{ background: 'var(--bg-card)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>

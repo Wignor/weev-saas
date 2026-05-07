@@ -513,8 +513,8 @@ export default function DistribuidorPage() {
 
       {/* Modal criar cliente */}
       {showCreate && (
-        <div className="fixed inset-0 z-[250] flex items-end justify-center"
-          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+        <div className="fixed inset-0 flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', zIndex: 250 }}
           onClick={e => { if (e.target === e.currentTarget) setShowCreate(false); }}>
           <div className="w-full max-w-lg rounded-t-2xl overflow-hidden"
             style={{ background: 'var(--bg-card)', maxHeight: '90vh', overflowY: 'auto' }}>
