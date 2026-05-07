@@ -95,6 +95,17 @@ input, select, textarea { color-scheme: dark; }
   body.nav-collapsed .sidebar-offset { padding-left: 64px; }
 }
 
+/* Modal overlay respects sidebar — left edge follows sidebar width */
+.modal-overlay {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 50;
+}
+@media (min-width: 768px) {
+  body:not(.nav-collapsed) .modal-overlay { left: 220px; }
+  body.nav-collapsed .modal-overlay { left: 64px; }
+}
+
 /* Pull-to-refresh indicator */
 .ptr-indicator {
   display: flex; align-items: center; justify-content: center;

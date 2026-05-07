@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
-import Portal from '@/components/Portal';
 
 interface Invoice {
   id: string;
@@ -332,9 +331,8 @@ export default function PerfilPage() {
 
       {/* Modal: Alterar senha */}
       {showPwModal && (
-        <Portal>
-        <div className="fixed inset-0 flex items-end"
-          style={{ background: 'rgba(0,0,0,0.6)', zIndex: 250 }}
+        <div className="modal-overlay flex items-end"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
           onClick={() => setShowPwModal(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -373,7 +371,6 @@ export default function PerfilPage() {
             </div>
           </div>
         </div>
-        </Portal>
       )}
     </div>
   );

@@ -7,7 +7,6 @@ import ContratoModal from '@/components/ContratoModal';
 import FaturaModal from '@/components/FaturaModal';
 import ConfigModal from '@/components/ConfigModal';
 import GeofenceSection from '@/components/GeofenceSection';
-import Portal from '@/components/Portal';
 
 const BarcodeScanner = lazy(() => import('@/components/BarcodeScanner'));
 
@@ -1067,9 +1066,8 @@ export default function GestaoPage() {
 
       {/* Modal: Novo cliente */}
       {showCreate && (
-        <Portal>
-        <div className="fixed inset-0 flex items-end"
-          style={{ background: 'rgba(0,0,0,0.6)', zIndex: 250 }}
+        <div className="modal-overlay flex items-end"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
           onClick={() => setShowCreate(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -1124,14 +1122,12 @@ export default function GestaoPage() {
             </div>
           </div>
         </div>
-        </Portal>
       )}
 
       {/* Modal: Novo dispositivo */}
       {showCreateDevice && (
-        <Portal>
-        <div className="fixed inset-0 flex items-end"
-          style={{ background: 'rgba(0,0,0,0.6)', zIndex: 250 }}
+        <div className="modal-overlay flex items-end"
+          style={{ background: 'rgba(0,0,0,0.6)' }}
           onClick={() => setShowCreateDevice(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -1224,7 +1220,6 @@ export default function GestaoPage() {
             </div>
           </div>
         </div>
-        </Portal>
       )}
 
       {contratoModalUser && (
@@ -1241,9 +1236,8 @@ export default function GestaoPage() {
 
       {/* Modal: Perfil do cliente */}
       {profileUser && (
-        <Portal>
-        <div className="fixed inset-0 flex items-end md:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 250 }}
+        <div className="modal-overlay flex items-end md:items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) setProfileUser(null); }}>
           <div className="w-full max-w-sm rounded-t-2xl md:rounded-2xl overflow-hidden slide-up"
             style={{ background: 'var(--bg-card)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
@@ -1398,7 +1392,6 @@ export default function GestaoPage() {
             </div>
           </div>
         </div>
-        </Portal>
       )}
 
       <BottomNav />
