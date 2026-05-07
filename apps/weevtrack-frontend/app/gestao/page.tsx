@@ -8,6 +8,7 @@ import FaturaModal from '@/components/FaturaModal';
 import ConfigModal from '@/components/ConfigModal';
 import GeofenceSection from '@/components/GeofenceSection';
 import { useNavWidth } from '@/hooks/useNavWidth';
+import Portal from '@/components/Portal';
 
 const BarcodeScanner = lazy(() => import('@/components/BarcodeScanner'));
 
@@ -1068,7 +1069,8 @@ export default function GestaoPage() {
 
       {/* Modal: Novo cliente */}
       {showCreate && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 50, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
+        <Portal>
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
           onClick={() => setShowCreate(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -1123,11 +1125,13 @@ export default function GestaoPage() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
 
       {/* Modal: Novo dispositivo */}
       {showCreateDevice && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 50, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
+        <Portal>
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
           onClick={() => setShowCreateDevice(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -1220,6 +1224,7 @@ export default function GestaoPage() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
 
       {contratoModalUser && (
@@ -1236,7 +1241,8 @@ export default function GestaoPage() {
 
       {/* Modal: Perfil do cliente */}
       {profileUser && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 50, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+        <Portal>
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 9999, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
           onClick={e => { if (e.target === e.currentTarget) setProfileUser(null); }}>
           <div className="w-full max-w-sm rounded-t-2xl md:rounded-2xl overflow-hidden slide-up"
             style={{ background: 'var(--bg-card)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
@@ -1319,6 +1325,7 @@ export default function GestaoPage() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
 
       {showUsersModal && (

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import { useNavWidth } from '@/hooks/useNavWidth';
+import Portal from '@/components/Portal';
 
 interface Invoice {
   id: string;
@@ -333,7 +334,8 @@ export default function PerfilPage() {
 
       {/* Modal: Alterar senha */}
       {showPwModal && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 50, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
+        <Portal>
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
           onClick={() => setShowPwModal(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -372,6 +374,7 @@ export default function PerfilPage() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </div>
   );
