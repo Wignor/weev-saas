@@ -8,6 +8,7 @@ import GeofenceModal from '@/components/GeofenceModal';
 import FaturaModal from '@/components/FaturaModal';
 import ContratoModal from '@/components/ContratoModal';
 import { TraccarDevice, TraccarPosition, knotsToKmh } from '@/lib/traccar';
+import { useNavWidth } from '@/hooks/useNavWidth';
 
 const VehicleMap = dynamic(() => import('@/components/Map'), {
   ssr: false,
@@ -817,6 +818,7 @@ type UserEntry = { id: number; name: string; email: string; phone?: string; attr
 
 /* ── Main page ── */
 export default function DashboardPage() {
+  const navWidth = useNavWidth();
   const [asUser, setAsUser] = useState<string | null>(null);
   const [asUserName, setAsUserName] = useState<string | null>(null);
   const [devices, setDevices] = useState<TraccarDevice[]>([]);
@@ -1022,7 +1024,7 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="flex flex-col sidebar-offset" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth, transition: 'padding-left 0.2s ease' }}>
       {/* ── Header ── */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14 z-20"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>

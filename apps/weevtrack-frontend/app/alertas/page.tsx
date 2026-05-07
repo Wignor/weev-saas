@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import BottomNav from '@/components/BottomNav';
+import { useNavWidth } from '@/hooks/useNavWidth';
 
 interface AlertEntry {
   id: number;
@@ -80,6 +81,7 @@ function toggleTheme() {
 }
 
 export default function AlertasPage() {
+  const navWidth = useNavWidth();
   const [tab, setTab] = useState<'sistema' | 'traccar'>('sistema');
   const [date, setDate] = useState(todayStr());
 
@@ -166,7 +168,7 @@ export default function AlertasPage() {
   });
 
   return (
-    <div className="flex flex-col sidebar-offset" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth, transition: 'padding-left 0.2s ease' }}>
 
       {/* Header */}
       <header className="flex-shrink-0 flex items-center px-4 h-14 gap-3"

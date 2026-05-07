@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
+import { useNavWidth } from '@/hooks/useNavWidth';
 import { TraccarDevice, TraccarPosition, knotsToKmh } from '@/lib/traccar';
 import type { Stop } from '@/components/HistoricoMap';
 
@@ -89,6 +90,7 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
 }
 
 function HistoricoContent() {
+  const navWidth = useNavWidth();
   const searchParams = useSearchParams();
   const [devices, setDevices] = useState<TraccarDevice[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>('');
@@ -261,7 +263,7 @@ function HistoricoContent() {
   const totalParkSec = stops.reduce((sum, s) => sum + s.durationSeconds, 0);
 
   return (
-    <div className="flex flex-col sidebar-offset" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth, transition: 'padding-left 0.2s ease' }}>
       {/* Header */}
       <header className="flex-shrink-0 flex items-center px-4 h-14 gap-3"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>

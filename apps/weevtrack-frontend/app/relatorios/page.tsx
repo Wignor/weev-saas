@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import BottomNav from '@/components/BottomNav';
+import { useNavWidth } from '@/hooks/useNavWidth';
 import { knotsToKmh } from '@/lib/traccar';
 
 interface Device { id: number; name: string; }
@@ -65,6 +66,7 @@ const REPORT_TYPES: { key: ReportType; label: string; icon: string; desc: string
 ];
 
 export default function RelatoriosPage() {
+  const navWidth = useNavWidth();
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<number | null>(null);
   const [reportType, setReportType] = useState<ReportType>('summary');
@@ -192,7 +194,7 @@ export default function RelatoriosPage() {
   const deviceName = devices.find(d => d.id === selectedDevice)?.name;
 
   return (
-    <div className="flex flex-col sidebar-offset" style={{ minHeight: '100dvh', background: 'var(--bg-page)' }}>
+    <div className="flex flex-col" style={{ minHeight: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth, transition: 'padding-left 0.2s ease' }}>
       {/* Header */}
       <header className="flex-shrink-0 flex items-center px-4 h-14 gap-3"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>

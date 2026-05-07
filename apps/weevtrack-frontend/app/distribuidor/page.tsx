@@ -309,7 +309,7 @@ export default function DistribuidorPage() {
   ) : null;
 
   return (
-    <div className="sidebar-offset flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth, transition: 'padding-left 0.2s ease' }}>
 
       {/* Header */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14"
@@ -517,7 +517,7 @@ export default function DistribuidorPage() {
       {/* Modal criar cliente */}
       {showCreate && (
         <Portal>
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
           onClick={e => { if (e.target === e.currentTarget) setShowCreate(false); }}>
           <div className="w-full max-w-lg rounded-t-2xl overflow-hidden"
             style={{ background: 'var(--bg-card)', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -532,7 +532,7 @@ export default function DistribuidorPage() {
                 </svg>
               </button>
             </div>
-            <div className="p-5 space-y-4">
+            <div className="p-5 pb-24 space-y-4">
               {[
                 { label: 'Nome completo *', key: 'name', type: 'text', placeholder: 'João Silva' },
                 { label: 'E-mail *', key: 'email', type: 'email', placeholder: 'joao@email.com' },
