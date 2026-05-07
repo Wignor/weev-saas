@@ -7,6 +7,7 @@ import ContratoModal from '@/components/ContratoModal';
 import FaturaModal from '@/components/FaturaModal';
 import ConfigModal from '@/components/ConfigModal';
 import GeofenceSection from '@/components/GeofenceSection';
+import { useNavWidth } from '@/hooks/useNavWidth';
 
 const BarcodeScanner = lazy(() => import('@/components/BarcodeScanner'));
 
@@ -37,6 +38,7 @@ function toggleTheme() {
 
 export default function GestaoPage() {
   const router = useRouter();
+  const navWidth = useNavWidth();
   const [activeTab, setActiveTab] = useState<'clientes' | 'dispositivos'>('clientes');
   const [users, setUsers] = useState<TUser[]>([]);
   const [allDevices, setAllDevices] = useState<TDevice[]>([]);
@@ -1066,8 +1068,7 @@ export default function GestaoPage() {
 
       {/* Modal: Novo cliente */}
       {showCreate && (
-        <div className="modal-overlay flex items-end"
-          style={{ background: 'rgba(0,0,0,0.6)' }}
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 50, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
           onClick={() => setShowCreate(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -1126,8 +1127,7 @@ export default function GestaoPage() {
 
       {/* Modal: Novo dispositivo */}
       {showCreateDevice && (
-        <div className="modal-overlay flex items-end"
-          style={{ background: 'rgba(0,0,0,0.6)' }}
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 50, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
           onClick={() => setShowCreateDevice(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -1236,8 +1236,7 @@ export default function GestaoPage() {
 
       {/* Modal: Perfil do cliente */}
       {profileUser && (
-        <div className="modal-overlay flex items-end md:items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 50, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
           onClick={e => { if (e.target === e.currentTarget) setProfileUser(null); }}>
           <div className="w-full max-w-sm rounded-t-2xl md:rounded-2xl overflow-hidden slide-up"
             style={{ background: 'var(--bg-card)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>

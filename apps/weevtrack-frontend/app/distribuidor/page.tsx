@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import ContratoModal from '@/components/ContratoModal';
+import { useNavWidth } from '@/hooks/useNavWidth';
 import GeofenceSection from '@/components/GeofenceSection';
 
 type TClient = { id: number; name: string; email: string; phone?: string; };
@@ -26,6 +27,7 @@ function statusColor(status: string) {
 
 export default function DistribuidorPage() {
   const router = useRouter();
+  const navWidth = useNavWidth();
   const [user, setUser] = useState({ name: '', role: '', administrator: false });
   const [clients, setClients] = useState<TClient[]>([]);
   const [clientDevices, setClientDevices] = useState<Record<number, TDevice[]>>({});
@@ -513,8 +515,7 @@ export default function DistribuidorPage() {
 
       {/* Modal criar cliente */}
       {showCreate && (
-        <div className="modal-overlay flex items-end justify-center"
-          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 50, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
           onClick={e => { if (e.target === e.currentTarget) setShowCreate(false); }}>
           <div className="w-full max-w-lg rounded-t-2xl overflow-hidden"
             style={{ background: 'var(--bg-card)', maxHeight: '90vh', overflowY: 'auto' }}>

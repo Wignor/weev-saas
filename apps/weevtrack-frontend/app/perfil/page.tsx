@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
+import { useNavWidth } from '@/hooks/useNavWidth';
 
 interface Invoice {
   id: string;
@@ -51,6 +52,7 @@ const STATUS_BG: Record<string, string> = {
 
 export default function PerfilPage() {
   const router = useRouter();
+  const navWidth = useNavWidth();
   const [user, setUser] = useState<Record<string, unknown>>({ name: '', email: '', administrator: false });
   const [fullUser, setFullUser] = useState<Record<string, unknown> | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -331,8 +333,7 @@ export default function PerfilPage() {
 
       {/* Modal: Alterar senha */}
       {showPwModal && (
-        <div className="modal-overlay flex items-end"
-          style={{ background: 'rgba(0,0,0,0.6)' }}
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 50, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
           onClick={() => setShowPwModal(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-10 slide-up"
             style={{ background: 'var(--bg-card)' }}
