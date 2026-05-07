@@ -7,6 +7,7 @@ import ContratoModal from '@/components/ContratoModal';
 import FaturaModal from '@/components/FaturaModal';
 import ConfigModal from '@/components/ConfigModal';
 import GeofenceSection from '@/components/GeofenceSection';
+import Portal from '@/components/Portal';
 
 const BarcodeScanner = lazy(() => import('@/components/BarcodeScanner'));
 
@@ -1066,6 +1067,7 @@ export default function GestaoPage() {
 
       {/* Modal: Novo cliente */}
       {showCreate && (
+        <Portal>
         <div className="fixed inset-0 flex items-end"
           style={{ background: 'rgba(0,0,0,0.6)', zIndex: 250 }}
           onClick={() => setShowCreate(false)}>
@@ -1122,10 +1124,12 @@ export default function GestaoPage() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
 
       {/* Modal: Novo dispositivo */}
       {showCreateDevice && (
+        <Portal>
         <div className="fixed inset-0 flex items-end"
           style={{ background: 'rgba(0,0,0,0.6)', zIndex: 250 }}
           onClick={() => setShowCreateDevice(false)}>
@@ -1220,6 +1224,7 @@ export default function GestaoPage() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
 
       {contratoModalUser && (
@@ -1236,6 +1241,7 @@ export default function GestaoPage() {
 
       {/* Modal: Perfil do cliente */}
       {profileUser && (
+        <Portal>
         <div className="fixed inset-0 flex items-end md:items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 250 }}
           onClick={e => { if (e.target === e.currentTarget) setProfileUser(null); }}>
@@ -1392,6 +1398,7 @@ export default function GestaoPage() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
 
       <BottomNav />

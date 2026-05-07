@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
 import ContratoModal from '@/components/ContratoModal';
+import Portal from '@/components/Portal';
 import GeofenceSection from '@/components/GeofenceSection';
 
 type TClient = { id: number; name: string; email: string; phone?: string; };
@@ -513,6 +514,7 @@ export default function DistribuidorPage() {
 
       {/* Modal criar cliente */}
       {showCreate && (
+        <Portal>
         <div className="fixed inset-0 flex items-end justify-center"
           style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', zIndex: 250 }}
           onClick={e => { if (e.target === e.currentTarget) setShowCreate(false); }}>
@@ -558,6 +560,7 @@ export default function DistribuidorPage() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
 
       {contratoUser && (

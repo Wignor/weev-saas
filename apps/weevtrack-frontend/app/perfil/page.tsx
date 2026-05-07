@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
+import Portal from '@/components/Portal';
 
 interface Invoice {
   id: string;
@@ -331,6 +332,7 @@ export default function PerfilPage() {
 
       {/* Modal: Alterar senha */}
       {showPwModal && (
+        <Portal>
         <div className="fixed inset-0 flex items-end"
           style={{ background: 'rgba(0,0,0,0.6)', zIndex: 250 }}
           onClick={() => setShowPwModal(false)}>
@@ -371,6 +373,7 @@ export default function PerfilPage() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </div>
   );
