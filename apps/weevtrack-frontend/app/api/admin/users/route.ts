@@ -28,21 +28,25 @@ export async function POST(req: Request) {
   const session = cookieStore.get('wt_session')?.value;
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
-  const { name, email, password, phone, cpfCnpj, role } = await req.json();
-  if (!name || !email || !password) {
-    return NextResponse.json({ error: 'Nome, e-mail e senha são obrigatórios' }, { status: 400 });
+  const { name, email: realEmail, password, phone, cpfCnpj, role } = await req.json();
+  if (!name || !cpfCnpj || !password) {
+    return NextResponse.json({ error: 'Nome, CPF/CNPJ e senha são obrigatórios' }, { status: 400 });
   }
+
+  // Email interno do Traccar baseado no CPF/CNPJ (sem formatação)
+  const cleanCpf = cpfCnpj.replace(/[\.\-\/\s]/g, '').trim();
+  const traccarEmail = `${cleanCpf}@weevtrack.com`;
 
   const res = await fetch(`${TRACCAR_URL}/api/users`, {
     method: 'POST',
     headers: { Cookie: `JSESSIONID=${session}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name,
-      email,
+      email: traccarEmail,
       password,
       administrator: false,
       phone: phone || '',
-      attributes: { cpfCnpj: cpfCnpj || '' },
+      attributes: { cpfCnpj: cpfCnpj || '', realEmail: realEmail || '' },
     }),
   });
 

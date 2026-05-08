@@ -144,7 +144,7 @@ export default function GestaoPage() {
   }
 
   async function createUser() {
-    if (!newUser.name || !newUser.email || !newUser.password) return;
+    if (!newUser.name || !newUser.cpfCnpj || !newUser.password) return;
     setCreating(true);
     try {
       const res = await fetch('/api/admin/users', {
@@ -1078,10 +1078,10 @@ export default function GestaoPage() {
             <div className="space-y-3">
               {([
                 { label: 'Nome completo', key: 'name', type: 'text', placeholder: 'Ex: João Silva' },
-                { label: 'E-mail de acesso', key: 'email', type: 'email', placeholder: 'joao@email.com' },
-                { label: 'Senha inicial', key: 'password', type: 'password', placeholder: '••••••••' },
+                { label: 'CPF ou CNPJ *', key: 'cpfCnpj', type: 'text', placeholder: 'Ex: 123.456.789-00' },
+                { label: 'Senha inicial *', key: 'password', type: 'password', placeholder: '••••••••' },
                 { label: 'Telefone', key: 'phone', type: 'tel', placeholder: 'Ex: (11) 99999-9999' },
-                { label: 'CPF ou CNPJ', key: 'cpfCnpj', type: 'text', placeholder: 'Ex: 123.456.789-00' },
+                { label: 'E-mail (opcional)', key: 'email', type: 'email', placeholder: 'joao@email.com' },
               ] as const).map(field => (
                 <div key={field.key}>
                   <label className="block text-xs font-medium t-text-lo mb-1.5">{field.label}</label>
@@ -1115,7 +1115,7 @@ export default function GestaoPage() {
               </div>
               <button
                 onClick={createUser}
-                disabled={creating || !newUser.name || !newUser.email || !newUser.password}
+                disabled={creating || !newUser.name || !newUser.cpfCnpj || !newUser.password}
                 className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl mt-2 disabled:opacity-60 transition-all"
               >
                 {creating ? 'Criando...' : 'Criar cliente'}

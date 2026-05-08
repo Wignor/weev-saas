@@ -23,10 +23,14 @@ function saveAdminSession(sessionId: string) {
 
 export async function POST(req: Request) {
   try {
-    const { email, password } = await req.json();
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email e senha são obrigatórios' }, { status: 400 });
+    const { email: rawInput, password } = await req.json();
+    if (!rawInput || !password) {
+      return NextResponse.json({ error: 'CPF/CNPJ e senha são obrigatórios' }, { status: 400 });
     }
+
+    // Se contém @ é um email real (admin), senão converte CPF/CNPJ → cpf@weevtrack.com
+    const clean = rawInput.replace(/[\.\-\/\s]/g, '').trim();
+    const email = clean.includes('@') ? rawInput.trim() : `${clean}@weevtrack.com`;
 
     const { user, sessionId } = await traccarLogin(email, password);
     const roles = readRoles();
