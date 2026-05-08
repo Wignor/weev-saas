@@ -984,7 +984,7 @@ export default function GestaoPage() {
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
               <input
-                type="text" placeholder="Busca por Nome/IMEI" value={devSelectorSearch}
+                type="text" placeholder="Busca por nome, IMEI ou cliente" value={devSelectorSearch}
                 onChange={e => setDevSelectorSearch(e.target.value)}
                 style={{ width: '100%', paddingLeft: 34, paddingRight: 12, paddingTop: 10, paddingBottom: 10, borderRadius: 10, background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
               />
@@ -993,7 +993,12 @@ export default function GestaoPage() {
 
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {allDevices
-              .filter(d => !devSelectorSearch || d.name.toLowerCase().includes(devSelectorSearch.toLowerCase()) || d.uniqueId.includes(devSelectorSearch))
+              .filter(d => {
+                if (!devSelectorSearch) return true;
+                const q = devSelectorSearch.toLowerCase();
+                const client = assignments[d.id] || '';
+                return d.name.toLowerCase().includes(q) || d.uniqueId.includes(devSelectorSearch) || client.toLowerCase().includes(q);
+              })
               .map(device => {
                 const isSelected = renovarDevices.some(x => x.id === device.id);
                 const clientName = assignments[device.id];
@@ -1012,6 +1017,7 @@ export default function GestaoPage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontWeight: 600, fontSize: 14, color: isSelected ? '#007AFF' : 'var(--text-hi)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{device.name}</p>
                       <p style={{ fontSize: 11, color: 'var(--text-lo)', fontFamily: 'monospace', margin: 0 }}>IMEI:{device.uniqueId}</p>
+                      {clientName && <p style={{ fontSize: 11, color: '#8B5CF6', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>👤 {clientName}</p>}
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 600, color: device.status === 'online' ? '#34C759' : 'var(--text-lo)', flexShrink: 0 }}>
                       {device.status === 'online' ? 'Online' : 'Offline'}

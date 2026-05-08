@@ -22,83 +22,86 @@ function getMarkerColor(device: TraccarDevice, position?: TraccarPosition): stri
 }
 
 function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'car', name = ''): string {
-  const shadow = isSelected
-    ? `drop-shadow(0 0 6px ${color}) drop-shadow(0 3px 10px rgba(0,0,0,0.9))`
-    : 'drop-shadow(0 2px 6px rgba(0,0,0,0.85))';
+  const size = isSelected ? 46 : 36;
+  const iconSz = Math.round(size * 0.58);
   const safeName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const label = safeName ? `<div style="margin-top:3px;background:rgba(0,0,0,0.78);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;text-align:center;pointer-events:none">${safeName}</div>` : '';
+  const label = safeName
+    ? `<div style="margin-top:4px;background:rgba(0,0,0,0.72);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;text-align:center;pointer-events:none">${safeName}</div>`
+    : '';
+  const ring = isSelected
+    ? `<div style="position:absolute;inset:-6px;border-radius:50%;border:3px solid ${color};opacity:0.35;pointer-events:none"></div>`
+    : '';
 
-  const sc  = isSelected ? 1.35 : 1;
-  const sw  = isSelected ? '2.5' : '1.7';   // main stroke width
-  const sw2 = isSelected ? '1.7' : '1.1';   // detail stroke width
-  const sw3 = isSelected ? '2.8' : '2.0';   // guidão / heavy elements
-
-  let vw: number, vh: number, shapes: string;
-
+  let shapes: string;
   switch (vehicleType) {
     case 'motorcycle':
-      vw = 18; vh = 30;
       shapes = `
-        <ellipse cx="9" cy="3.5" rx="3" ry="1.8" stroke="${color}" stroke-width="${sw2}" fill="none"/>
-        <line x1="7.5" y1="5" x2="7.5" y2="9" stroke="${color}" stroke-width="1.2"/>
-        <line x1="10.5" y1="5" x2="10.5" y2="9" stroke="${color}" stroke-width="1.2"/>
-        <line x1="2" y1="8" x2="16" y2="8" stroke="${color}" stroke-width="${sw3}" stroke-linecap="round"/>
-        <ellipse cx="9" cy="16" rx="4" ry="5" stroke="${color}" stroke-width="${sw}" fill="none"/>
-        <path d="M6.5 20.5 Q9 22 11.5 20.5" stroke="${color}" stroke-width="${sw2}" fill="none" stroke-linecap="round"/>
-        <ellipse cx="9" cy="27" rx="3" ry="1.8" stroke="${color}" stroke-width="${sw2}" fill="none"/>`;
+        <ellipse cx="11" cy="3" rx="3.5" ry="2" fill="white"/>
+        <rect x="9.5" y="5" width="3" height="4" rx="1" fill="white"/>
+        <rect x="1" y="8" width="20" height="3" rx="1.5" fill="white"/>
+        <ellipse cx="11" cy="17" rx="5" ry="6.5" fill="white"/>
+        <ellipse cx="11" cy="17" rx="2.5" ry="3" fill="rgba(0,0,0,0.2)"/>
+        <ellipse cx="11" cy="27.5" rx="3.5" ry="2" fill="white"/>`;
       break;
     case 'truck':
-      vw = 20; vh = 36;
       shapes = `
-        <path d="M3 1 Q1 1 1 3 L1 11 Q1 13 3 13 L17 13 Q19 13 19 11 L19 3 Q19 1 17 1 Z" stroke="${color}" stroke-width="${sw}" fill="none"/>
-        <path d="M2.5 7.5 Q2 6 3 4.5 L17 4.5 Q18 6 17.5 7.5 Z" stroke="${color}" stroke-width="${sw2}" fill="none"/>
-        <line x1="7" y1="13" x2="7" y2="15.5" stroke="${color}" stroke-width="1.3"/>
-        <line x1="13" y1="13" x2="13" y2="15.5" stroke="${color}" stroke-width="1.3"/>
-        <line x1="7" y1="15" x2="13" y2="15" stroke="${color}" stroke-width="1.3"/>
-        <rect x="1" y="16.5" width="18" height="18.5" rx="1.5" stroke="${color}" stroke-width="${sw}" fill="none"/>
-        <line x1="10" y1="17" x2="10" y2="34.5" stroke="${color}" stroke-width="0.9" opacity="0.45"/>`;
+        <rect x="2" y="1" width="18" height="11" rx="2" fill="white"/>
+        <rect x="3.5" y="2.5" width="15" height="5" rx="1" fill="rgba(0,0,0,0.2)"/>
+        <rect x="2" y="14" width="18" height="15" rx="1.5" fill="white"/>
+        <line x1="11" y1="14.5" x2="11" y2="28.5" stroke="rgba(0,0,0,0.15)" stroke-width="1"/>`;
       break;
     case 'bus':
-      vw = 18; vh = 34;
       shapes = `
-        <rect x="1" y="1" width="16" height="32" rx="4" stroke="${color}" stroke-width="${sw}" fill="none"/>
-        <line x1="2.5" y1="7" x2="15.5" y2="7" stroke="${color}" stroke-width="${sw2}" stroke-linecap="round"/>
-        <rect x="2.5" y="10" width="5" height="4" rx="1" stroke="${color}" stroke-width="1" fill="none"/>
-        <rect x="10.5" y="10" width="5" height="4" rx="1" stroke="${color}" stroke-width="1" fill="none"/>
-        <rect x="2.5" y="17" width="5" height="4" rx="1" stroke="${color}" stroke-width="1" fill="none"/>
-        <rect x="10.5" y="17" width="5" height="4" rx="1" stroke="${color}" stroke-width="1" fill="none"/>
-        <line x1="2.5" y1="26" x2="15.5" y2="26" stroke="${color}" stroke-width="${sw2}" stroke-linecap="round"/>`;
+        <rect x="2" y="1" width="18" height="28" rx="3.5" fill="white"/>
+        <rect x="3.5" y="6" width="7" height="5" rx="1" fill="rgba(0,0,0,0.2)"/>
+        <rect x="11.5" y="6" width="7" height="5" rx="1" fill="rgba(0,0,0,0.2)"/>
+        <rect x="3.5" y="14" width="7" height="5" rx="1" fill="rgba(0,0,0,0.2)"/>
+        <rect x="11.5" y="14" width="7" height="5" rx="1" fill="rgba(0,0,0,0.2)"/>`;
       break;
     case 'pickup':
-      vw = 22; vh = 32;
       shapes = `
-        <path d="M3 1 Q1 1 1 3 L1 5.5 Q1 7 1 9 L1 19 Q1 20.5 3 20.5 L19 20.5 Q21 20.5 21 19 L21 9 Q21 7 21 5.5 L21 3 Q21 1 19 1 Z" stroke="${color}" stroke-width="${sw}" fill="none"/>
-        <path d="M2.5 9 Q2 7 3 5.5 L19 5.5 Q20 7 19.5 9 Z" stroke="${color}" stroke-width="${sw2}" fill="none"/>
-        <rect x="1" y="22.5" width="20" height="8.5" rx="2" stroke="${color}" stroke-width="${sw}" fill="none"/>
-        <line x1="3.5" y1="22.5" x2="3.5" y2="31" stroke="${color}" stroke-width="1" opacity="0.45"/>
-        <line x1="18.5" y1="22.5" x2="18.5" y2="31" stroke="${color}" stroke-width="1" opacity="0.45"/>`;
+        <rect x="2" y="1" width="18" height="18" rx="2" fill="white"/>
+        <rect x="3.5" y="2.5" width="15" height="7" rx="1" fill="rgba(0,0,0,0.2)"/>
+        <rect x="2" y="21" width="18" height="8" rx="1.5" fill="white"/>`;
       break;
     case 'universal':
-      vw = 20; vh = 28;
       shapes = `
-        <path d="M10 1 C5 1 1 5 1 10 C1 17.5 10 27 10 27 C10 27 19 17.5 19 10 C19 5 15 1 10 1Z" stroke="${color}" stroke-width="${sw}" fill="none"/>
-        <circle cx="10" cy="10" r="3.5" stroke="${color}" stroke-width="${sw2}" fill="none"/>`;
+        <path fill="white" d="M11 1 C5 1 1 5.5 1 11 C1 19 11 29 11 29 C11 29 21 19 21 11 C21 5.5 17 1 11 1Z"/>
+        <circle cx="11" cy="11" r="4" fill="rgba(0,0,0,0.2)"/>`;
       break;
-    default: // car — silhueta orgânica com para-brisas
-      vw = 17; vh = 30;
+    default: // car — top-view with windshield + rear window
       shapes = `
-        <path d="M8.5 1 C5.5 1 2 2.5 2 5 L2 6.5 Q1 9 1 13 L1 20 Q1 24 2 25.5 L2 27 C2 28.5 5.5 29 8.5 29 C11.5 29 15 28.5 15 27 L15 25.5 Q16 24 16 20 L16 13 Q16 9 15 6.5 L15 5 C15 2.5 11.5 1 8.5 1Z" stroke="${color}" stroke-width="${sw}" fill="none"/>
-        <path d="M3.5 6.5 Q3 9 3 10.5 L14 10.5 Q14 9 13.5 6.5 Z" stroke="${color}" stroke-width="${sw2}" fill="none"/>
-        <path d="M3 21.5 Q3 23 3.5 25.5 L13.5 25.5 Q14 23 14 21.5 Z" stroke="${color}" stroke-width="${sw2}" fill="none"/>`;
+        <path fill="white" d="M11 2 C7 2 4 3.5 4 6 L4 8 Q3.5 10 3.5 13 L3.5 18.5 Q3.5 21.5 4 22.5 L4 24 C4 25 7 25.5 11 25.5 C15 25.5 18 25 18 24 L18 22.5 Q18.5 21.5 18.5 18.5 L18.5 13 Q18.5 10 18 8 L18 6 C18 3.5 15 2 11 2 Z"/>
+        <path fill="rgba(0,0,0,0.22)" d="M5.5 8.5 Q5 10 5 11.5 L17 11.5 Q17 10 16.5 8.5 Z"/>
+        <path fill="rgba(0,0,0,0.22)" d="M5.5 19.5 Q5.5 21.5 6 23 L16 23 Q16.5 21.5 16.5 19.5 Z"/>`;
   }
 
-  const svgW = Math.round(vw * sc);
-  const svgH = Math.round(vh * sc);
   return `<div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto">
-    <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${vw} ${vh}" fill="none" style="filter:${shadow}">
-      ${shapes}
-    </svg>
+    <div style="position:relative;width:${size}px;height:${size}px">
+      ${ring}
+      <div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,0.5)${isSelected ? ';outline:2.5px solid white;outline-offset:1px' : ''};box-sizing:border-box">
+        <svg width="${iconSz}" height="${iconSz}" viewBox="0 0 22 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+          ${shapes}
+        </svg>
+      </div>
+    </div>
     ${label}
+  </div>`;
+}
+
+function createTooltipHtml(name: string, speedKnots: number, ignition: boolean | undefined, lat: number, lng: number, fixTime: string): string {
+  const speedKmh = knotsToKmh(speedKnots);
+  const ignLabel = ignition === true ? '🔑 Ligado' : ignition === false ? '🔒 Desligado' : '—';
+  const time = fixTime
+    ? new Date(fixTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
+    : '—';
+  const safeName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return `<div style="font-family:system-ui;min-width:160px">
+    <div style="font-weight:700;font-size:13px;color:#111;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid #e5e7eb">${safeName}</div>
+    <div style="font-size:12px;color:#374151;margin-bottom:3px">🚗 <strong>${speedKmh}</strong> km/h</div>
+    <div style="font-size:12px;color:#374151;margin-bottom:3px">${ignLabel}</div>
+    <div style="font-size:11px;color:#6b7280;margin-bottom:3px">📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+    <div style="font-size:11px;color:#6b7280">🕐 ${time}</div>
   </div>`;
 }
 
@@ -224,14 +227,17 @@ export default function VehicleMap({
       const color = getMarkerColor(device, pos);
       const isSelected = selectedDeviceId === device.id;
       const vType = vehiclePrefs[device.id] || 'car';
-      const iw = isSelected ? 30 : 22;
-      const ih = isSelected ? 49 : 36;
+      const size = isSelected ? 46 : 36;
       const icon = L.divIcon({
         html: createVehicleIcon(color, isSelected, vType, device.name),
         className: '',
-        iconSize: [iw, ih + 18],
-        iconAnchor: [iw / 2, ih / 2],
+        iconSize: [size, size + 20],
+        iconAnchor: [size / 2, size / 2],
       });
+      const tooltipHtml = createTooltipHtml(
+        device.name, pos.speed || 0, pos.attributes?.ignition as boolean | undefined,
+        pos.latitude, pos.longitude, pos.fixTime,
+      );
 
       if (markersRef.current.has(device.id)) {
         const marker = markersRef.current.get(device.id)!;
@@ -243,10 +249,16 @@ export default function VehicleMap({
           }
         }
         marker.setIcon(icon);
+        if (marker.getTooltip()) {
+          marker.setTooltipContent(tooltipHtml);
+        } else {
+          marker.bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -(size / 2 + 4)], className: 'wt-tooltip' });
+        }
       } else {
         const marker = L.marker([pos.latitude, pos.longitude], { icon })
           .addTo(map)
-          .on('click', () => onDeviceSelect(device.id));
+          .on('click', () => onDeviceSelect(device.id))
+          .bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -(size / 2 + 4)], className: 'wt-tooltip' });
         markersRef.current.set(device.id, marker);
       }
     });
