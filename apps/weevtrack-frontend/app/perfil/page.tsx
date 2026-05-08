@@ -333,7 +333,7 @@ export default function PerfilPage() {
 
       {/* Modal: Alterar senha */}
       {showPwModal && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
           onClick={() => setShowPwModal(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-24 slide-up"
             style={{ background: 'var(--bg-card)' }}

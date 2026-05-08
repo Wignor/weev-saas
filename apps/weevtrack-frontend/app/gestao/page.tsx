@@ -1068,7 +1068,7 @@ export default function GestaoPage() {
 
       {/* Modal: Novo cliente */}
       {showCreate && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
           onClick={() => setShowCreate(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-24 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -1127,7 +1127,7 @@ export default function GestaoPage() {
 
       {/* Modal: Novo dispositivo */}
       {showCreateDevice && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
           onClick={() => setShowCreateDevice(false)}>
           <div className="w-full rounded-t-2xl p-5 pb-24 slide-up"
             style={{ background: 'var(--bg-card)' }}
@@ -1236,7 +1236,7 @@ export default function GestaoPage() {
 
       {/* Modal: Perfil do cliente */}
       {profileUser && (
-        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, zIndex: 9999, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 9999, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
           onClick={e => { if (e.target === e.currentTarget) setProfileUser(null); }}>
           <div className="w-full max-w-sm rounded-t-2xl md:rounded-2xl overflow-hidden slide-up"
             style={{ background: 'var(--bg-card)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
