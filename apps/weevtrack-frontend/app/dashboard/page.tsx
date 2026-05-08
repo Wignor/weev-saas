@@ -299,6 +299,10 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
   async function activatePush() {
     try {
       const perm = await Notification.requestPermission();
+      if (perm === 'denied') {
+        alert('Notificações bloqueadas no navegador.\n\nPara ativar: toque no cadeado 🔒 na barra de endereço → Permissões → ative Notificações.');
+        setPushEnabled(false); return;
+      }
       if (perm !== 'granted') { setPushEnabled(false); return; }
       const { key } = await fetch('/api/push/vapid-public').then(r => r.json());
       const padding = '='.repeat((4 - (key.length % 4)) % 4);
