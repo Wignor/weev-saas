@@ -298,23 +298,37 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
 
   async function activatePush() {
     try {
+      if (!('Notification' in window)) { alert('Este browser não suporta notificações.'); return; }
+      if (!('serviceWorker' in navigator)) { alert('Service Worker não suportado.'); return; }
+
       const perm = await Notification.requestPermission();
       if (perm === 'denied') {
-        alert('Notificações bloqueadas no navegador.\n\nPara ativar: toque no cadeado 🔒 na barra de endereço → Permissões → ative Notificações.');
+        alert('Notificações BLOQUEADAS.\n\niOS: Ajustes → WeevTrack → Notificações → Permitir\n\nDepois volte e toque em Ativar.');
         setPushEnabled(false); return;
       }
-      if (perm !== 'granted') { setPushEnabled(false); return; }
+      if (perm !== 'granted') {
+        alert(`Permissão não concedida (status: ${perm}). Tente novamente.`);
+        setPushEnabled(false); return;
+      }
+
+      const reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Service Worker timeout — feche e reabra o app')), 8000)),
+      ]) as ServiceWorkerRegistration;
+
       const { key } = await fetch('/api/push/vapid-public').then(r => r.json());
       const padding = '='.repeat((4 - (key.length % 4)) % 4);
       const base64 = (key + padding).replace(/-/g, '+').replace(/_/g, '/');
       const raw = window.atob(base64);
       const bytes = new Uint8Array(raw.length);
       for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-      const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: bytes.buffer as ArrayBuffer });
       await fetch('/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub.toJSON()) });
       setPushEnabled(true);
-    } catch { setPushEnabled(false); }
+    } catch (e) {
+      alert('Erro ao ativar: ' + (e instanceof Error ? e.message : String(e)));
+      setPushEnabled(false);
+    }
   }
 
   async function togglePref(key: BoolPrefKey) {
