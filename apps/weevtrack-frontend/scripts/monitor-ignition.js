@@ -129,7 +129,6 @@ async function broadcastPush(subscriptions, eventType, title, body, url = '/dash
   console.log(`[${new Date().toLocaleTimeString('pt-BR')}] ALERTA: ${title} — ${body}`);
   const notifiedUserIds = [];
   for (const sub of subscriptions) {
-    if (sub.administrator) continue;
     const prefs = getPrefsForUser(sub.userId);
     if (!prefs[eventType]) continue;
     if (eventType === 'overspeed' && meta.speedKmh !== undefined) {

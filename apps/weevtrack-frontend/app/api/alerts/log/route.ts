@@ -51,10 +51,8 @@ export async function GET(req: Request) {
     });
   }
 
-  if (!user.administrator) {
-    const userId = String(user.id);
-    alerts = alerts.filter(a => Array.isArray(a.userIds) && a.userIds.includes(userId));
-  }
+  const userId = String(user.id);
+  alerts = alerts.filter(a => Array.isArray(a.userIds) && a.userIds.includes(userId));
 
   return NextResponse.json(alerts.slice(0, 300));
 }

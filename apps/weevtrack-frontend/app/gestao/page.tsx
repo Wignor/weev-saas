@@ -110,7 +110,7 @@ export default function GestaoPage() {
     try {
       const [usersRes, devicesRes, assignRes, licRes] = await Promise.all([
         fetch('/api/admin/users'),
-        fetch('/api/devices'),
+        fetch('/api/devices?all=true'),
         fetch('/api/admin/assignments'),
         fetch('/api/licenses'),
       ]);

@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
   } catch { /* silencioso */ }
 
   const asUser = req.nextUrl.searchParams.get('asUser');
+  const all = req.nextUrl.searchParams.get('all') === 'true';
   const url = asUser
     ? `${TRACCAR_URL}/api/devices?userId=${asUser}`
     : `${TRACCAR_URL}/api/devices`;
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
     if (!res.ok) return NextResponse.json({ error: `Traccar ${res.status}` }, { status: res.status });
     const devices: TraccarDevice[] = await res.json();
 
-    if (isAdmin && !asUser) {
+    if (isAdmin && !asUser && !all) {
       const assignedIds = await getAssignedDeviceIds(session);
       return NextResponse.json(
         assignedIds.size > 0 ? devices.filter((d) => !assignedIds.has(d.id)) : devices

@@ -41,6 +41,7 @@ export default function HistoricoMap({ route, stops = [], addresses = [] }: Hist
   const layersRef = useRef<unknown[]>([]);
   const tileLayerRef = useRef<unknown>(null);
   const labelsLayerRef = useRef<unknown>(null);
+  const fittedRouteRef = useRef<string>('');
   const [mapLayer, setMapLayer] = useState<MapLayerType>('hibrido');
   const [showMapPanel, setShowMapPanel] = useState(false);
 
@@ -139,12 +140,17 @@ export default function HistoricoMap({ route, stops = [], addresses = [] }: Hist
       layersRef.current.push(stopMarker);
     });
 
-    map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+    // Only auto-fit when the route itself changes — not when addresses update later
+    const routeKey = route.length > 0 ? `${route[0].deviceId}-${route.length}` : '';
+    if (routeKey && routeKey !== fittedRouteRef.current) {
+      map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+      fittedRouteRef.current = routeKey;
+    }
   }, [route, stops, addresses]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
+      <div ref={containerRef} style={{ position: 'absolute', inset: 0, background: '#e8e8e8' }} />
 
       {/* Map type button */}
       <button
