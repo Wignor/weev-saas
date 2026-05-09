@@ -89,18 +89,44 @@ function createVehicleIcon(color: string, isSelected: boolean, vehicleType = 'ca
   </div>`;
 }
 
-function createTooltipHtml(name: string, speedKnots: number, ignition: boolean | undefined, lat: number, lng: number, fixTime: string): string {
+const geocodeCache = new Map<string, string>();
+const geocodePending = new Set<string>();
+
+function reverseGeocode(lat: number, lng: number, onResult: (addr: string) => void): void {
+  const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+  if (geocodeCache.has(key)) { onResult(geocodeCache.get(key)!); return; }
+  if (geocodePending.has(key)) return;
+  geocodePending.add(key);
+  fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`, {
+    headers: { 'Accept-Language': 'pt-BR', 'User-Agent': 'WeevTrack/1.0' },
+  }).then(r => r.json()).then(data => {
+    const addr = data.address;
+    const road = addr?.road || addr?.pedestrian || addr?.path || '';
+    const sub = addr?.suburb || addr?.neighbourhood || addr?.city_district || '';
+    const result = road ? (sub ? `${road}, ${sub}` : road)
+      : (data.display_name?.split(',').slice(0, 2).join(',').trim() || `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+    geocodeCache.set(key, result);
+    onResult(result);
+  }).catch(() => {
+    const fallback = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    geocodeCache.set(key, fallback);
+    onResult(fallback);
+  }).finally(() => { geocodePending.delete(key); });
+}
+
+function createTooltipHtml(name: string, speedKnots: number, ignition: boolean | undefined, lat: number, lng: number, fixTime: string, address?: string): string {
   const speedKmh = knotsToKmh(speedKnots);
   const ignLabel = ignition === true ? '🔑 Ligado' : ignition === false ? '🔒 Desligado' : '—';
   const time = fixTime
     ? new Date(fixTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
     : '—';
   const safeName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const locStr = address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   return `<div style="font-family:system-ui;min-width:160px">
     <div style="font-weight:700;font-size:13px;color:#111;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid #e5e7eb">${safeName}</div>
     <div style="font-size:12px;color:#374151;margin-bottom:3px">🚗 <strong>${speedKmh}</strong> km/h</div>
     <div style="font-size:12px;color:#374151;margin-bottom:3px">${ignLabel}</div>
-    <div style="font-size:11px;color:#6b7280;margin-bottom:3px">📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+    <div style="font-size:11px;color:#6b7280;margin-bottom:3px">📍 ${locStr}</div>
     <div style="font-size:11px;color:#6b7280">🕐 ${time}</div>
   </div>`;
 }
@@ -234,9 +260,11 @@ export default function VehicleMap({
         iconSize: [size, size + 20],
         iconAnchor: [size / 2, size / 2],
       });
+      const geoKey = `${pos.latitude.toFixed(4)},${pos.longitude.toFixed(4)}`;
+      const cachedAddr = geocodeCache.get(geoKey);
       const tooltipHtml = createTooltipHtml(
         device.name, pos.speed || 0, pos.attributes?.ignition as boolean | undefined,
-        pos.latitude, pos.longitude, pos.fixTime,
+        pos.latitude, pos.longitude, pos.fixTime, cachedAddr,
       );
 
       if (markersRef.current.has(device.id)) {
@@ -260,6 +288,13 @@ export default function VehicleMap({
           .on('click', () => onDeviceSelect(device.id))
           .bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -(size / 2 + 4)], className: 'wt-tooltip' });
         markersRef.current.set(device.id, marker);
+      }
+
+      if (!cachedAddr) {
+        reverseGeocode(pos.latitude, pos.longitude, (addr) => {
+          const m = markersRef.current.get(device.id);
+          if (m) m.setTooltipContent(createTooltipHtml(device.name, pos.speed || 0, pos.attributes?.ignition as boolean | undefined, pos.latitude, pos.longitude, pos.fixTime, addr));
+        });
       }
     });
 

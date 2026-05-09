@@ -14,6 +14,8 @@ export interface TraccarDevice {
   status: 'online' | 'offline' | 'unknown';
   lastUpdate: string;
   groupId: number;
+  contact?: string;
+  model?: string;
   attributes: Record<string, unknown>;
 }
 

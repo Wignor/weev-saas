@@ -28,7 +28,7 @@ const ROLES: Record<UserRole, { label: string; color: string; bg: string; desc: 
   distribuidor:      { label: 'Distribuidor',      color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)',  desc: 'Revendedor com painel próprio limitado' },
   distribuidor_geral:{ label: 'Dist. Geral',       color: '#F59E0B', bg: 'rgba(245,158,11,0.12)',  desc: 'Painel completo, gerencia revendedores' },
 };
-interface TDevice { id: number; name: string; uniqueId: string; status: string; }
+interface TDevice { id: number; name: string; uniqueId: string; status: string; contact?: string; attributes?: Record<string, unknown>; }
 
 function toggleTheme() {
   const next = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
@@ -794,6 +794,12 @@ export default function GestaoPage() {
                             <p className="text-sm font-semibold t-text-hi truncate">{device.name}</p>
                           )}
                           <p className="text-xs t-text-lo mt-0.5 font-mono">{device.uniqueId}</p>
+                          {device.attributes?.iccid && (
+                            <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--text-lo)' }}>ICCID: {String(device.attributes.iccid)}</p>
+                          )}
+                          {device.contact && (
+                            <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--text-lo)' }}>Chip: {device.contact}</p>
+                          )}
                           {clientName && (
                             <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full mt-1"
                               style={{ background: 'rgba(255,149,0,0.1)', color: '#FF9500' }}>
