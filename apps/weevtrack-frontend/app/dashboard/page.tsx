@@ -276,9 +276,14 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
   const [pushEnabled, setPushEnabled] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!pos) { setResolvedAddress('Sem posição disponível'); return; }
+    if (!pos || (pos.latitude === 0 && pos.longitude === 0)) {
+      setResolvedAddress('Aguardando sinal GPS...');
+      return;
+    }
     setResolvedAddress('Carregando endereço...');
-    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.latitude}&lon=${pos.longitude}&format=json`)
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.latitude}&lon=${pos.longitude}&format=json`, {
+      headers: { 'User-Agent': 'WeevTrack/1.0', 'Accept-Language': 'pt-BR' },
+    })
       .then(r => r.json())
       .then(d => setResolvedAddress(d.display_name || 'Endereço não disponível'))
       .catch(() => setResolvedAddress('Endereço não disponível'));
@@ -767,12 +772,14 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, lice
   const isOffline = status === 'offline' || status === 'expirado';
   const effectiveType = vehicleType || detectVehicleType(device.name);
   const iconColor = isOffline ? 'var(--text-lo)' : S_COLOR[status];
-  const fixTime = pos?.fixTime
-    ? new Date(pos.fixTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const fixDate = pos?.fixTime ? new Date(pos.fixTime) : null;
+  const isValidFix = fixDate ? fixDate.getFullYear() >= 2000 : false;
+  const fixTime = isValidFix
+    ? fixDate!.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : null;
   const stateAge = isOffline
     ? timeOffline(device.lastUpdate)
-    : pos?.fixTime ? fmtDuration(pos.fixTime) : null;
+    : isValidFix ? fmtDuration(pos!.fixTime) : timeOffline(device.lastUpdate);
 
   return (
     <div onClick={onSelect} style={{
