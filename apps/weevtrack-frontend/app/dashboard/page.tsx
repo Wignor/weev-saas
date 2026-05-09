@@ -980,7 +980,12 @@ export default function DashboardPage() {
     return () => { if (mergeIntervalRef.current) clearInterval(mergeIntervalRef.current); };
   }, [mergeMode]);
 
-  const displayDevices = mergeMode ? allDevices : devices;
+  const baseDevices = mergeMode ? allDevices : (
+    user.administrator && !asUser
+      ? devices.filter(d => !assignments[d.id])
+      : devices
+  );
+  const displayDevices = baseDevices;
   const displayPositions = mergeMode ? allPositions : positions;
   const posMap = useMemo(() => Object.fromEntries(displayPositions.map((p) => [p.deviceId, p])), [displayPositions]);
   const selectedDevice = useMemo(() => displayDevices.find((d) => d.id === selectedId), [displayDevices, selectedId]);

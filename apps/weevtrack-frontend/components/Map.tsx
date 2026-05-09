@@ -240,6 +240,15 @@ export default function VehicleMap({
     const map = mapRef.current;
     const posMap = Object.fromEntries(positions.map((p) => [p.deviceId, p]));
 
+    // Remove markers for devices no longer in the list
+    const currentIds = new Set(devices.map(d => d.id));
+    markersRef.current.forEach((marker, id) => {
+      if (!currentIds.has(id)) {
+        map.removeLayer(marker);
+        markersRef.current.delete(id);
+      }
+    });
+
     devices.forEach((device) => {
       const pos = posMap[device.id];
       if (!pos || !pos.valid || (pos.latitude === 0 && pos.longitude === 0)) {
