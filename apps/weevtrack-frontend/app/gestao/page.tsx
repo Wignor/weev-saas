@@ -84,6 +84,9 @@ export default function GestaoPage() {
   const [showRenovarConfirm, setShowRenovarConfirm] = useState(false);
   const [renovarSaving, setRenovarSaving] = useState(false);
   const [devSelectorSearch, setDevSelectorSearch] = useState('');
+  const [editingUser, setEditingUser] = useState<TUser | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', realEmail: '', phone: '', cpfCnpj: '', password: '' });
+  const [editSaving, setEditSaving] = useState(false);
   const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
   const filteredUsers = sortedUsers.filter(u =>
     !usersSearch || u.name.toLowerCase().includes(usersSearch.toLowerCase()) || getRealEmail(u).toLowerCase().includes(usersSearch.toLowerCase())
@@ -321,6 +324,35 @@ export default function GestaoPage() {
     } else {
       flash('❌ Erro ao renomear');
     }
+  }
+
+  async function saveEditUser() {
+    if (!editingUser || !editForm.name.trim()) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/admin/users/${editingUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          realEmail: editForm.realEmail.trim(),
+          phone: editForm.phone.trim(),
+          cpfCnpj: editForm.cpfCnpj.trim(),
+          ...(editForm.password ? { password: editForm.password } : {}),
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...updated } : u));
+        setSelectedUser(prev => prev?.id === editingUser.id ? { ...prev, ...updated } : prev);
+        flash('✅ Cadastro atualizado');
+        setEditingUser(null);
+      } else {
+        const err = await res.json();
+        flash(`❌ ${err.error || 'Erro ao atualizar'}`);
+      }
+    } catch { flash('❌ Erro de conexão'); }
+    setEditSaving(false);
   }
 
   function statusColor(status: string) {
@@ -881,9 +913,78 @@ export default function GestaoPage() {
             <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 20, flexShrink: 0, background: ROLES[selectedUser.role]?.bg, color: ROLES[selectedUser.role]?.color }}>
               {ROLES[selectedUser.role]?.label}
             </span>
+            <button
+              onClick={() => {
+                setEditForm({
+                  name: selectedUser.name,
+                  realEmail: getRealEmail(selectedUser),
+                  phone: selectedUser.phone || '',
+                  cpfCnpj: String(selectedUser.attributes?.cpfCnpj || ''),
+                  password: '',
+                });
+                setEditingUser(selectedUser);
+              }}
+              style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,122,255,0.12)', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+              title="Editar cadastro"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
           </header>
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 96px' }}>
             {detailPanel}
+          </div>
+        </div>
+      )}
+
+      {/* ── Editar cliente overlay ── */}
+      {editingUser && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', flexDirection: 'column', background: 'var(--bg-page)' }}>
+          <header style={{ height: 56, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)', flexShrink: 0 }}>
+            <button onClick={() => setEditingUser(null)} style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-border)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <h2 style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-hi)', flex: 1, margin: 0 }}>Editar cadastro</h2>
+          </header>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px 40px' }}>
+            <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-3">Dados do cliente</p>
+
+            {[
+              { label: 'Nome *', key: 'name', type: 'text', placeholder: 'Nome completo' },
+              { label: 'Email real', key: 'realEmail', type: 'email', placeholder: 'email@exemplo.com' },
+              { label: 'Telefone / WhatsApp', key: 'phone', type: 'tel', placeholder: '(11) 99999-9999' },
+              { label: 'CPF / CNPJ', key: 'cpfCnpj', type: 'text', placeholder: '000.000.000-00' },
+              { label: 'Nova senha (deixe em branco para manter)', key: 'password', type: 'password', placeholder: '••••••••' },
+            ].map(field => (
+              <div key={field.key} className="mb-4">
+                <p className="text-xs t-text-lo mb-1 font-medium">{field.label}</p>
+                <input
+                  type={field.type}
+                  placeholder={field.placeholder}
+                  value={editForm[field.key as keyof typeof editForm]}
+                  onChange={e => setEditForm(prev => ({ ...prev, [field.key]: e.target.value }))}
+                  className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+                  style={{ background: 'var(--bg-card)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
+                />
+              </div>
+            ))}
+
+            <div className="mt-2 p-3 rounded-xl text-xs" style={{ background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.2)', color: '#FF9500' }}>
+              ⚠️ Alterar o CPF/CNPJ muda o login interno do cliente. Use com cautela.
+            </div>
+
+            <button
+              onClick={saveEditUser}
+              disabled={editSaving || !editForm.name.trim()}
+              className="w-full mt-5 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
+              style={{ background: editSaving || !editForm.name.trim() ? 'var(--bg-border)' : '#007AFF', color: 'white', cursor: editSaving ? 'not-allowed' : 'pointer' }}
+            >
+              {editSaving ? (
+                <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Salvando...</>
+              ) : '💾 Salvar alterações'}
+            </button>
           </div>
         </div>
       )}

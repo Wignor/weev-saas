@@ -104,6 +104,36 @@ export async function removeClientRowByImei(imei: string): Promise<void> {
   }
 }
 
+// Update rows where CPF/CNPJ column (D, index 3) matches
+export async function updateClientRows(cpfCnpj: string, updates: {
+  nome?: string; email?: string; telefone?: string;
+}): Promise<void> {
+  if (!cpfCnpj) return;
+  try {
+    const auth = getAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'A:J' });
+    const rows = res.data.values || [];
+    const cleanInput = cpfCnpj.replace(/[\.\-\/\s]/g, '');
+    for (let i = 1; i < rows.length; i++) {
+      const cleanRow = (rows[i][3] || '').replace(/[\.\-\/\s]/g, '');
+      if (cleanRow !== cleanInput) continue;
+      const updatedRow = [...rows[i]];
+      if (updates.nome !== undefined) updatedRow[1] = updates.nome;
+      if (updates.email !== undefined) updatedRow[2] = updates.email;
+      if (updates.telefone !== undefined) updatedRow[4] = updates.telefone;
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `A${i + 1}:J${i + 1}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [updatedRow] },
+      });
+    }
+  } catch (err) {
+    console.error('[Sheets] Erro ao atualizar linha:', err);
+  }
+}
+
 // Remove all rows where Email column (C, index 2) matches
 export async function removeClientRowsByEmail(email: string): Promise<void> {
   if (!email) return;
