@@ -833,7 +833,7 @@ export default function GestaoPage() {
                             <p className="text-sm font-semibold t-text-hi truncate">{device.name}</p>
                           )}
                           <p className="text-xs t-text-lo mt-0.5 font-mono">{device.uniqueId}</p>
-                          {device.attributes?.iccid && (
+                          {!!device.attributes?.iccid && (
                             <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--text-lo)' }}>ICCID: {String(device.attributes.iccid)}</p>
                           )}
                           {device.contact && (
