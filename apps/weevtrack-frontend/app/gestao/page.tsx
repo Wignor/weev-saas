@@ -30,6 +30,13 @@ const ROLES: Record<UserRole, { label: string; color: string; bg: string; desc: 
 };
 interface TDevice { id: number; name: string; uniqueId: string; status: string; contact?: string; attributes?: Record<string, unknown>; }
 
+function getRealEmail(user: TUser): string {
+  const real = String(user.attributes?.realEmail || '').trim();
+  if (real) return real;
+  if (user.email && !user.email.endsWith('@weevtrack.com')) return user.email;
+  return '';
+}
+
 function toggleTheme() {
   const next = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
@@ -79,7 +86,7 @@ export default function GestaoPage() {
   const [devSelectorSearch, setDevSelectorSearch] = useState('');
   const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
   const filteredUsers = sortedUsers.filter(u =>
-    !usersSearch || u.name.toLowerCase().includes(usersSearch.toLowerCase()) || u.email.toLowerCase().includes(usersSearch.toLowerCase())
+    !usersSearch || u.name.toLowerCase().includes(usersSearch.toLowerCase()) || getRealEmail(u).toLowerCase().includes(usersSearch.toLowerCase())
   );
 
   useEffect(() => {
@@ -682,7 +689,7 @@ export default function GestaoPage() {
                             {ROLES[user.role]?.label || 'Usuário'}
                           </span>
                         </div>
-                        <p className="text-xs t-text-lo">{user.email}</p>
+                        <p className="text-xs t-text-lo">{getRealEmail(user) || user.phone || '—'}</p>
                       </button>
                       <div className="flex items-center gap-2">
                         <a
@@ -869,7 +876,7 @@ export default function GestaoPage() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-hi)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{selectedUser.name}</p>
-              <p style={{ fontSize: 11, color: 'var(--text-lo)', margin: 0 }}>{selectedUser.email}</p>
+              <p style={{ fontSize: 11, color: 'var(--text-lo)', margin: 0 }}>{getRealEmail(selectedUser) || selectedUser.phone || '—'}</p>
             </div>
             <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 20, flexShrink: 0, background: ROLES[selectedUser.role]?.bg, color: ROLES[selectedUser.role]?.color }}>
               {ROLES[selectedUser.role]?.label}
@@ -1280,7 +1287,7 @@ export default function GestaoPage() {
                   </span>
                 </div>
                 <h2 className="font-bold t-text-hi text-lg">{profileUser.name}</h2>
-                <p className="t-text-lo text-sm">{profileUser.email}</p>
+                <p className="t-text-lo text-sm">{getRealEmail(profileUser) || profileUser.phone || '—'}</p>
                 <span className="mt-2 text-xs px-2.5 py-1 rounded-full font-semibold"
                   style={{ background: ROLES[profileUser.role]?.bg, color: ROLES[profileUser.role]?.color }}>
                   {ROLES[profileUser.role]?.label || 'Usuário'}
@@ -1293,7 +1300,7 @@ export default function GestaoPage() {
                 <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--bg-border)' }}>
                   {[
                     { icon: '👤', label: 'Nome completo', value: profileUser.name },
-                    { icon: '📧', label: 'E-mail', value: profileUser.email },
+                    { icon: '📧', label: 'E-mail', value: getRealEmail(profileUser) || '—' },
                     { icon: '📱', label: 'Telefone', value: profileUser.phone || '—' },
                     { icon: '📄', label: 'CPF / CNPJ', value: (profileUser.attributes?.cpfCnpj as string) || '—' },
                     { icon: '🔑', label: 'Função', value: ROLES[profileUser.role]?.label || 'Usuário' },
@@ -1388,7 +1395,7 @@ export default function GestaoPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold t-text-hi truncate">{u.name}</p>
-                      <p className="text-xs t-text-lo truncate">{u.email}</p>
+                      <p className="text-xs t-text-lo truncate">{getRealEmail(u) || u.phone || '—'}</p>
                     </div>
                     <span className="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0"
                       style={{ background: ROLES[u.role]?.bg, color: ROLES[u.role]?.color }}>
