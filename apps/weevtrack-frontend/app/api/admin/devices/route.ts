@@ -31,7 +31,11 @@ export async function POST(req: Request) {
   let data: Record<string, unknown> = {};
   try { data = JSON.parse(text); } catch { /**/ }
   if (!res.ok) {
-    const msg = (data.message as string) || text || 'Erro ao cadastrar dispositivo';
+    const raw = (data.message as string) || text || '';
+    const isDuplicate = raw.toLowerCase().includes('duplicate') || raw.toLowerCase().includes('already exists') || raw.toLowerCase().includes('uniqueid');
+    const msg = isDuplicate
+      ? `IMEI ${uniqueId} já está cadastrado na plataforma. Verifique se este rastreador já existe na lista de dispositivos.`
+      : raw || 'Erro ao cadastrar dispositivo';
     return NextResponse.json({ error: msg }, { status: res.status });
   }
   return NextResponse.json(data);
