@@ -4,7 +4,6 @@ import fs from 'fs';
 import path from 'path';
 
 const ASAAS_URL = 'https://api.asaas.com/v3';
-const API_KEY = process.env.ASAAS_API_KEY!;
 
 const CUSTOMERS_FILE = path.join(process.cwd(), 'data', 'asaas-customers.json');
 
@@ -21,10 +20,10 @@ function saveCustomers(data: Record<string, string>) {
   fs.writeFileSync(CUSTOMERS_FILE, JSON.stringify(data, null, 2));
 }
 
-async function asaas(method: string, endpoint: string, body?: object) {
+async function asaas(apiKey: string, method: string, endpoint: string, body?: object) {
   const res = await fetch(`${ASAAS_URL}${endpoint}`, {
     method,
-    headers: { 'Content-Type': 'application/json', access_token: API_KEY },
+    headers: { 'Content-Type': 'application/json', access_token: apiKey },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json();
@@ -32,14 +31,14 @@ async function asaas(method: string, endpoint: string, body?: object) {
   return data;
 }
 
-async function findOrCreateCustomer(name: string, cpfCnpj: string, email: string, phone: string): Promise<string> {
+async function findOrCreateCustomer(apiKey: string, name: string, cpfCnpj: string, email: string, phone: string): Promise<string> {
   const customers = loadCustomers();
   const key = cpfCnpj.replace(/\D/g, '');
 
   if (customers[key]) return customers[key];
 
   const search = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${key}`, {
-    headers: { access_token: API_KEY },
+    headers: { access_token: apiKey },
   }).then(r => r.json());
 
   if (search.data?.length > 0) {
@@ -49,7 +48,7 @@ async function findOrCreateCustomer(name: string, cpfCnpj: string, email: string
     return id;
   }
 
-  const created = await asaas('POST', '/customers', {
+  const created = await asaas(apiKey, 'POST', '/customers', {
     name,
     cpfCnpj: key,
     email: email || undefined,
@@ -67,6 +66,7 @@ export async function POST(req: NextRequest) {
   const session = cookieStore.get('wt_session')?.value;
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
+  const API_KEY = (process.env.ASAAS_API_KEY || '').replace(/^['"]|['"]$/g, '');
   if (!API_KEY) return NextResponse.json({ error: 'ASAAS_API_KEY não configurada' }, { status: 500 });
 
   const body = await req.json();
@@ -77,10 +77,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const customerId = await findOrCreateCustomer(clientName, clientCpfCnpj, clientEmail, clientPhone);
+    const customerId = await findOrCreateCustomer(API_KEY, clientName, clientCpfCnpj, clientEmail, clientPhone);
 
     if (type === 'subscription') {
-      const sub = await asaas('POST', '/subscriptions', {
+      const sub = await asaas(API_KEY, 'POST', '/subscriptions', {
         customer: customerId,
         billingType,
         value: Number(value),
@@ -93,13 +93,13 @@ export async function POST(req: NextRequest) {
 
       const payments = await fetch(`${ASAAS_URL}/subscriptions/${sub.id}/payments?limit=1`, {
         headers: { access_token: API_KEY },
-      }).then(r => r.json());
+      }).then((r: Response) => r.json());
 
       const invoiceUrl = payments.data?.[0]?.invoiceUrl || `https://app.asaas.com/i/${payments.data?.[0]?.id}`;
       return NextResponse.json({ ok: true, type: 'subscription', id: sub.id, invoiceUrl });
 
     } else {
-      const payment = await asaas('POST', '/payments', {
+      const payment = await asaas(API_KEY, 'POST', '/payments', {
         customer: customerId,
         billingType,
         value: Number(value),
