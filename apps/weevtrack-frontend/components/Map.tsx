@@ -290,10 +290,16 @@ export default function VehicleMap({
         markersRef.current.set(device.id, marker);
       }
 
-      if (!cachedAddr) {
-        reverseGeocode(pos.latitude, pos.longitude, (addr) => {
-          const m = markersRef.current.get(device.id);
-          if (m) m.setTooltipContent(createTooltipHtml(device.name, pos.speed || 0, pos.attributes?.ignition as boolean | undefined, pos.latitude, pos.longitude, pos.fixTime, addr));
+      const currentMarker = markersRef.current.get(device.id);
+      if (currentMarker && !cachedAddr) {
+        currentMarker.off('tooltipopen');
+        currentMarker.on('tooltipopen', () => {
+          reverseGeocode(pos.latitude, pos.longitude, (addr) => {
+            const m = markersRef.current.get(device.id);
+            if (m && m.getTooltip()) {
+              m.setTooltipContent(createTooltipHtml(device.name, pos.speed || 0, pos.attributes?.ignition as boolean | undefined, pos.latitude, pos.longitude, pos.fixTime, addr));
+            }
+          });
         });
       }
     });
