@@ -115,11 +115,12 @@ async function sendPush(sub, payload) {
     await webpush.sendNotification(sub, JSON.stringify(payload), { TTL: 86400, urgency: 'high' });
     console.log(`[push] OK → ${sub.endpoint.slice(-30)}`);
   } catch (err) {
-    console.error(`[push] ERRO ${err.statusCode || err.message} → ${sub.endpoint.slice(-30)}`);
+    const detail = err.body ? ` | ${String(err.body).slice(0, 120)}` : '';
+    console.error(`[push] ERRO ${err.statusCode || err.message}${detail} → ${sub.endpoint.slice(-30)}`);
     if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 400) {
       const subs = readSubs();
       writeJSON(SUBS_FILE, subs.filter((s) => s.endpoint !== sub.endpoint));
-      console.log(`[push] Subscrição removida (endpoint inválido/expirado)`);
+      console.log(`[push] Subscrição removida`);
     }
   }
 }

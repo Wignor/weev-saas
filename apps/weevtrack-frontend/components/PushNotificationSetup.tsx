@@ -11,18 +11,19 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return output;
 }
 
+// Always creates a fresh subscription (unsubscribes stale one first)
 async function doSubscribe(): Promise<boolean> {
   try {
     const { key } = await fetch('/api/push/vapid-public').then(r => r.json());
     const reg = await navigator.serviceWorker.ready;
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(key).buffer as ArrayBuffer,
-      });
-    }
-    // Always re-register with server to keep endpoint fresh
+    // Force-remove any stale subscription from the browser
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) await existing.unsubscribe();
+    // Create fresh subscription
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(key).buffer as ArrayBuffer,
+    });
     await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -44,7 +45,7 @@ export default function PushNotificationSetup() {
     }
     if (Notification.permission === 'denied') { setStatus('denied'); return; }
     if (Notification.permission === 'granted') {
-      // Permission already granted — hide button immediately, re-register silently in background
+      // Already granted — refresh subscription silently to break any stale-sub cycle
       setStatus('subscribed');
       doSubscribe();
     }
@@ -62,7 +63,38 @@ export default function PushNotificationSetup() {
     }
   }
 
-  if (status === 'subscribed' || status === 'unsupported') return null;
+  async function renew() {
+    setStatus('loading');
+    const ok = await doSubscribe();
+    setStatus(ok ? 'subscribed' : 'idle');
+  }
+
+  if (status === 'unsupported') return null;
+
+  if (status === 'subscribed') {
+    return (
+      <div className="mx-4 mt-3 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium" style={{ color: 'var(--text-hi)' }}>Notificações ativas</p>
+            <p className="text-xs" style={{ color: 'var(--text-lo)' }}>Alertas chegam mesmo com app fechado</p>
+          </div>
+        </div>
+        <button
+          onClick={renew}
+          className="text-xs font-medium px-3 py-1.5 rounded-lg flex-shrink-0 border"
+          style={{ color: 'var(--text-lo)', borderColor: 'var(--border)' }}
+        >
+          Renovar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-4 mt-3 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
@@ -74,12 +106,12 @@ export default function PushNotificationSetup() {
           </svg>
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-medium text-dark">Ativar notificações</p>
-          <p className="text-xs text-muted truncate">Alertas quando o veículo ligar ou desligar</p>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-hi)' }}>Ativar notificações</p>
+          <p className="text-xs" style={{ color: 'var(--text-lo)' }} >Alertas quando o veículo ligar ou desligar</p>
         </div>
       </div>
       {status === 'denied' ? (
-        <span className="text-xs text-danger flex-shrink-0">Bloqueado nas configurações</span>
+        <span className="text-xs flex-shrink-0" style={{ color: 'var(--danger)' }}>Bloqueado nas configurações</span>
       ) : (
         <button
           onClick={subscribe}
