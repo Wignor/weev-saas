@@ -124,10 +124,9 @@ async function sendPush(sub, payload) {
   }
 }
 
-// meta: { speedKmh, deviceId, deviceName }
+// meta: { speedKmh, deviceId, deviceName, logUserIds }
 async function broadcastPush(subscriptions, eventType, title, body, url = '/dashboard', meta = {}) {
   console.log(`[${new Date().toLocaleTimeString('pt-BR')}] ALERTA: ${title} — ${body}`);
-  const notifiedUserIds = [];
   for (const sub of subscriptions) {
     const prefs = getPrefsForUser(sub.userId);
     if (!prefs[eventType]) continue;
@@ -140,10 +139,10 @@ async function broadcastPush(subscriptions, eventType, title, body, url = '/dash
       sound: prefs.notifSound !== false,
       vibrate: prefs.notifVibrate !== false,
     });
-    if (sub.userId) notifiedUserIds.push(String(sub.userId));
   }
+  // Log uses logUserIds (intended audience), not push recipients — admin sees unassigned devices, clients see their own
   if (meta.deviceId) {
-    logAlert(meta.deviceId, meta.deviceName || '', eventType, title, body, notifiedUserIds);
+    logAlert(meta.deviceId, meta.deviceName || '', eventType, title, body, meta.logUserIds || []);
   }
 }
 
@@ -211,10 +210,10 @@ async function check() {
       const clientId = assignments[deviceId];
       if (clientId) {
         // Device assigned to a client → notify only that client
-        return clientSubsMap[clientId] || [];
+        return { subs: clientSubsMap[clientId] || [], logUserIds: [String(clientId)] };
       }
       // Device not assigned to anyone → notify admins
-      return adminSubs;
+      return { subs: adminSubs, logUserIds: ['admin'] };
     }
 
     const prevState = readJSON(STATE_FILE);
@@ -230,8 +229,8 @@ async function check() {
       const ignition = pos.attributes?.ignition;
       const battery = pos.attributes?.batteryLevel;
       const moving = speedKmh > 2;
-      const targetSubs = subsForDevice(pos.deviceId);
-      const meta = { deviceId: pos.deviceId, deviceName: device.name };
+      const { subs: targetSubs, logUserIds } = subsForDevice(pos.deviceId);
+      const meta = { deviceId: pos.deviceId, deviceName: device.name, logUserIds };
 
       const enabledOvSubs = targetSubs.filter(s => getPrefsForUser(s.userId).overspeed);
       const minSpeedLimit = enabledOvSubs.length > 0
@@ -320,8 +319,8 @@ async function check() {
       processedEventIds.add(ev.id);
       const evDevice = devices.find(d => d.id === ev.deviceId);
       if (!evDevice) continue;
-      const evSubs = subsForDevice(ev.deviceId);
-      const evMeta = { deviceId: ev.deviceId, deviceName: evDevice.name };
+      const { subs: evSubs, logUserIds: evLogUserIds } = subsForDevice(ev.deviceId);
+      const evMeta = { deviceId: ev.deviceId, deviceName: evDevice.name, logUserIds: evLogUserIds };
       const alarm = ev.attributes?.alarm;
 
       if (alarm === 'sos') {

@@ -51,8 +51,10 @@ export async function GET(req: Request) {
     });
   }
 
-  if (!user.administrator) {
-    const userId = String(user.id);
+  const userId = String(user.id);
+  if (user.administrator) {
+    alerts = alerts.filter(a => Array.isArray(a.userIds) && a.userIds.includes('admin'));
+  } else {
     alerts = alerts.filter(a => Array.isArray(a.userIds) && a.userIds.includes(userId));
   }
 
