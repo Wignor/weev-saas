@@ -117,10 +117,10 @@ async function sendPush(sub, payload) {
   } catch (err) {
     const detail = err.body ? ` | ${String(err.body).slice(0, 120)}` : '';
     console.error(`[push] ERRO ${err.statusCode || err.message}${detail} → ${sub.endpoint.slice(-30)}`);
-    if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 400) {
+    if ([400, 401, 403, 404, 410].includes(err.statusCode)) {
       const subs = readSubs();
       writeJSON(SUBS_FILE, subs.filter((s) => s.endpoint !== sub.endpoint));
-      console.log(`[push] Subscrição removida`);
+      console.log(`[push] Subscrição removida (${err.statusCode})`);
     }
   }
 }

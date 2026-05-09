@@ -11,19 +11,19 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return output;
 }
 
-// Always creates a fresh subscription (unsubscribes stale one first)
 async function doSubscribe(): Promise<boolean> {
   try {
     const { key } = await fetch('/api/push/vapid-public').then(r => r.json());
     const reg = await navigator.serviceWorker.ready;
-    // Force-remove any stale subscription from the browser
-    const existing = await reg.pushManager.getSubscription();
-    if (existing) await existing.unsubscribe();
-    // Create fresh subscription
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(key).buffer as ArrayBuffer,
-    });
+    // Reuse existing subscription if present (never force-unsubscribe — Apple creates new endpoint each time)
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(key).buffer as ArrayBuffer,
+      });
+    }
+    // Always re-register with server to keep endpoint fresh in subscriptions.json
     await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
