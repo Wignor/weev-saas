@@ -51,12 +51,11 @@ export async function GET(req: Request) {
     });
   }
 
-  const userId = String(user.id);
-  if (user.administrator) {
-    alerts = alerts.filter(a => Array.isArray(a.userIds) && a.userIds.includes('admin'));
-  } else {
+  if (!user.administrator) {
+    const userId = String(user.id);
     alerts = alerts.filter(a => Array.isArray(a.userIds) && a.userIds.includes(userId));
   }
+  // Admin sees all alerts — no filter
 
   return NextResponse.json(alerts.slice(0, 300));
 }

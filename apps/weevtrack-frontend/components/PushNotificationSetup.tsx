@@ -63,38 +63,7 @@ export default function PushNotificationSetup() {
     }
   }
 
-  async function renew() {
-    setStatus('loading');
-    const ok = await doSubscribe();
-    setStatus(ok ? 'subscribed' : 'idle');
-  }
-
-  if (status === 'unsupported') return null;
-
-  if (status === 'subscribed') {
-    return (
-      <div className="mx-4 mt-3 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium" style={{ color: 'var(--text-hi)' }}>Notificações ativas</p>
-            <p className="text-xs" style={{ color: 'var(--text-lo)' }}>Alertas chegam mesmo com app fechado</p>
-          </div>
-        </div>
-        <button
-          onClick={renew}
-          className="text-xs font-medium px-3 py-1.5 rounded-lg flex-shrink-0 border"
-          style={{ color: 'var(--text-lo)', borderColor: 'var(--border)' }}
-        >
-          Renovar
-        </button>
-      </div>
-    );
-  }
+  if (status === 'unsupported' || status === 'subscribed') return null;
 
   return (
     <div className="mx-4 mt-3 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 flex items-center justify-between gap-4">

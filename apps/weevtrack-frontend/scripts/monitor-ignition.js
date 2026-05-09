@@ -210,10 +210,11 @@ async function check() {
     function subsForDevice(deviceId) {
       const clientId = assignments[deviceId];
       if (clientId) {
-        // Device assigned to a client → notify only that client
-        return { subs: clientSubsMap[clientId] || [], logUserIds: [String(clientId)] };
+        // Device assigned to a client → notify that client + all admins
+        const clientSubs = clientSubsMap[clientId] || [];
+        return { subs: [...clientSubs, ...adminSubs], logUserIds: [String(clientId)] };
       }
-      // Device not assigned to anyone → notify admins
+      // Device not assigned → notify admins only
       return { subs: adminSubs, logUserIds: ['admin'] };
     }
 
