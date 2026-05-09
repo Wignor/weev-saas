@@ -39,6 +39,14 @@ export async function POST(req: Request) {
     // Guarda sessão do admin para uso interno (rotas do distribuidor)
     if (user.administrator) {
       saveAdminSession(sessionId);
+      // Garante limites ilimitados na conta admin do Traccar
+      if ((user.deviceLimit ?? -1) !== -1 || (user.userLimit ?? -1) !== -1) {
+        fetch(`${process.env.TRACCAR_URL || 'http://localhost:8082'}/api/users/${user.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Cookie: `JSESSIONID=${sessionId}` },
+          body: JSON.stringify({ ...user, deviceLimit: -1, userLimit: -1 }),
+        }).catch(() => {});
+      }
     }
 
     const payload = {

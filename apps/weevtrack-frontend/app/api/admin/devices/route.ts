@@ -27,8 +27,13 @@ export async function POST(req: Request) {
     }),
   });
 
-  const data = await res.json();
-  if (!res.ok) return NextResponse.json({ error: data.message || 'Erro ao cadastrar dispositivo' }, { status: res.status });
+  const text = await res.text();
+  let data: Record<string, unknown> = {};
+  try { data = JSON.parse(text); } catch { /**/ }
+  if (!res.ok) {
+    const msg = (data.message as string) || text || 'Erro ao cadastrar dispositivo';
+    return NextResponse.json({ error: msg }, { status: res.status });
+  }
   return NextResponse.json(data);
 }
 
@@ -66,6 +71,11 @@ export async function PATCH(req: Request) {
     body: JSON.stringify({ ...device, name }),
   });
 
-  if (!putRes.ok) return NextResponse.json({ error: 'Erro ao renomear dispositivo' }, { status: putRes.status });
+  if (!putRes.ok) {
+    const t = await putRes.text();
+    let d: Record<string, unknown> = {};
+    try { d = JSON.parse(t); } catch { /**/ }
+    return NextResponse.json({ error: (d.message as string) || t || 'Erro ao renomear dispositivo' }, { status: putRes.status });
+  }
   return NextResponse.json(await putRes.json());
 }

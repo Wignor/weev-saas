@@ -5,6 +5,9 @@ export interface TraccarUser {
   name: string;
   email: string;
   administrator: boolean;
+  deviceLimit?: number;
+  userLimit?: number;
+  [key: string]: unknown;
 }
 
 export interface TraccarDevice {
