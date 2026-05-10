@@ -60,6 +60,15 @@ export default function PerfilPage() {
   const [contrato, setContrato] = useState<ContratoInfo | null>(null);
   const [contratoLoading, setContratoLoading] = useState(true);
 
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailVal, setEmailVal] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailMsg, setEmailMsg] = useState('');
+
   const [showPwModal, setShowPwModal] = useState(false);
   const [pwCurrent, setPwCurrent] = useState('');
   const [pwNew, setPwNew] = useState('');
@@ -74,6 +83,7 @@ export default function PerfilPage() {
   function loadData() {
     setUser(getUserFromCookie());
     fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setFullUser(d); }).catch(() => {});
+    fetch('/api/me/avatar').then(r => r.ok ? r.json() : null).then(d => { if (d?.avatar) setAvatar(d.avatar); }).catch(() => {});
     setInvoicesLoading(true);
     fetch('/api/me/invoices').then(r => r.json()).then(d => {
       if (Array.isArray(d)) setInvoices(d);
@@ -112,6 +122,77 @@ export default function PerfilPage() {
       else setPwMsg(`❌ ${data.error || 'Erro ao alterar senha'}`);
     } catch { setPwMsg('❌ Erro de conexão'); }
     setPwLoading(false);
+  }
+
+  async function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert('Imagem muito grande. Use uma imagem menor que 5 MB.'); return; }
+    setAvatarLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const src = ev.target?.result as string;
+      // Redimensiona para 256x256 via canvas
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        const size = 256;
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d')!;
+        const min = Math.min(img.width, img.height);
+        const sx = (img.width - min) / 2;
+        const sy = (img.height - min) / 2;
+        ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        try {
+          const res = await fetch('/api/me/avatar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ avatar: dataUrl }),
+          });
+          if (res.ok) setAvatar(dataUrl);
+          else { const d = await res.json(); alert(d.error || 'Erro ao salvar foto'); }
+        } catch { alert('Erro de conexão'); }
+        setAvatarLoading(false);
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  async function handleRemoveAvatar() {
+    if (!confirm('Remover foto de perfil?')) return;
+    await fetch('/api/me/avatar', { method: 'DELETE' });
+    setAvatar(null);
+  }
+
+  function openEmailModal() {
+    setEmailVal((attrs.realEmail as string) || '');
+    setEmailMsg('');
+    setShowEmailModal(true);
+  }
+
+  async function handleSaveEmail() {
+    if (!emailVal.trim()) { setEmailMsg('❌ Informe um e-mail'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal.trim())) { setEmailMsg('❌ E-mail inválido'); return; }
+    setEmailLoading(true); setEmailMsg('');
+    try {
+      const res = await fetch('/api/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ realEmail: emailVal.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEmailMsg('✅ E-mail atualizado!');
+        setFullUser(data);
+        setTimeout(() => setShowEmailModal(false), 1200);
+      } else {
+        setEmailMsg(`❌ ${data.error || 'Erro ao atualizar'}`);
+      }
+    } catch { setEmailMsg('❌ Erro de conexão'); }
+    setEmailLoading(false);
   }
 
   async function requestAssistance() {
@@ -181,13 +262,35 @@ export default function PerfilPage() {
         )}
         {/* Avatar */}
         <div className="flex flex-col items-center py-8">
-          <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center mb-3">
-            <span className="text-3xl font-bold text-white">
-              {user.name ? String(user.name).charAt(0).toUpperCase() : '?'}
-            </span>
+          <div className="relative mb-3">
+            <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center overflow-hidden">
+              {avatar
+                ? <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+                : <span className="text-3xl font-bold text-white">{user.name ? String(user.name).charAt(0).toUpperCase() : '?'}</span>
+              }
+              {avatarLoading && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-full" style={{ background: 'rgba(0,0,0,0.5)' }}>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+            <button onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-0 right-0 w-7 h-7 rounded-full flex items-center justify-center shadow-md"
+              style={{ background: '#007AFF' }} title="Alterar foto">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
           </div>
           <h2 className="font-bold t-text-hi text-lg">{String(user.name || 'Usuário')}</h2>
-          <p className="t-text-lo text-sm">{String(user.email || '')}</p>
+          <p className="t-text-lo text-sm">{String((attrs.realEmail as string) || user.email || '')}</p>
+          {avatar && (
+            <button onClick={handleRemoveAvatar} className="text-xs mt-1" style={{ color: 'var(--text-lo)' }}>
+              Remover foto
+            </button>
+          )}
         </div>
 
         {/* Conta */}
@@ -196,7 +299,6 @@ export default function PerfilPage() {
           <div style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', borderBottom: '1px solid var(--bg-border)' }}>
             {[
               { icon: '👤', label: 'Nome', value: String(user.name || '') },
-              { icon: '📧', label: 'E-mail', value: String(user.email || '') },
               { icon: '🔑', label: 'Perfil', value: user.administrator ? 'Administrador' : 'Usuário' },
               ...(clientSince ? [{ icon: '📅', label: 'Cliente desde', value: clientSince }] : []),
             ].map((item, i, arr) => (
@@ -209,6 +311,21 @@ export default function PerfilPage() {
                 <span className="text-sm t-text-lo truncate max-w-[160px] text-right">{item.value}</span>
               </div>
             ))}
+            <button onClick={openEmailModal} className="w-full flex items-center justify-between px-4 py-3"
+              style={{ borderTop: '1px solid var(--bg-border)' }}>
+              <div className="flex items-center gap-3">
+                <span>📧</span>
+                <span className="text-sm t-text-hi">E-mail</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm t-text-lo truncate max-w-[140px] text-right">
+                  {String((attrs.realEmail as string) || user.email || '')}
+                </span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </div>
+            </button>
             <div style={{ borderTop: '1px solid var(--bg-border)' }}>
               <button onClick={openPwModal} className="w-full flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -330,6 +447,43 @@ export default function PerfilPage() {
       </div>
 
       <BottomNav />
+
+      {/* Modal: Editar e-mail */}
+      {showEmailModal && (
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
+          onClick={() => setShowEmailModal(false)}>
+          <div className="w-full rounded-t-2xl p-5 pb-24 slide-up"
+            style={{ background: 'var(--bg-card)' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--bg-border)' }} />
+            <h3 className="font-bold t-text-hi text-lg mb-1">Editar e-mail</h3>
+            <p className="text-xs t-text-lo mb-5">Este e-mail é exibido apenas no seu perfil</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium t-text-lo mb-1.5">Novo e-mail</label>
+                <input type="email" placeholder="seu@email.com" value={emailVal}
+                  onChange={e => setEmailVal(e.target.value)}
+                  className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+                  style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
+                />
+              </div>
+              {emailMsg && (
+                <p className="text-sm text-center font-medium px-2 py-2 rounded-xl"
+                  style={{
+                    background: emailMsg.startsWith('✅') ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)',
+                    color: emailMsg.startsWith('✅') ? '#34C759' : '#FF3B30',
+                  }}>
+                  {emailMsg}
+                </p>
+              )}
+              <button onClick={handleSaveEmail} disabled={emailLoading}
+                className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl mt-2 disabled:opacity-60 transition-all">
+                {emailLoading ? 'Salvando...' : 'Salvar e-mail'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal: Alterar senha */}
       {showPwModal && (
