@@ -74,6 +74,7 @@ export default function GestaoPage() {
   const [distCredits, setDistCredits] = useState<Record<string, number>>({});
   const [creditQty, setCreditQty] = useState(1);
   const [usersSearch, setUsersSearch] = useState('');
+  const [devicesSearch, setDevicesSearch] = useState('');
   const [adminId, setAdminId] = useState(0);
   const [showRenovar, setShowRenovar] = useState(false);
   const [renovarType, setRenovarType] = useState<'mensal' | 'anual' | 'vitalicio'>('mensal');
@@ -90,6 +91,9 @@ export default function GestaoPage() {
   const sortedUsers = [...users].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
   const filteredUsers = sortedUsers.filter(u =>
     !usersSearch || u.name.toLowerCase().includes(usersSearch.toLowerCase()) || getRealEmail(u).toLowerCase().includes(usersSearch.toLowerCase())
+  );
+  const filteredAllDevices = allDevices.filter(d =>
+    !devicesSearch || d.name.toLowerCase().includes(devicesSearch.toLowerCase()) || d.uniqueId.includes(devicesSearch)
   );
 
   useEffect(() => {
@@ -783,8 +787,25 @@ export default function GestaoPage() {
                 <p className="t-text-lo text-xs mt-1">Toque em "+ Novo dispositivo" para adicionar</p>
               </div>
             ) : (
+              <>
+                <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--bg-border)', background: 'var(--bg-card)' }}>
+                  <div className="relative">
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input type="text" placeholder="Buscar por nome ou IMEI..." value={devicesSearch}
+                      onChange={e => setDevicesSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-sm rounded-lg focus:outline-none"
+                      style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }} />
+                  </div>
+                </div>
+              {filteredAllDevices.length === 0 ? (
+                <div className="text-center py-12 px-8">
+                  <p className="t-text-lo text-sm">Nenhum dispositivo encontrado</p>
+                </div>
+              ) : (
               <div className="mt-2" style={{ borderTop: '1px solid var(--bg-border)' }}>
-                {allDevices.map(device => {
+                {filteredAllDevices.map(device => {
                   const isRenaming = renamingDeviceId === device.id;
                   const clientName = assignments[device.id];
                   return (
@@ -884,6 +905,8 @@ export default function GestaoPage() {
                   );
                 })}
               </div>
+              )}
+              </>
             )}
           </>
         )}
