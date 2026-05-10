@@ -45,6 +45,13 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
     installationValue: 100,
     monthlyValue: 39.9,
   },
+  {
+    id: 'ctt_distribuidor',
+    name: 'Contrato de Distribuidor',
+    description: 'Credenciamento de Distribuidor/Revendedor WeevTrack',
+    installationValue: 0,
+    monthlyValue: 0,
+  },
 ];
 
 export const SIGNATORY = {
@@ -69,20 +76,161 @@ export function getContractBase(): string {
 
 export function getContractText(
   template: ContractTemplate,
-  vars: { nome: string; cpfCnpj: string; data: string; veiculo: string; placa: string; imei: string }
+  vars: { nome: string; cpfCnpj: string; data: string; veiculo?: string; placa?: string; imei?: string; endereco?: string; telefone?: string; email?: string }
 ): string {
+  const base = template.id === 'ctt_distribuidor' ? CONTRACT_DISTRIBUIDOR : getContractBase();
   const inst = template.installationValue.toFixed(2).replace('.', ',');
   const mens = template.monthlyValue.toFixed(2).replace('.', ',');
-  return getContractBase()
+  return base
     .replace(/{{NOME}}/g, vars.nome)
     .replace(/{{CPF_CNPJ}}/g, vars.cpfCnpj)
     .replace(/{{DATA}}/g, vars.data)
-    .replace(/{{VEICULO}}/g, vars.veiculo)
-    .replace(/{{PLACA}}/g, vars.placa)
-    .replace(/{{IMEI}}/g, vars.imei)
+    .replace(/{{VEICULO}}/g, vars.veiculo ?? '')
+    .replace(/{{PLACA}}/g, vars.placa ?? '')
+    .replace(/{{IMEI}}/g, vars.imei ?? '')
+    .replace(/{{ENDERECO}}/g, vars.endereco ?? '')
+    .replace(/{{TELEFONE}}/g, vars.telefone ?? '')
+    .replace(/{{EMAIL}}/g, vars.email ?? '')
     .replace(/{{INSTALACAO}}/g, inst)
     .replace(/{{MENSALIDADE}}/g, mens);
 }
+
+export const CONTRACT_DISTRIBUIDOR = `CONTRATO DE CREDENCIAMENTO DE DISTRIBUIDOR/REVENDEDOR
+WeevTrack — Plataforma de Rastreamento Veicular
+
+Pelo presente instrumento particular, em que são partes:
+
+CREDENCIANTE: Weev Consultoria e Serviços Ltda, inscrita no CNPJ sob nº 34.266.884/0001-42, com sede em Mogi Guaçu – SP, titular da plataforma de monitoramento veicular WeevTrack, doravante denominada simplesmente CREDENCIANTE.
+
+DISTRIBUIDOR: {{NOME}}
+CPF/CNPJ: {{CPF_CNPJ}}
+Endereço: {{ENDERECO}}
+Telefone/WhatsApp: {{TELEFONE}}
+E-mail: {{EMAIL}}
+doravante denominado simplesmente DISTRIBUIDOR.
+
+As partes acima qualificadas têm entre si justo e contratado o presente instrumento, que se regerá pelas cláusulas e condições seguintes:
+
+──────────────────────────────────
+Cláusula 1 – DO OBJETO
+──────────────────────────────────
+
+1.1 – O presente instrumento tem por objeto o credenciamento do DISTRIBUIDOR para comercialização dos serviços de monitoramento e rastreamento veicular da plataforma WeevTrack, incluindo a captação de clientes finais, instalação de equipamentos rastreadores e prestação de suporte de primeiro nível.
+
+1.2 – O credenciamento aqui concedido autoriza o DISTRIBUIDOR a: (a) oferecer e contratar os serviços WeevTrack em nome próprio, como revendedor independente; (b) emitir contratos de prestação de serviço aos clientes finais, utilizando os modelos homologados pela CREDENCIANTE; (c) efetuar a instalação e configuração dos equipamentos rastreadores fornecidos pela CREDENCIANTE; (d) prestar suporte técnico de primeiro nível aos clientes sob sua carteira.
+
+1.3 – O DISTRIBUIDOR fica expressamente autorizado a sublicenciar o acesso à plataforma WeevTrack aos seus clientes finais, dentro dos limites e condições estabelecidos neste contrato e nas políticas da CREDENCIANTE.
+
+──────────────────────────────────
+Cláusula 2 – DA ÁREA DE ATUAÇÃO
+──────────────────────────────────
+
+2.1 – O DISTRIBUIDOR poderá atuar em todo o território nacional, salvo disposição em contrário firmada em aditivo contratual específico.
+
+2.2 – O credenciamento ora concedido não é exclusivo, podendo a CREDENCIANTE credenciar outros distribuidores na mesma região de atuação.
+
+──────────────────────────────────
+Cláusula 3 – DAS OBRIGAÇÕES DA CREDENCIANTE
+──────────────────────────────────
+
+3.1 – São obrigações da CREDENCIANTE: (a) fornecer ao DISTRIBUIDOR acesso à plataforma WeevTrack para gestão de sua carteira de clientes; (b) disponibilizar equipamentos rastreadores nas condições comerciais acordadas; (c) prestar treinamento inicial sobre o uso da plataforma e instalação dos equipamentos; (d) oferecer suporte técnico de segundo nível ao DISTRIBUIDOR; (e) fornecer materiais de apoio à venda e modelos de contrato homologados.
+
+3.2 – A CREDENCIANTE disponibilizará ao DISTRIBUIDOR painel administrativo próprio para cadastro, monitoramento e gestão dos clientes sob sua carteira.
+
+──────────────────────────────────
+Cláusula 4 – DAS OBRIGAÇÕES DO DISTRIBUIDOR
+──────────────────────────────────
+
+4.1 – São obrigações do DISTRIBUIDOR: (a) comercializar os serviços WeevTrack de forma ética e em conformidade com as políticas da CREDENCIANTE; (b) utilizar exclusivamente os modelos de contrato e materiais homologados pela CREDENCIANTE; (c) instalar os equipamentos seguindo os procedimentos técnicos determinados pela CREDENCIANTE; (d) prestar suporte de primeiro nível aos seus clientes finais, acionando a CREDENCIANTE apenas para questões de segundo nível; (e) manter sigilo sobre dados de clientes e informações confidenciais da CREDENCIANTE; (f) não utilizar a marca WeevTrack ou seus materiais para finalidades distintas das autorizadas neste contrato.
+
+4.2 – O DISTRIBUIDOR é responsável pela regularidade fiscal e trabalhista de sua atividade, não havendo qualquer vínculo empregatício ou societário entre as partes decorrente deste instrumento.
+
+4.3 – O DISTRIBUIDOR não poderá ceder, transferir ou sublicenciar os direitos decorrentes deste contrato a terceiros sem prévia autorização escrita da CREDENCIANTE, exceto na hipótese prevista na Cláusula 1.3 (acesso de clientes finais à plataforma).
+
+──────────────────────────────────
+Cláusula 5 – DAS CONDIÇÕES COMERCIAIS
+──────────────────────────────────
+
+5.1 – O DISTRIBUIDOR adquirirá os equipamentos rastreadores e planos de monitoramento diretamente da CREDENCIANTE, nas condições comerciais vigentes na tabela de preços para distribuidores, que poderá ser atualizada mediante aviso prévio de 30 (trinta) dias.
+
+5.2 – O DISTRIBUIDOR é livre para definir os preços de revenda cobrados dos seus clientes finais, sendo sua exclusiva responsabilidade a rentabilidade de sua operação.
+
+5.3 – Os valores cobrados pela CREDENCIANTE ao DISTRIBUIDOR serão reajustados anualmente pelo IPCA/IBGE (Índice Nacional de Preços ao Consumidor Amplo) acumulado do período, com base na data de aniversário deste contrato.
+
+5.4 – O atraso no pagamento das faturas devidas à CREDENCIANTE implicará: (a) multa de 2% sobre o valor em aberto; (b) juros de mora de 1% ao mês; (c) suspensão do acesso à plataforma após 15 (quinze) dias de inadimplência; (d) rescisão do contrato após 30 (trinta) dias de inadimplência.
+
+──────────────────────────────────
+Cláusula 6 – DOS EQUIPAMENTOS
+──────────────────────────────────
+
+6.1 – Os equipamentos rastreadores comercializados pelo DISTRIBUIDOR são de propriedade da CREDENCIANTE até o pagamento integral pelo cliente final, devendo os contratos celebrados com clientes prever cláusula de comodato.
+
+6.2 – O DISTRIBUIDOR é responsável pela guarda e integridade dos equipamentos em seu poder até a entrega e instalação no veículo do cliente final.
+
+6.3 – Avarias, perdas ou furtos de equipamentos ocorridos sob a responsabilidade do DISTRIBUIDOR serão cobrados pelo valor de reposição vigente.
+
+──────────────────────────────────
+Cláusula 7 – DA PROPRIEDADE INTELECTUAL E USO DA MARCA
+──────────────────────────────────
+
+7.1 – A marca WeevTrack, logotipos, plataforma de software e demais ativos intelectuais são de propriedade exclusiva da CREDENCIANTE. Este contrato não transfere ao DISTRIBUIDOR qualquer direito de propriedade sobre tais ativos.
+
+7.2 – O DISTRIBUIDOR fica autorizado a utilizar a marca WeevTrack exclusivamente para fins de divulgação e comercialização dos serviços objeto deste contrato, respeitando as diretrizes de identidade visual fornecidas pela CREDENCIANTE.
+
+7.3 – É vedado ao DISTRIBUIDOR registrar ou tentar registrar a marca WeevTrack ou qualquer marca semelhante em seu nome ou de terceiros.
+
+──────────────────────────────────
+Cláusula 8 – DA PROTEÇÃO DE DADOS PESSOAIS (LGPD)
+──────────────────────────────────
+
+8.1 – Em conformidade com a Lei nº 13.709/2018 (LGPD), o DISTRIBUIDOR atuará como operador de dados pessoais em relação aos dados coletados dos clientes finais, sob as instruções da CREDENCIANTE como controladora.
+
+8.2 – O DISTRIBUIDOR compromete-se a: (a) tratar os dados pessoais apenas nas finalidades autorizadas; (b) adotar medidas técnicas de segurança adequadas; (c) não compartilhar dados com terceiros sem autorização; (d) notificar a CREDENCIANTE em caso de incidente de segurança em até 24 horas.
+
+8.3 – O encerramento deste contrato não desobriga o DISTRIBUIDOR do dever de confidencialidade sobre os dados obtidos durante a vigência.
+
+──────────────────────────────────
+Cláusula 9 – DO PRAZO E RESCISÃO
+──────────────────────────────────
+
+9.1 – O presente contrato é celebrado por prazo indeterminado, podendo ser rescindido por qualquer das partes mediante aviso prévio de 30 (trinta) dias.
+
+9.2 – A CREDENCIANTE poderá rescindir este contrato imediatamente, independentemente de aviso prévio, nas seguintes hipóteses: (a) inadimplência do DISTRIBUIDOR por mais de 30 dias; (b) uso indevido da marca ou da plataforma; (c) violação de dados pessoais de clientes; (d) prática de atos ilícitos ou antiéticos que possam prejudicar a imagem da CREDENCIANTE.
+
+9.3 – Em caso de rescisão, o DISTRIBUIDOR deverá: (a) cessar imediatamente o uso da marca WeevTrack; (b) informar seus clientes finais sobre a situação, permitindo a migração ou encerramento dos contratos; (c) devolver equipamentos de propriedade da CREDENCIANTE em seu poder no prazo de 10 (dez) dias úteis.
+
+──────────────────────────────────
+Cláusula 10 – DISPOSIÇÕES GERAIS
+──────────────────────────────────
+
+10.1 – Este contrato não estabelece qualquer vínculo empregatício, de representação comercial ou de parceria societária entre as partes.
+
+10.2 – A tolerância de qualquer das partes em relação ao descumprimento de obrigações não implicará novação ou renúncia ao direito de exigir o cumprimento.
+
+10.3 – As partes declaram ter lido, compreendido e concordado com todas as cláusulas deste instrumento, assinando-o eletronicamente nos termos da Medida Provisória nº 2.200-2/2001 e da Lei nº 14.063/2020.
+
+──────────────────────────────────
+Cláusula 11 – DO FORO
+──────────────────────────────────
+
+11.1 – Fica eleito o Foro da Comarca de Mogi Guaçu – Estado de São Paulo, com exclusão de qualquer outro, por mais privilegiado que seja, para dirimir quaisquer dúvidas ou litígios decorrentes do presente contrato.
+
+Mogi Guaçu – SP, {{DATA}}.
+
+──────────────────────────────────
+ASSINATURAS
+──────────────────────────────────
+
+DISTRIBUIDOR:
+{{NOME}}
+CPF/CNPJ: {{CPF_CNPJ}}
+
+CREDENCIANTE:
+Wignor Aguiller Ferreira
+CPF: 398.000.258-63
+Weev Consultoria e Serviços Ltda
+CNPJ: 34.266.884/0001-42
+`;
 
 const CONTRACT_BASE = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS DE MONITORAMENTO E RASTREAMENTO VEICULAR
 WeevTrack — Comodato de Equipamento GPS
@@ -158,9 +306,9 @@ Cláusula 5 – DO PAGAMENTO
 • Taxa de instalação/habilitação: R$ {{INSTALACAO}} (devida no ato da instalação)
 • Mensalidade de monitoramento: R$ {{MENSALIDADE}} (com vencimento 30 dias após a instalação, e assim sucessivamente)
 
-5.2 – Os valores das mensalidades serão reajustados anualmente pelo IGPM/FGV acumulado do período, com base na data de aniversário do contrato.
+5.2 – Os valores das mensalidades serão reajustados anualmente pelo IPCA/IBGE (Índice Nacional de Preços ao Consumidor Amplo) acumulado do período, com base na data de aniversário do contrato.
 
-5.3 – O atraso no pagamento implicará: (a) multa moratória de 2% (dois por cento) sobre o valor em aberto; (b) juros de mora de 1% (um por cento) ao mês; (c) correção monetária pelo IGPM/FGV.
+5.3 – O atraso no pagamento implicará: (a) multa moratória de 2% (dois por cento) sobre o valor em aberto; (b) juros de mora de 1% (um por cento) ao mês; (c) correção monetária pelo IPCA/IBGE.
 
 5.4 – Decorridos 3 (três) dias de atraso, a CONTRATADA poderá suspender temporariamente o monitoramento; decorridos 30 (trinta) dias de inadimplência, poderá rescindir o contrato e negativar o CONTRATANTE nos órgãos de proteção ao crédito (SPC/Serasa).
 
