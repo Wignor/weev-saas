@@ -26,7 +26,7 @@ export async function GET() {
   if (!await verifyAdmin(session)) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
 
   const r = await fetch(`${TRACCAR_URL}/api/positions`, {
-    headers: { Cookie: `JSESSIONID=${adminSession()}` }, cache: 'no-store',
+    headers: { Cookie: `JSESSIONID=${session}` }, cache: 'no-store',
   });
   if (!r.ok) return NextResponse.json({ error: 'Erro ao buscar posições' }, { status: 500 });
   return NextResponse.json(await r.json());
