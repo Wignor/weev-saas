@@ -839,7 +839,7 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, lice
   );
 }
 
-type UserEntry = { id: number; name: string; email: string; phone?: string; attributes?: { cpfCnpj?: string }; role: string };
+type UserEntry = { id: number; name: string; email: string; phone?: string; attributes?: { cpfCnpj?: string; realEmail?: string; [key: string]: unknown }; role: string };
 
 /* ── Main page ── */
 export default function DashboardPage() {
