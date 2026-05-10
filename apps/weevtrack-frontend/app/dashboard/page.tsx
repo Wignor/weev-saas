@@ -1013,12 +1013,22 @@ export default function DashboardPage() {
     if (search && !d.name.toLowerCase().includes(search.toLowerCase()) && !d.uniqueId.includes(search)) return false;
     return true;
   }).sort((a, b) => {
-    const sa = getEffectiveStatus(a, posMap[a.id]);
-    const sb = getEffectiveStatus(b, posMap[b.id]);
-    if (sa !== sb) return S_ORDER[sa] - S_ORDER[sb];
-    const ta = a.lastUpdate ? new Date(a.lastUpdate).getTime() : 0;
-    const tb = b.lastUpdate ? new Date(b.lastUpdate).getTime() : 0;
-    return tb - ta;
+    const pa = (() => {
+      const s = getEffectiveStatus(a, posMap[a.id]);
+      if (s === 'movendo') return 0;
+      if (s === 'parado') return posMap[a.id]?.attributes?.ignition ? 1 : 2;
+      if (s === 'offline') return 3;
+      return 4; // expirado
+    })();
+    const pb = (() => {
+      const s = getEffectiveStatus(b, posMap[b.id]);
+      if (s === 'movendo') return 0;
+      if (s === 'parado') return posMap[b.id]?.attributes?.ignition ? 1 : 2;
+      if (s === 'offline') return 3;
+      return 4; // expirado
+    })();
+    if (pa !== pb) return pa - pb;
+    return a.id - b.id;
   });
 
   const filterTabs: { key: typeof filter; label: string; count: number }[] = [
