@@ -1059,9 +1059,12 @@ export default function DashboardPage() {
 
   const [usersSearch, setUsersSearch] = useState('');
   const sortedUsersList = [...usersList].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
-  const filteredUsersList = sortedUsersList.filter(u =>
-    !usersSearch || u.name.toLowerCase().includes(usersSearch.toLowerCase()) || u.email.toLowerCase().includes(usersSearch.toLowerCase())
-  );
+  const filteredUsersList = sortedUsersList.filter(u => {
+    if (!usersSearch) return true;
+    const q = usersSearch.toLowerCase();
+    const displayEmail = (u.attributes?.realEmail || u.email).toLowerCase();
+    return u.name.toLowerCase().includes(q) || displayEmail.includes(q);
+  });
 
   return (
     <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth }}>
@@ -1492,7 +1495,7 @@ export default function DashboardPage() {
                     style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}
                     onClick={() => setShowUsersModal(false)}>
                     <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-hi)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name}</p>
-                    <p style={{ fontSize: '12px', color: 'var(--text-lo)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-lo)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.attributes?.realEmail || u.email}</p>
                   </a>
                   <button onClick={() => { setProfileUser(u); setShowUsersModal(false); }}
                     style={{ width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.2)', cursor: 'pointer' }}
