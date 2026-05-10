@@ -7,6 +7,11 @@ export interface TraccarUser {
   administrator: boolean;
   deviceLimit?: number;
   userLimit?: number;
+  attributes?: {
+    realEmail?: string;
+    cpfCnpj?: string;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
