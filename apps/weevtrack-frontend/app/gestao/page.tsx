@@ -75,6 +75,7 @@ export default function GestaoPage() {
   const [creditQty, setCreditQty] = useState(1);
   const [usersSearch, setUsersSearch] = useState('');
   const [devicesSearch, setDevicesSearch] = useState('');
+  const [assignSearch, setAssignSearch] = useState('');
   const [adminId, setAdminId] = useState(0);
   const [showRenovar, setShowRenovar] = useState(false);
   const [renovarType, setRenovarType] = useState<'mensal' | 'anual' | 'vitalicio'>('mensal');
@@ -142,6 +143,7 @@ export default function GestaoPage() {
   async function selectUser(user: TUser) {
     if (selectedUser?.id === user.id) return;
     setUserDevices([]);
+    setAssignSearch('');
     setSelectedUser(user);
     setLoadingDevices(true);
     try {
@@ -559,8 +561,23 @@ export default function GestaoPage() {
           {unassigned.length > 0 && (
             <>
               <p className="text-xs font-semibold t-text-lo uppercase tracking-wider mb-3">Disponíveis para atribuir</p>
+              <div className="relative mb-3">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input
+                  type="text"
+                  placeholder="Buscar dispositivo..."
+                  value={assignSearch}
+                  onChange={e => setAssignSearch(e.target.value)}
+                  className="w-full text-sm rounded-xl pl-9 pr-3 py-2"
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--bg-border)', color: 'var(--text-hi)', outline: 'none' }}
+                />
+              </div>
               <div className="space-y-2">
-                {unassigned.map(device => (
+                {unassigned.filter(d => {
+                  if (!assignSearch) return true;
+                  const q = assignSearch.toLowerCase();
+                  return d.name.toLowerCase().includes(q) || d.uniqueId.includes(q);
+                }).map(device => (
                   <div key={device.id} className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusColor(device.status) }} />
