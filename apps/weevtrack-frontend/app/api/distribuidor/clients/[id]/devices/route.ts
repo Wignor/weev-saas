@@ -3,21 +3,10 @@ import { cookies } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
 import { readDistClients } from '@/lib/distributorClients';
+import { getAdminSessionId, adminHeaders } from '@/lib/adminSession';
 
-const TRACCAR_URL   = process.env.TRACCAR_URL || 'http://localhost:8082';
-const ROLES_FILE    = path.join(process.cwd(), 'data', 'user_roles.json');
-const SESSION_CACHE = path.join(process.cwd(), 'data', 'admin_session.cache');
-
-function getAdminSession(): string {
-  try { return fs.readFileSync(SESSION_CACHE, 'utf-8').trim(); } catch { return ''; }
-}
-
-function adminHeaders() {
-  return {
-    Cookie: `JSESSIONID=${getAdminSession()}`,
-    'Content-Type': 'application/json',
-  };
-}
+const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
+const ROLES_FILE  = path.join(process.cwd(), 'data', 'user_roles.json');
 
 function readRoles(): Record<string, string> {
   try { return JSON.parse(fs.readFileSync(ROLES_FILE, 'utf-8')); } catch { return {}; }
@@ -39,7 +28,6 @@ function isMyClient(distId: string, clientId: number) {
   return (data[distId] || []).includes(clientId);
 }
 
-/* GET — dispositivos de um cliente do distribuidor */
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   const cookieStore = await cookies();
   const session = cookieStore.get('wt_session')?.value;
@@ -56,15 +44,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({ error: 'Cliente não pertence a você' }, { status: 403 });
   }
 
+  const adminSession = await getAdminSessionId();
   const res = await fetch(`${TRACCAR_URL}/api/devices?userId=${clientId}`, {
-    headers: adminHeaders(), cache: 'no-store',
+    headers: adminHeaders(adminSession), cache: 'no-store',
   });
   if (!res.ok) return NextResponse.json({ error: 'Erro ao buscar dispositivos' }, { status: 500 });
-
   return NextResponse.json(await res.json());
 }
 
-/* POST — atribuir dispositivo a cliente do distribuidor */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const cookieStore = await cookies();
   const session = cookieStore.get('wt_session')?.value;
@@ -82,9 +69,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const { deviceId } = await req.json();
+  const adminSession = await getAdminSessionId();
   const res = await fetch(`${TRACCAR_URL}/api/permissions`, {
     method: 'POST',
-    headers: adminHeaders(),
+    headers: adminHeaders(adminSession),
     body: JSON.stringify({ userId: clientId, deviceId }),
   });
 
@@ -92,7 +80,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   return NextResponse.json({ ok: true });
 }
 
-/* DELETE — remover dispositivo de cliente do distribuidor */
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const cookieStore = await cookies();
   const session = cookieStore.get('wt_session')?.value;
@@ -110,9 +97,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
   }
 
   const { deviceId } = await req.json();
+  const adminSession = await getAdminSessionId();
   const res = await fetch(`${TRACCAR_URL}/api/permissions`, {
     method: 'DELETE',
-    headers: adminHeaders(),
+    headers: adminHeaders(adminSession),
     body: JSON.stringify({ userId: clientId, deviceId }),
   });
 

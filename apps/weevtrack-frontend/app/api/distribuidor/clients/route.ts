@@ -3,21 +3,10 @@ import { cookies } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
 import { readDistClients, writeDistClients } from '@/lib/distributorClients';
+import { getAdminSessionId, adminHeaders } from '@/lib/adminSession';
 
-const TRACCAR_URL   = process.env.TRACCAR_URL || 'http://localhost:8082';
-const ROLES_FILE    = path.join(process.cwd(), 'data', 'user_roles.json');
-const SESSION_CACHE = path.join(process.cwd(), 'data', 'admin_session.cache');
-
-function getAdminSession(): string {
-  try { return fs.readFileSync(SESSION_CACHE, 'utf-8').trim(); } catch { return ''; }
-}
-
-function adminHeaders() {
-  return {
-    Cookie: `JSESSIONID=${getAdminSession()}`,
-    'Content-Type': 'application/json',
-  };
-}
+const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
+const ROLES_FILE  = path.join(process.cwd(), 'data', 'user_roles.json');
 
 function readRoles(): Record<string, string> {
   try { return JSON.parse(fs.readFileSync(ROLES_FILE, 'utf-8')); } catch { return {}; }
@@ -53,8 +42,9 @@ export async function GET() {
   const clientIds = distData[distId] || [];
   if (clientIds.length === 0) return NextResponse.json([]);
 
+  const adminSession = await getAdminSessionId();
   const usersRes = await fetch(`${TRACCAR_URL}/api/users`, {
-    headers: adminHeaders(), cache: 'no-store',
+    headers: adminHeaders(adminSession), cache: 'no-store',
   });
   if (!usersRes.ok) return NextResponse.json({ error: 'Erro ao buscar clientes' }, { status: 500 });
 
@@ -85,9 +75,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Nome, e-mail e senha são obrigatórios' }, { status: 400 });
   }
 
+  const adminSession = await getAdminSessionId();
+  if (!adminSession) {
+    return NextResponse.json({ error: 'Sessão administrativa indisponível. Configure TRACCAR_ADMIN_EMAIL e TRACCAR_ADMIN_PASSWORD no servidor.' }, { status: 503 });
+  }
+
   const createRes = await fetch(`${TRACCAR_URL}/api/users`, {
     method: 'POST',
-    headers: adminHeaders(),
+    headers: adminHeaders(adminSession),
     body: JSON.stringify({ name, email, password, phone: phone || '', administrator: false }),
   });
 
