@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
 import {
-  readLicenses, writeLicenses, createOrRenewLicense,
+  readLicenses, writeLicenses, createOrRenewLicenseByMonths,
   daysLeft, licenseStatus,
   getCredits, useCredit,
 } from '@/lib/licenses';
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
 
   const licenses = readLicenses();
   const key = String(deviceId);
-  licenses[key] = createOrRenewLicense(String(clientId), licenses[key]);
+  licenses[key] = createOrRenewLicenseByMonths(String(clientId), licenses[key], 1);
   writeLicenses(licenses);
 
   return NextResponse.json({
