@@ -1,10 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
-const TRACCAR_URL    = process.env.TRACCAR_URL || 'http://localhost:8082';
-const SESSION_CACHE  = path.join(process.cwd(), 'data', 'admin_session.cache');
-const ADMIN_EMAIL    = process.env.TRACCAR_ADMIN_EMAIL || '';
-const ADMIN_PASSWORD = process.env.TRACCAR_ADMIN_PASSWORD || '';
+const SESSION_CACHE = path.join(process.cwd(), 'data', 'admin_session.cache');
+
+function traccarUrl() { return process.env.TRACCAR_URL || 'http://localhost:8082'; }
 
 function readCached(): string {
   try { return fs.readFileSync(SESSION_CACHE, 'utf-8').trim(); } catch { return ''; }
@@ -21,7 +20,7 @@ function writeCached(sessionId: string) {
 async function isSessionValid(sessionId: string): Promise<boolean> {
   if (!sessionId) return false;
   try {
-    const res = await fetch(`${TRACCAR_URL}/api/session`, {
+    const res = await fetch(`${traccarUrl()}/api/session`, {
       headers: { Cookie: `JSESSIONID=${sessionId}` },
       cache: 'no-store',
     });
@@ -30,12 +29,15 @@ async function isSessionValid(sessionId: string): Promise<boolean> {
 }
 
 async function loginAdmin(): Promise<string> {
-  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) return '';
+  // Read at call time so runtime env vars are always used
+  const email    = process.env.TRACCAR_ADMIN_EMAIL    || '';
+  const password = process.env.TRACCAR_ADMIN_PASSWORD || '';
+  if (!email || !password) return '';
   try {
-    const res = await fetch(`${TRACCAR_URL}/api/session`, {
+    const res = await fetch(`${traccarUrl()}/api/session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
+      body: new URLSearchParams({ email, password }),
     });
     if (!res.ok) return '';
     const cookie = res.headers.get('set-cookie') || '';
