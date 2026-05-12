@@ -56,13 +56,14 @@ export default function HistoricoMap({ route, stops = [], addresses = [] }: Hist
   /* ── Player state ── */
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [playSpeed, setPlaySpeed]   = useState(2);
+  const [playSpeed, setPlaySpeed]   = useState(1);
   const [playerKey, setPlayerKey]   = useState(0);
   const framesRef       = useRef<TraccarPosition[]>([]);
   const playerMarkerRef = useRef<unknown | null>(null);
   const playedPolyRef   = useRef<unknown | null>(null);
   const remainPolyRef   = useRef<unknown | null>(null);
   const intervalRef     = useRef<NodeJS.Timeout | null>(null);
+  const tickAccRef      = useRef(0);
 
   /* ── Map init ── */
   useEffect(() => {
@@ -195,16 +196,21 @@ export default function HistoricoMap({ route, stops = [], addresses = [] }: Hist
     const frames = framesRef.current;
     if (frames.length < 2) return;
 
+    tickAccRef.current = 0;
     intervalRef.current = setInterval(() => {
+      tickAccRef.current += playSpeed;
+      if (tickAccRef.current < 1) return;
+      const advance = Math.floor(tickAccRef.current);
+      tickAccRef.current -= advance;
       setCurrentIdx(prev => {
-        const next = prev + Math.max(1, Math.round(playSpeed));
+        const next = prev + advance;
         if (next >= frames.length - 1) {
           setIsPlaying(false);
           return frames.length - 1;
         }
         return next;
       });
-    }, 80);
+    }, 150);
 
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [isPlaying, playSpeed]);
@@ -403,7 +409,7 @@ export default function HistoricoMap({ route, stops = [], addresses = [] }: Hist
 
             {/* Speed buttons */}
             <div style={{ display: 'flex', gap: '4px', marginLeft: 'auto' }}>
-              {([1, 2, 4, 8] as const).map(s => (
+              {([0.3, 0.5, 1, 2] as const).map(s => (
                 <button key={s} onClick={() => setPlaySpeed(s)}
                   style={{
                     padding: '3px 7px', borderRadius: '6px',
