@@ -49,6 +49,33 @@ export function createOrRenewLicense(userId: string, existing?: LicenseRecord, d
   };
 }
 
+// Renews anchored to the original billing day (day-of-month from activatedAt).
+// Example: billing day = 10, renewed on May 15 → expires June 10.
+//          billing day = 10, renewed on May 5 (current expiry May 10) → expires June 10.
+export function createOrRenewLicenseByMonths(
+  userId: string,
+  existing: LicenseRecord | undefined,
+  months: number
+): LicenseRecord {
+  const now = new Date();
+  const activatedAt = existing?.activatedAt ?? now.toISOString();
+  const billingDay = new Date(activatedAt).getDate();
+  const base = existing && new Date(existing.expiresAt) > now
+    ? new Date(existing.expiresAt)
+    : now;
+
+  let year = base.getFullYear();
+  let month = base.getMonth();
+  if (base.getDate() >= billingDay) month += 1; // billing day already passed this month
+  month += (months - 1);
+  year += Math.floor(month / 12);
+  month = month % 12;
+  const maxDay = new Date(year, month + 1, 0).getDate();
+  const expiresAt = new Date(year, month, Math.min(billingDay, maxDay), 23, 59, 59, 999).toISOString();
+
+  return { userId, activatedAt, expiresAt };
+}
+
 /* ── License Credits ── */
 
 export type CreditsMap = Record<string, number>;

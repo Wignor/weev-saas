@@ -56,7 +56,7 @@ export default function HistoricoMap({ route, stops = [], addresses = [] }: Hist
   /* ── Player state ── */
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [playSpeed, setPlaySpeed]   = useState(1);
+  const [playSpeed, setPlaySpeed]   = useState(0.3);
   const [playerKey, setPlayerKey]   = useState(0);
   const framesRef       = useRef<TraccarPosition[]>([]);
   const playerMarkerRef = useRef<unknown | null>(null);
@@ -409,7 +409,7 @@ export default function HistoricoMap({ route, stops = [], addresses = [] }: Hist
 
             {/* Speed buttons */}
             <div style={{ display: 'flex', gap: '4px', marginLeft: 'auto' }}>
-              {([0.3, 0.5, 1, 2] as const).map(s => (
+              {([0.1, 0.3, 1, 2] as const).map(s => (
                 <button key={s} onClick={() => setPlaySpeed(s)}
                   style={{
                     padding: '3px 7px', borderRadius: '6px',

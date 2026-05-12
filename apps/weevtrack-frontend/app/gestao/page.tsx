@@ -368,9 +368,9 @@ export default function GestaoPage() {
   const unassigned = allDevices.filter(d => !userDevices.find(ud => ud.id === d.id));
 
   const RENOVAR_TYPES = {
-    mensal:    { label: 'Licença mensal',    days: 31,   plural: 'mês(es)' },
-    anual:     { label: 'Licença anual',     days: 365,  plural: 'ano(s)' },
-    vitalicio: { label: 'Licença Vitalícia', days: 3650, plural: 'vitalícia(s)' },
+    mensal:    { label: 'Licença mensal',    months: 1,    plural: 'mês(es)' },
+    anual:     { label: 'Licença anual',     months: 12,   plural: 'ano(s)' },
+    vitalicio: { label: 'Licença Vitalícia', months: 1200, plural: 'vitalícia(s)' },
   } as const;
 
   const deviceOwnerIdMap = useMemo(() => {
@@ -384,7 +384,7 @@ export default function GestaoPage() {
 
   const myCredits = distCredits[String(adminId)] ?? 0;
   const renovarInfo = RENOVAR_TYPES[renovarType];
-  const totalDays = renovarInfo.days * renovarQty;
+  const totalMonths = renovarInfo.months * renovarQty;
   const renovarSummary = `${renovarDevices.length} dispositivo(s) serão renovados por ${renovarQty} ${renovarInfo.plural} e ${renovarDevices.length * renovarQty} licença(s) serão usadas`;
 
   async function executeRenovar() {
@@ -395,7 +395,7 @@ export default function GestaoPage() {
         await fetch('/api/admin/licenses', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceId: device.id, userId, days: totalDays }),
+          body: JSON.stringify({ deviceId: device.id, userId, months: totalMonths }),
         });
       }
       setShowRenovarConfirm(false);
