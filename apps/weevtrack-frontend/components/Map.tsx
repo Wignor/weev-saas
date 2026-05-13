@@ -431,27 +431,27 @@ export default function VehicleMap({
         Mapa
       </button>
 
-      {/* Geolocation button */}
+      {/* Geolocation button — below the Mapa button */}
       <button
         onClick={locateUser}
         title="Minha localização"
         style={{
-          position: 'absolute', bottom: 140, right: 10, zIndex: 900,
-          width: '40px', height: '40px',
+          position: 'absolute', top: 56, right: 10, zIndex: 900,
+          width: '36px', height: '36px',
           background: userPos ? '#007AFF' : 'white',
           border: '2px solid rgba(0,0,0,0.2)',
-          borderRadius: '50%', cursor: 'pointer',
+          borderRadius: '8px', cursor: 'pointer',
           boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           opacity: locLoading ? 0.6 : 1,
         }}
       >
         {locLoading ? (
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={userPos ? 'white' : '#007AFF'} strokeWidth="2.5" strokeLinecap="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={userPos ? 'white' : '#007AFF'} strokeWidth="2.5" strokeLinecap="round">
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
           </svg>
         ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={userPos ? 'white' : '#007AFF'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={userPos ? 'white' : '#007AFF'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="8" r="4"/>
             <path d="M6 20c0-3.314 2.686-6 6-6s6 2.686 6 6"/>
           </svg>
@@ -464,9 +464,9 @@ export default function VehicleMap({
           onClick={navigateToVehicle}
           title="Como chegar ao veículo"
           style={{
-            position: 'absolute', bottom: 188, right: 10, zIndex: 900,
+            position: 'absolute', top: 100, right: 10, zIndex: 900,
             background: '#34C759', border: 'none',
-            borderRadius: '10px', padding: '6px 10px',
+            borderRadius: '8px', padding: '5px 9px',
             fontSize: '11px', fontWeight: '700', cursor: 'pointer',
             boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
             display: 'flex', alignItems: 'center', gap: '5px', color: 'white',
