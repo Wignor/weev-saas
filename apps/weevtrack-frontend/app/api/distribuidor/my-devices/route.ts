@@ -6,6 +6,8 @@ import {
   readLicenses, writeLicenses, createOrRenewLicense,
   daysLeft, licenseStatus, getCredits, useCredit,
 } from '@/lib/licenses';
+import { readDistClients } from '@/lib/distributorClients';
+import { getAdminSessionId, adminHeaders } from '@/lib/adminSession';
 
 const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
 const ROLES_FILE  = path.join(process.cwd(), 'data', 'user_roles.json');
@@ -28,7 +30,7 @@ function isDistributor(role: string) {
   return role === 'distribuidor' || role === 'distribuidor_geral';
 }
 
-/* GET — dispositivos atribuídos diretamente ao distribuidor + status de licença */
+/* GET — dispositivos visíveis ao distribuidor que NÃO estão atribuídos a nenhum cliente dele */
 export async function GET() {
   const cookieStore = await cookies();
   const session = cookieStore.get('wt_session')?.value;
@@ -39,28 +41,51 @@ export async function GET() {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
   }
 
+  const distId = String(ctx.user.id);
+  const adminSession = await getAdminSessionId();
+
+  // All devices visible to the distribuidor in Traccar
   const devRes = await fetch(`${TRACCAR_URL}/api/devices?userId=${ctx.user.id}`, {
-    headers: { Cookie: `JSESSIONID=${session}` }, cache: 'no-store',
+    headers: adminHeaders(adminSession), cache: 'no-store',
   });
-  const devices = devRes.ok ? await devRes.json() : [];
+  const allVisible: { id: number; name: string; uniqueId: string; status: string; lastUpdate: string }[] =
+    devRes.ok ? await devRes.json() : [];
+
+  // IDs of devices already assigned to any of this distribuidor's clients
+  const clientIds = readDistClients()[distId] || [];
+  const clientDeviceIds = new Set<number>();
+  if (clientIds.length > 0) {
+    await Promise.all(clientIds.map(async (clientId: number) => {
+      try {
+        const r = await fetch(`${TRACCAR_URL}/api/devices?userId=${clientId}`, {
+          headers: adminHeaders(adminSession), cache: 'no-store',
+        });
+        if (r.ok) {
+          const devs = await r.json();
+          if (Array.isArray(devs)) devs.forEach((d: { id: number }) => clientDeviceIds.add(d.id));
+        }
+      } catch { /* ignore */ }
+    }));
+  }
+
+  // Only show devices NOT already assigned to a client
   const licenses = readLicenses();
+  const result = (Array.isArray(allVisible) ? allVisible : [])
+    .filter(d => !clientDeviceIds.has(d.id))
+    .map(d => {
+      const lic = licenses[String(d.id)];
+      return {
+        id: d.id, name: d.name, uniqueId: d.uniqueId,
+        status: d.status, lastUpdate: d.lastUpdate,
+        license: lic ? {
+          expiresAt: lic.expiresAt,
+          daysLeft: daysLeft(lic.expiresAt),
+          status: licenseStatus(lic.expiresAt),
+        } : null,
+      };
+    });
 
-  const result = (Array.isArray(devices) ? devices : []).map((d: {
-    id: number; name: string; uniqueId: string; status: string; lastUpdate: string;
-  }) => {
-    const lic = licenses[String(d.id)];
-    return {
-      id: d.id, name: d.name, uniqueId: d.uniqueId,
-      status: d.status, lastUpdate: d.lastUpdate,
-      license: lic ? {
-        expiresAt: lic.expiresAt,
-        daysLeft: daysLeft(lic.expiresAt),
-        status: licenseStatus(lic.expiresAt),
-      } : null,
-    };
-  });
-
-  return NextResponse.json({ devices: result, credits: getCredits(String(ctx.user.id)) });
+  return NextResponse.json({ devices: result, credits: getCredits(distId) });
 }
 
 /* POST — ativar/renovar +31 dias para dispositivo próprio do distribuidor */
