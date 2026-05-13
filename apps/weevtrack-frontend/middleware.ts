@@ -10,6 +10,7 @@ export function middleware(request: NextRequest) {
   const isPublicPage =
     pathname.startsWith('/contrato') ||
     pathname.startsWith('/privacidade') ||
+    pathname.startsWith('/curso-instalacao') ||
     pathname.startsWith('/.well-known') ||
     pathname === '/manifest.webmanifest';
 
