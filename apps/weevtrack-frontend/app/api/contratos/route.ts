@@ -45,32 +45,57 @@ export async function POST(req: NextRequest) {
   ensureDir();
 
   const body = await req.json();
-  const { templateId, userId, clientName, clientCpfCnpj, clientPhone, clientEmail, vehicle, vehiclePlate, deviceImei } = body;
+  const { templateId, customContractText, userId, clientName, clientCpfCnpj, clientPhone, clientEmail, vehicle, vehiclePlate, deviceImei } = body;
 
-  if (!templateId || !userId || !clientName) {
+  if (!userId || !clientName) {
     return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
   }
-
-  const template = CONTRACT_TEMPLATES.find(t => t.id === templateId);
-  if (!template) return NextResponse.json({ error: 'Template não encontrado' }, { status: 404 });
+  if (!templateId && !customContractText) {
+    return NextResponse.json({ error: 'templateId ou customContractText é obrigatório' }, { status: 400 });
+  }
 
   const token = crypto.randomBytes(18).toString('hex');
   const date = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 
-  const contractText = getContractText(template, {
-    nome: clientName,
-    cpfCnpj: clientCpfCnpj || '—',
-    data: date,
-    veiculo: vehicle || '—',
-    placa: vehiclePlate || '—',
-    imei: deviceImei || '—',
-  });
+  let contractText: string;
+  let templateName: string;
+  let installationValue = 0;
+  let monthlyValue = 0;
+  let resolvedTemplateId = templateId || 'dist_custom';
+
+  if (customContractText) {
+    // Distribuidor's own template — substitute variables
+    contractText = String(customContractText)
+      .replace(/\{nome\}/gi, clientName)
+      .replace(/\{cpf\}/gi, clientCpfCnpj || '—')
+      .replace(/\{data\}/gi, date)
+      .replace(/\{veiculo\}/gi, vehicle || '—')
+      .replace(/\{placa\}/gi, vehiclePlate || '—')
+      .replace(/\{imei\}/gi, deviceImei || '—')
+      .replace(/\{email\}/gi, clientEmail || '—')
+      .replace(/\{telefone\}/gi, clientPhone || '—');
+    templateName = 'Contrato Personalizado';
+  } else {
+    const template = CONTRACT_TEMPLATES.find(t => t.id === templateId);
+    if (!template) return NextResponse.json({ error: 'Template não encontrado' }, { status: 404 });
+    contractText = getContractText(template, {
+      nome: clientName,
+      cpfCnpj: clientCpfCnpj || '—',
+      data: date,
+      veiculo: vehicle || '—',
+      placa: vehiclePlate || '—',
+      imei: deviceImei || '—',
+    });
+    templateName = template.name;
+    installationValue = template.installationValue;
+    monthlyValue = template.monthlyValue;
+  }
 
   const contract: Contract = {
     id: token,
     token,
-    templateId,
-    templateName: template.name,
+    templateId: resolvedTemplateId,
+    templateName,
     userId: Number(userId),
     clientName,
     clientCpfCnpj: clientCpfCnpj || '',
@@ -79,8 +104,8 @@ export async function POST(req: NextRequest) {
     vehicle: vehicle || '',
     vehiclePlate: vehiclePlate || '',
     deviceImei: deviceImei || '',
-    installationValue: template.installationValue,
-    monthlyValue: template.monthlyValue,
+    installationValue,
+    monthlyValue,
     createdAt: new Date().toISOString(),
     signedAt: null,
     status: 'pending',

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
-import ContratoModal from '@/components/ContratoModal';
+import ContratoDistribuidorModal from '@/components/ContratoDistribuidorModal';
 import { useNavWidth } from '@/hooks/useNavWidth';
 import GeofenceSection from '@/components/GeofenceSection';
 
@@ -601,7 +601,7 @@ export default function DistribuidorPage() {
       )}
 
       {contratoUser && (
-        <ContratoModal
+        <ContratoDistribuidorModal
           user={contratoUser as { id: number; name: string; email: string }}
           onClose={() => setContratoUser(null)}
         />
