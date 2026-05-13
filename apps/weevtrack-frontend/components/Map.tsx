@@ -147,6 +147,9 @@ export default function VehicleMap({
   type MapLayerType = 'normal' | 'hibrido' | 'satelite' | 'terreno';
   const [mapLayer, setMapLayer] = useState<MapLayerType>('normal');
   const [showMapPanel, setShowMapPanel] = useState(false);
+  const [userPos, setUserPos] = useState<[number, number] | null>(null);
+  const [locLoading, setLocLoading] = useState(false);
+  const userMarkerRef = useRef<Marker | null>(null);
 
   function animateMarker(
     marker: Marker, deviceId: number,
@@ -198,17 +201,22 @@ export default function VehicleMap({
       labelsLayerRef.current = null;
     }
     // Google Maps tiles: m=normal, y=híbrido, s=satélite, p=terreno
+    // Use scale=2 for retina/HiDPI screens to avoid blur on mobile
+    const retina = typeof window !== 'undefined' && window.devicePixelRatio > 1;
+    const scale = retina ? '&scale=2' : '';
     const GOOGLE: Record<string, string> = {
-      normal:   'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-      hibrido:  'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-      satelite: 'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-      terreno:  'https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+      normal:   `https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}${scale}`,
+      hibrido:  `https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}${scale}`,
+      satelite: `https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}${scale}`,
+      terreno:  `https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}${scale}`,
     };
     const map = mapRef.current as LeafletMap;
     tileLayerRef.current = L.tileLayer(GOOGLE[mapLayer], {
       subdomains: ['0', '1', '2', '3'],
       attribution: '© Google Maps',
       maxZoom: 22, maxNativeZoom: 22,
+      tileSize: retina ? 512 : 256,
+      zoomOffset: retina ? -1 : 0,
     }).addTo(map);
   }, [mapLayer]);
 
@@ -341,6 +349,43 @@ export default function VehicleMap({
     if (marker) mapRef.current.flyTo(marker.getLatLng(), 17, { duration: 0.5 });
   }, [centerTrigger, selectedDeviceId]);
 
+  // User geolocation marker
+  useEffect(() => {
+    if (!mapRef.current || typeof window === 'undefined' || !userPos) return;
+    const L = require('leaflet');
+    const map = mapRef.current as LeafletMap;
+    const icon = L.divIcon({
+      html: `<div style="width:18px;height:18px;border-radius:50%;background:#007AFF;border:3px solid white;box-shadow:0 0 0 3px rgba(0,122,255,0.35)"></div>`,
+      className: '',
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+    });
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLatLng(userPos);
+    } else {
+      userMarkerRef.current = L.marker(userPos, { icon, zIndexOffset: 1000 }).addTo(map);
+    }
+    map.flyTo(userPos, Math.max((map as LeafletMap).getZoom(), 16), { duration: 0.8 });
+  }, [userPos]);
+
+  function locateUser() {
+    if (!navigator.geolocation) { alert('Geolocalização não suportada neste dispositivo.'); return; }
+    setLocLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      pos => { setUserPos([pos.coords.latitude, pos.coords.longitude]); setLocLoading(false); },
+      () => { setLocLoading(false); alert('Não foi possível obter sua localização.'); },
+      { enableHighAccuracy: true, timeout: 12000 },
+    );
+  }
+
+  function navigateToVehicle() {
+    if (!userPos || !selectedDeviceId) return;
+    const posObj = positions.find(p => p.deviceId === selectedDeviceId);
+    if (!posObj) return;
+    const url = `https://www.google.com/maps/dir/${userPos[0]},${userPos[1]}/${posObj.latitude},${posObj.longitude}`;
+    window.open(url, '_blank');
+  }
+
   // Live trail polyline for selected device
   useEffect(() => {
     if (!mapRef.current || typeof window === 'undefined') return;
@@ -385,6 +430,54 @@ export default function VehicleMap({
         </svg>
         Mapa
       </button>
+
+      {/* Geolocation button */}
+      <button
+        onClick={locateUser}
+        title="Minha localização"
+        style={{
+          position: 'absolute', bottom: 80, right: 10, zIndex: 800,
+          width: '40px', height: '40px',
+          background: userPos ? '#007AFF' : 'white',
+          border: '2px solid rgba(0,0,0,0.2)',
+          borderRadius: '50%', cursor: 'pointer',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          opacity: locLoading ? 0.6 : 1,
+        }}
+      >
+        {locLoading ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={userPos ? 'white' : '#007AFF'} strokeWidth="2.5" strokeLinecap="round">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={userPos ? 'white' : '#007AFF'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M6 20c0-3.314 2.686-6 6-6s6 2.686 6 6"/>
+          </svg>
+        )}
+      </button>
+
+      {/* Navigate to vehicle button (only when user located + vehicle selected) */}
+      {userPos && selectedDeviceId !== null && positions.some(p => p.deviceId === selectedDeviceId) && (
+        <button
+          onClick={navigateToVehicle}
+          title="Como chegar ao veículo"
+          style={{
+            position: 'absolute', bottom: 128, right: 10, zIndex: 800,
+            background: '#34C759', border: 'none',
+            borderRadius: '10px', padding: '6px 10px',
+            fontSize: '11px', fontWeight: '700', cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+            display: 'flex', alignItems: 'center', gap: '5px', color: 'white',
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+          </svg>
+          Navegar
+        </button>
+      )}
 
       {/* Map type panel */}
       {showMapPanel && (

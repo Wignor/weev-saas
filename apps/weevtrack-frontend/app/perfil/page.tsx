@@ -357,25 +357,33 @@ export default function PerfilPage() {
                 <span className="text-xs t-text-lo">Nenhuma cobrança encontrada</span>
               </div>
             ) : invoices.map((inv, i) => (
-              <div key={inv.id} className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: i < invoices.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold t-text-hi">{fmtCurrency(inv.value)}</p>
-                  <p className="text-xs t-text-lo">Venc. {fmtDate(inv.dueDate)}</p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+              <div key={inv.id}
+                style={{ borderBottom: i < invoices.length - 1 ? '1px solid var(--bg-border)' : 'none', padding: '12px 16px' }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold t-text-hi">{fmtCurrency(inv.value)}</p>
+                    <p className="text-xs t-text-lo">Venc. {fmtDate(inv.dueDate)}</p>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0"
                     style={{ background: STATUS_BG[inv.status] || 'rgba(107,114,128,0.12)', color: STATUS_COLOR[inv.status] || '#6B7280' }}>
                     {STATUS_LABEL[inv.status] || inv.status}
                   </span>
-                  {inv.invoiceUrl && (inv.status === 'PENDING' || inv.status === 'OVERDUE') && (
-                    <a href={inv.invoiceUrl} target="_blank" rel="noreferrer"
-                      className="text-xs px-2.5 py-1 rounded-lg font-semibold no-underline"
-                      style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF' }}>
-                      Pagar
-                    </a>
-                  )}
                 </div>
+                {inv.invoiceUrl && (inv.status === 'PENDING' || inv.status === 'OVERDUE') && (
+                  <a href={inv.invoiceUrl} target="_blank" rel="noreferrer"
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      marginTop: '10px', padding: '11px', borderRadius: '12px',
+                      background: inv.status === 'OVERDUE' ? '#FF3B30' : '#007AFF',
+                      color: 'white', fontWeight: 700, fontSize: '14px',
+                      textDecoration: 'none', width: '100%', boxSizing: 'border-box',
+                    }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+                    </svg>
+                    {inv.status === 'OVERDUE' ? 'Pagar fatura em atraso' : 'Pagar fatura'}
+                  </a>
+                )}
               </div>
             ))}
           </div>
