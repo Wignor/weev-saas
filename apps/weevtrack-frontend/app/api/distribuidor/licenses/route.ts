@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import fs from 'fs';
 import path from 'path';
 import {
-  readLicenses, writeLicenses, createOrRenewLicenseByMonths,
+  readLicenses, writeLicenses, createOrRenewLicense, createOrRenewLicenseByMonths,
   daysLeft, licenseStatus,
   getCredits, useCredit,
 } from '@/lib/licenses';
@@ -58,7 +58,9 @@ export async function GET() {
   return NextResponse.json({ credits, licenses: deviceLicenses });
 }
 
-/* POST — distribuidor ativa/renova licença de 1 mês para um dispositivo usando 1 crédito */
+/* POST — distribuidor ativa/renova licença
+   - days (positivo ou negativo): ajuste diário sem custo de crédito
+   - sem days: renova +1 mês consumindo 1 crédito */
 export async function POST(req: Request) {
   const cookieStore = await cookies();
   const session = cookieStore.get('wt_session')?.value;
@@ -70,7 +72,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
   }
 
-  const { deviceId, clientId } = await req.json();
+  const { deviceId, clientId, days } = await req.json();
   if (!deviceId || !clientId) {
     return NextResponse.json({ error: 'deviceId e clientId são obrigatórios' }, { status: 400 });
   }
@@ -81,14 +83,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Cliente não pertence a você' }, { status: 403 });
   }
 
-  const consumed = useCredit(distId);
-  if (!consumed) {
-    return NextResponse.json({ error: 'Sem créditos disponíveis. Solicite mais créditos ao administrador.' }, { status: 402 });
-  }
-
   const licenses = readLicenses();
   const key = String(deviceId);
-  licenses[key] = createOrRenewLicenseByMonths(String(clientId), licenses[key], 1);
+
+  if (typeof days === 'number' && days !== 0) {
+    // Ajuste diário — sem custo de crédito
+    licenses[key] = createOrRenewLicense(String(clientId), licenses[key], days);
+  } else {
+    // Renovação mensal — consome 1 crédito
+    const consumed = useCredit(distId);
+    if (!consumed) {
+      return NextResponse.json({ error: 'Sem créditos disponíveis. Solicite mais créditos ao administrador.' }, { status: 402 });
+    }
+    licenses[key] = createOrRenewLicenseByMonths(String(clientId), licenses[key], 1);
+  }
+
   writeLicenses(licenses);
 
   return NextResponse.json({

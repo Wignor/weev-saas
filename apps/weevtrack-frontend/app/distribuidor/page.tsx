@@ -168,6 +168,7 @@ export default function DistribuidorPage() {
     if (res.ok) {
       const dev = allDevices.find(d => d.id === deviceId);
       if (dev) setClientDevices(prev => ({ ...prev, [clientId]: [...(prev[clientId] || []), dev] }));
+      setOwnDevices(prev => prev.filter(d => d.id !== deviceId));
       flash('✅ Dispositivo atribuído');
     } else flash('❌ Erro ao atribuir');
   }
@@ -181,23 +182,29 @@ export default function DistribuidorPage() {
     if (res.ok) {
       setClientDevices(prev => ({ ...prev, [clientId]: (prev[clientId] || []).filter(d => d.id !== deviceId) }));
       flash('✅ Dispositivo removido');
+      loadMyDevices();
     } else flash('❌ Erro ao remover');
   }
 
-  async function activateLicense(deviceId: number, clientId: number) {
+  async function activateLicense(deviceId: number, clientId: number, days?: number) {
+    const body: Record<string, unknown> = { deviceId, clientId };
+    if (typeof days === 'number') body.days = days;
     const res = await fetch('/api/distribuidor/licenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceId, clientId }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (res.ok) {
-      setCredits(data.credits);
+      if (data.credits !== undefined) setCredits(data.credits);
       setLicenses(prev => ({
         ...prev,
         [String(deviceId)]: { expiresAt: data.expiresAt, daysLeft: data.daysLeft, status: data.status },
       }));
-      flash(`✅ Licença ativada — expira em ${data.daysLeft} dias`);
+      const label = typeof days === 'number'
+        ? (days > 0 ? `+${days} dia(s) adicionado(s)` : `${days} dia(s) removido(s)`)
+        : 'Licença renovada (+1 mês)';
+      flash(`✅ ${label} — expira em ${data.daysLeft} dias`);
     } else {
       flash(`❌ ${data.error || 'Erro ao ativar licença'}`);
     }
@@ -243,20 +250,32 @@ export default function DistribuidorPage() {
                           <p className="text-xs t-text-lo">{device.uniqueId}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                      <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                         <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
                           style={{ background: `${licColor}18`, color: licColor }}>
                           {licLabel}
                         </span>
+                        <button onClick={() => activateLicense(device.id, selectedClient.id, -1)}
+                          className="text-xs px-1.5 py-1 rounded-lg font-medium"
+                          style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}
+                          title="Remover 1 dia">
+                          -1d
+                        </button>
+                        <button onClick={() => activateLicense(device.id, selectedClient.id, 1)}
+                          className="text-xs px-1.5 py-1 rounded-lg font-medium"
+                          style={{ background: 'rgba(52,199,89,0.1)', color: '#34C759' }}
+                          title="Adicionar 1 dia">
+                          +1d
+                        </button>
                         <button onClick={() => activateLicense(device.id, selectedClient.id)}
                           className="text-xs px-2 py-1 rounded-lg font-medium"
                           style={{ background: credits > 0 ? 'rgba(139,92,246,0.12)' : 'rgba(107,114,128,0.1)', color: credits > 0 ? '#8B5CF6' : '#6B7280' }}
-                          title={credits > 0 ? 'Ativar/Renovar (+31 dias)' : 'Sem créditos disponíveis'}>
-                          +31d
+                          title={credits > 0 ? 'Renovar +1 mês (1 crédito)' : 'Sem créditos disponíveis'}>
+                          +1mês
                         </button>
                         <button onClick={() => removeDevice(selectedClient.id, device.id)}
                           className="text-xs px-2 py-1 rounded-lg font-medium"
-                          style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}>
+                          style={{ background: 'rgba(255,149,0,0.1)', color: '#FF9500' }}>
                           Remover
                         </button>
                       </div>
