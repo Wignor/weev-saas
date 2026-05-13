@@ -19,7 +19,7 @@ const VehicleMap = dynamic(() => import('@/components/Map'), {
   ),
 });
 
-function getUserFromCookie() {
+function getUserFromCookie(): { name: string; administrator: boolean; role?: string; id?: number } {
   if (typeof document === 'undefined') return { name: '', administrator: false };
   try {
     const raw = document.cookie.split('; ').find((r) => r.startsWith('wt_user='))?.split('=').slice(1).join('=');
