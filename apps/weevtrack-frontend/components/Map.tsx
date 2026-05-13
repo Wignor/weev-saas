@@ -436,7 +436,7 @@ export default function VehicleMap({
         onClick={locateUser}
         title="Minha localização"
         style={{
-          position: 'absolute', bottom: 80, right: 10, zIndex: 800,
+          position: 'absolute', bottom: 140, right: 10, zIndex: 900,
           width: '40px', height: '40px',
           background: userPos ? '#007AFF' : 'white',
           border: '2px solid rgba(0,0,0,0.2)',
@@ -464,7 +464,7 @@ export default function VehicleMap({
           onClick={navigateToVehicle}
           title="Como chegar ao veículo"
           style={{
-            position: 'absolute', bottom: 128, right: 10, zIndex: 800,
+            position: 'absolute', bottom: 188, right: 10, zIndex: 900,
             background: '#34C759', border: 'none',
             borderRadius: '10px', padding: '6px 10px',
             fontSize: '11px', fontWeight: '700', cursor: 'pointer',
