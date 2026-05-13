@@ -904,8 +904,12 @@ export default function DashboardPage() {
       fetch('/api/admin/users').then(r => r.json()).then(data => {
         if (Array.isArray(data)) setUsersList(data.filter((u: { administrator?: boolean }) => !u.administrator));
       }).catch(() => {});
+    } else if ((user.role === 'distribuidor' || user.role === 'distribuidor_geral') && !asUser) {
+      fetch('/api/distribuidor/clients').then(r => r.json()).then(data => {
+        if (Array.isArray(data)) setUsersList(data);
+      }).catch(() => {});
     }
-  }, [user.administrator, asUser]);
+  }, [user.administrator, user.role, asUser]);
 
   useEffect(() => {
     fetch('/api/devices/prefs').then(r => r.json()).then((data: Record<string, DevicePref>) => {
@@ -1102,17 +1106,17 @@ export default function DashboardPage() {
               style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}>✕ Sair</a>
           ) : (
             <>
-              {user.administrator && (
+              {(user.administrator || user.role === 'distribuidor' || user.role === 'distribuidor_geral') && usersList.length > 0 && (
                 <button onClick={() => setShowUsersModal(true)}
                   className="flex items-center gap-1 h-7 px-2 rounded-lg text-xs font-semibold flex-shrink-0"
                   style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF', border: '1px solid rgba(0,122,255,0.2)' }}
-                  title="Acessar conta de usuário">
+                  title="Ver veículos de um cliente">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                     <circle cx="9" cy="7" r="4"/>
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
                   </svg>
-                  Usuários
+                  {user.administrator ? 'Usuários' : 'Clientes'}
                 </button>
               )}
               <button onClick={toggleTheme} className="w-8 h-8 rounded-lg flex items-center justify-center"

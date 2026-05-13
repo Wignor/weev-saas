@@ -88,11 +88,26 @@ export async function GET(req: NextRequest) {
 
   const asUser = req.nextUrl.searchParams.get('asUser');
   const all = req.nextUrl.searchParams.get('all') === 'true';
-  const url = asUser
-    ? `${TRACCAR_URL}/api/devices?userId=${asUser}`
-    : `${TRACCAR_URL}/api/devices`;
 
   try {
+    // Distribuidor viewing one of their clients — use admin session for Traccar
+    if (asUser && isDistributor && traccarUserId) {
+      const clientIds = readDistClients()[traccarUserId] || [];
+      if (!clientIds.includes(Number(asUser))) {
+        return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
+      }
+      const adminSess = await getAdminSessionId();
+      const r = await fetch(`${TRACCAR_URL}/api/devices?userId=${asUser}`, {
+        headers: adminHeaders(adminSess), cache: 'no-store',
+      });
+      if (!r.ok) return NextResponse.json({ error: 'Erro ao buscar dispositivos' }, { status: 500 });
+      return NextResponse.json(await r.json());
+    }
+
+    const url = asUser
+      ? `${TRACCAR_URL}/api/devices?userId=${asUser}`
+      : `${TRACCAR_URL}/api/devices`;
+
     const res = await fetch(url, {
       headers: { Cookie: `JSESSIONID=${session}` },
       cache: 'no-store',

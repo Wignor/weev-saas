@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import fs from 'fs';
+import path from 'path';
 import { TraccarPosition } from '@/lib/traccar';
 import { readLicenses } from '@/lib/licenses';
+import { readDistClients } from '@/lib/distributorClients';
+import { getAdminSessionId, adminHeaders } from '@/lib/adminSession';
 
 const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
+const ROLES_FILE  = path.join(process.cwd(), 'data', 'user_roles.json');
+
+function readRoles(): Record<string, string> {
+  try { return JSON.parse(fs.readFileSync(ROLES_FILE, 'utf-8')); } catch { return {}; }
+}
 
 async function getAssignedDeviceIds(session: string): Promise<Set<number>> {
   const usersRes = await fetch(`${TRACCAR_URL}/api/users`, {
@@ -37,17 +46,45 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
   let isAdmin = false;
+  let traccarUserId = '';
+  let role = 'usuario';
   try {
     const raw = cookieStore.get('wt_user')?.value;
-    if (raw) isAdmin = !!JSON.parse(decodeURIComponent(raw)).administrator;
+    if (raw) {
+      const u = JSON.parse(decodeURIComponent(raw));
+      isAdmin = !!u.administrator;
+      traccarUserId = String(u.id || '');
+      role = u.role || 'usuario';
+    }
   } catch { /* silencioso */ }
 
+  if (!isAdmin && traccarUserId) {
+    const roles = readRoles();
+    role = roles[traccarUserId] || role;
+  }
+  const isDistributor = role === 'distribuidor' || role === 'distribuidor_geral';
+
   const asUser = req.nextUrl.searchParams.get('asUser');
-  const url = asUser
-    ? `${TRACCAR_URL}/api/positions?userId=${asUser}`
-    : `${TRACCAR_URL}/api/positions`;
 
   try {
+    // Distribuidor viewing one of their clients — use admin session for Traccar
+    if (asUser && isDistributor && traccarUserId) {
+      const clientIds = readDistClients()[traccarUserId] || [];
+      if (!clientIds.includes(Number(asUser))) {
+        return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
+      }
+      const adminSess = await getAdminSessionId();
+      const r = await fetch(`${TRACCAR_URL}/api/positions?userId=${asUser}`, {
+        headers: adminHeaders(adminSess), cache: 'no-store',
+      });
+      if (!r.ok) return NextResponse.json({ error: 'Erro ao buscar posições' }, { status: 500 });
+      return NextResponse.json(await r.json());
+    }
+
+    const url = asUser
+      ? `${TRACCAR_URL}/api/positions?userId=${asUser}`
+      : `${TRACCAR_URL}/api/positions`;
+
     const res = await fetch(url, {
       headers: { Cookie: `JSESSIONID=${session}` },
       cache: 'no-store',

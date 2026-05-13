@@ -512,6 +512,12 @@ export default function DistribuidorPage() {
                                 {devs.length} disp.
                               </span>
                             )}
+                            <a href={`/dashboard?asUser=${client.id}&asUserName=${encodeURIComponent(client.name)}`}
+                              className="text-xs px-2 py-1 rounded-lg font-medium no-underline flex-shrink-0"
+                              style={{ background: 'rgba(52,199,89,0.12)', color: '#34C759' }}
+                              title="Ver veículos no mapa">
+                              📍
+                            </a>
                             <button onClick={() => selectClient(client)}
                               className="text-xs px-2.5 py-1 rounded-lg font-medium"
                               style={{
