@@ -70,13 +70,23 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   const { deviceId } = await req.json();
   const adminSession = await getAdminSessionId();
-  const res = await fetch(`${TRACCAR_URL}/api/permissions`, {
+  const distTraccarId = ctx.user.id;
+
+  // Add device to client
+  const addRes = await fetch(`${TRACCAR_URL}/api/permissions`, {
     method: 'POST',
     headers: adminHeaders(adminSession),
     body: JSON.stringify({ userId: clientId, deviceId }),
   });
+  if (!addRes.ok) return NextResponse.json({ error: 'Erro ao atribuir dispositivo' }, { status: 500 });
 
-  if (!res.ok) return NextResponse.json({ error: 'Erro ao atribuir dispositivo' }, { status: 500 });
+  // Remove device from distribuidor so it only appears for the client
+  await fetch(`${TRACCAR_URL}/api/permissions`, {
+    method: 'DELETE',
+    headers: adminHeaders(adminSession),
+    body: JSON.stringify({ userId: distTraccarId, deviceId }),
+  });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -98,12 +108,22 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
   const { deviceId } = await req.json();
   const adminSession = await getAdminSessionId();
-  const res = await fetch(`${TRACCAR_URL}/api/permissions`, {
+  const distTraccarId = ctx.user.id;
+
+  // Remove device from client
+  const removeRes = await fetch(`${TRACCAR_URL}/api/permissions`, {
     method: 'DELETE',
     headers: adminHeaders(adminSession),
     body: JSON.stringify({ userId: clientId, deviceId }),
   });
+  if (!removeRes.ok) return NextResponse.json({ error: 'Erro ao remover dispositivo' }, { status: 500 });
 
-  if (!res.ok) return NextResponse.json({ error: 'Erro ao remover dispositivo' }, { status: 500 });
+  // Return device to distribuidor
+  await fetch(`${TRACCAR_URL}/api/permissions`, {
+    method: 'POST',
+    headers: adminHeaders(adminSession),
+    body: JSON.stringify({ userId: distTraccarId, deviceId }),
+  });
+
   return NextResponse.json({ ok: true });
 }
