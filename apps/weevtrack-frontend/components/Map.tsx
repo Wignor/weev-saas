@@ -219,7 +219,7 @@ export default function VehicleMap({
       mapRef.current?.invalidateSize();
       if (!hasFittedRef.current) {
         const L = require('leaflet');
-        const valid = positions.filter(p => p.valid && !(p.latitude === 0 && p.longitude === 0));
+        const valid = positions.filter(p => !(p.latitude === 0 && p.longitude === 0) && Math.abs(p.latitude) > 0.001);
         if (valid.length === 1) {
           mapRef.current?.setView([valid[0].latitude, valid[0].longitude], 15);
           hasFittedRef.current = true;
@@ -251,7 +251,8 @@ export default function VehicleMap({
 
     devices.forEach((device) => {
       const pos = posMap[device.id];
-      if (!pos || !pos.valid || (pos.latitude === 0 && pos.longitude === 0)) {
+      const hasCoords = pos && !(pos.latitude === 0 && pos.longitude === 0) && Math.abs(pos.latitude) > 0.001;
+      if (!hasCoords) {
         if (markersRef.current.has(device.id)) {
           map.removeLayer(markersRef.current.get(device.id)!);
           markersRef.current.delete(device.id);
@@ -314,7 +315,7 @@ export default function VehicleMap({
     });
 
     if (!hasFittedRef.current) {
-      const valid = positions.filter(p => p.valid && !(p.latitude === 0 && p.longitude === 0));
+      const valid = positions.filter(p => !(p.latitude === 0 && p.longitude === 0) && Math.abs(p.latitude) > 0.001);
       if (valid.length === 1) {
         map.setView([valid[0].latitude, valid[0].longitude], 15);
         hasFittedRef.current = true;
