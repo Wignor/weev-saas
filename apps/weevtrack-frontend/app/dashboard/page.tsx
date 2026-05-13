@@ -853,7 +853,7 @@ export default function DashboardPage() {
   const [mobileView, setMobileView] = useState<'lista' | 'mapa'>('lista');
   const [filter, setFilter] = useState<'todos' | 'online' | 'offline' | 'expirando'>('todos');
   const [search, setSearch] = useState('');
-  const [user, setUser] = useState({ name: '', administrator: false });
+  const [user, setUser] = useState<{ name: string; administrator: boolean; role?: string; id?: number }>({ name: '', administrator: false });
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [assignments, setAssignments] = useState<Record<number, string>>({});
   const [centerTrigger, setCenterTrigger] = useState(0);
