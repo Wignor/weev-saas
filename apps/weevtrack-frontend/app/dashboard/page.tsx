@@ -60,7 +60,7 @@ function fmtDateTime(dt: string | null | undefined): string {
 }
 
 type DeviceStatus = 'movendo' | 'parado' | 'offline' | 'expirado';
-type DevicePref = { vehicleType: string; chipNumber?: string; iccid?: string; customKm?: string };
+type DevicePref = { vehicleType: string; chipNumber?: string; iccid?: string; customKm?: string; deviceModel?: string };
 
 type OwnerInfo = { name: string; email: string; phone?: string; cpfCnpj?: string };
 
@@ -265,10 +265,11 @@ interface DeviceDetailProps {
   ownerInfo?: OwnerInfo | null;
   iccid?: string;
   customKm?: string;
-  onSaveCustomKm?: (deviceId: number, km: string) => void;
+  deviceModel?: string;
+  onSavePrefs?: (deviceId: number, updates: Partial<DevicePref>) => void;
 }
 
-function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, clientName, isAdmin, variant = 'sheet', licenseInfo, ownerInfo, iccid, customKm, onSaveCustomKm }: DeviceDetailProps) {
+function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, clientName, isAdmin, variant = 'sheet', licenseInfo, ownerInfo, iccid, customKm, deviceModel, onSavePrefs }: DeviceDetailProps) {
   const [cmdLoading, setCmdLoading] = useState<string | null>(null);
   const [cmdMsg, setCmdMsg] = useState('');
   const [confirmCmd, setConfirmCmd] = useState<{ type: string; label: string } | null>(null);
@@ -283,6 +284,10 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
   const [infoTab, setInfoTab] = useState<'dispositivo' | 'proprietario'>('dispositivo');
   const [editingKm, setEditingKm] = useState(false);
   const [kmInput, setKmInput] = useState(customKm || '');
+  const [editingIccid, setEditingIccid] = useState(false);
+  const [iccidInput, setIccidInput] = useState(iccid || '');
+  const [editingModel, setEditingModel] = useState(false);
+  const [modelInput, setModelInput] = useState(deviceModel || '');
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   useEffect(() => {
@@ -312,10 +317,22 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
   }, []);
 
   useEffect(() => { setKmInput(customKm || ''); }, [customKm]);
+  useEffect(() => { setIccidInput(iccid || ''); }, [iccid]);
+  useEffect(() => { setModelInput(deviceModel || ''); }, [deviceModel]);
 
   function saveKm() {
     setEditingKm(false);
-    if (onSaveCustomKm) onSaveCustomKm(device.id, kmInput);
+    if (onSavePrefs) onSavePrefs(device.id, { customKm: kmInput });
+  }
+
+  function saveIccid() {
+    setEditingIccid(false);
+    if (onSavePrefs) onSavePrefs(device.id, { iccid: iccidInput });
+  }
+
+  function saveModel() {
+    setEditingModel(false);
+    if (onSavePrefs) onSavePrefs(device.id, { deviceModel: modelInput });
   }
 
   function copyToClipboard(text: string, label: string) {
@@ -717,26 +734,75 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
                 </svg>
               </div>
             </button>
-            {/* Modelo */}
+            {/* Modelo — editável */}
             <div className="flex items-center justify-between px-3 py-2.5"
               style={{ background: 'transparent', borderBottom: '1px solid var(--bg-border)' }}>
               <span className="text-xs" style={{ color: 'var(--text-lo)' }}>Modelo</span>
-              <span className="text-xs font-semibold" style={{ color: 'var(--text-mid)' }}>{device.model || '—'}</span>
+              {editingModel ? (
+                <div className="flex items-center gap-1">
+                  <input autoFocus value={modelInput} onChange={e => setModelInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveModel(); if (e.key === 'Escape') { setEditingModel(false); setModelInput(deviceModel || ''); } }}
+                    placeholder="Ex: SL44"
+                    className="w-24 text-xs text-right rounded-lg px-2 py-1 focus:outline-none"
+                    style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid #007AFF' }} />
+                  <button onClick={saveModel} className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(52,199,89,0.15)' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                  <button onClick={() => { setEditingModel(false); setModelInput(deviceModel || ''); }} className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(255,59,48,0.1)' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold" style={{ color: modelInput ? 'var(--text-mid)' : 'var(--text-lo)' }}>{modelInput || '—'}</span>
+                  <button onClick={() => setEditingModel(true)} className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'rgba(0,122,255,0.1)' }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
-            {/* ICCID — clique para copiar */}
-            <button onClick={() => iccid && copyToClipboard(iccid, 'ICCID')}
-              className="w-full flex items-center justify-between px-3 py-2.5 text-left"
-              style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--bg-border)', cursor: iccid ? 'pointer' : 'default' }}>
+            {/* ICCID — editável e clicável para copiar */}
+            <div className="flex items-center justify-between px-3 py-2.5"
+              style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--bg-border)' }}>
               <span className="text-xs" style={{ color: 'var(--text-lo)' }}>ICCID</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-mono font-semibold" style={{ color: 'var(--text-mid)' }}>{iccid || '—'}</span>
-                {iccid && (
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
-                    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                  </svg>
-                )}
-              </div>
-            </button>
+              {editingIccid ? (
+                <div className="flex items-center gap-1">
+                  <input autoFocus value={iccidInput} onChange={e => setIccidInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveIccid(); if (e.key === 'Escape') { setEditingIccid(false); setIccidInput(iccid || ''); } }}
+                    placeholder="Ex: 89550..."
+                    className="w-32 text-xs text-right rounded-lg px-2 py-1 focus:outline-none font-mono"
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-hi)', border: '1px solid #007AFF' }} />
+                  <button onClick={saveIccid} className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(52,199,89,0.15)' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                  <button onClick={() => { setEditingIccid(false); setIccidInput(iccid || ''); }} className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(255,59,48,0.1)' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  {iccidInput && (
+                    <button onClick={() => copyToClipboard(iccidInput, 'ICCID')}
+                      className="flex items-center gap-1" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      <span className="text-xs font-mono font-semibold" style={{ color: 'var(--text-mid)' }}>{iccidInput}</span>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
+                    </button>
+                  )}
+                  {!iccidInput && <span className="text-xs font-semibold" style={{ color: 'var(--text-lo)' }}>—</span>}
+                  <button onClick={() => setEditingIccid(true)} className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'rgba(0,122,255,0.1)' }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
             {/* KM do veículo — editável */}
             <div className="flex items-center justify-between px-3 py-2.5" style={{ background: 'transparent' }}>
               <span className="text-xs" style={{ color: 'var(--text-lo)' }}>KM do veículo</span>
@@ -1089,9 +1155,9 @@ export default function DashboardPage() {
     }
   }, [user.administrator, asUser]);
 
-  async function saveCustomKm(deviceId: number, km: string) {
+  async function saveDevicePrefs(deviceId: number, updates: Partial<DevicePref>) {
     const currentPrefs = vehiclePrefs[deviceId] || { vehicleType: 'car' };
-    const updated: DevicePref = { ...currentPrefs, customKm: km };
+    const updated: DevicePref = { ...currentPrefs, ...updates };
     await fetch('/api/devices/prefs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1476,7 +1542,8 @@ export default function DashboardPage() {
                 ownerInfo={user.administrator && !asUser ? (deviceOwners[selectedId] ?? null) : selfOwnerInfo}
                 iccid={vehiclePrefs[selectedId]?.iccid}
                 customKm={vehiclePrefs[selectedId]?.customKm}
-                onSaveCustomKm={saveCustomKm}
+                deviceModel={vehiclePrefs[selectedId]?.deviceModel || selectedDevice.model || ''}
+                onSavePrefs={saveDevicePrefs}
               />
             </div>
           )}
@@ -1517,7 +1584,8 @@ export default function DashboardPage() {
               ownerInfo={user.administrator && !asUser ? (deviceOwners[selectedId] ?? null) : selfOwnerInfo}
               iccid={vehiclePrefs[selectedId]?.iccid}
               customKm={vehiclePrefs[selectedId]?.customKm}
-              onSaveCustomKm={saveCustomKm}
+              deviceModel={vehiclePrefs[selectedId]?.deviceModel || selectedDevice.model || ''}
+              onSavePrefs={saveDevicePrefs}
             />
           </div>
         )}
