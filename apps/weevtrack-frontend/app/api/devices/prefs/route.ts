@@ -4,7 +4,7 @@ import path from 'path';
 
 const PREFS_FILE = path.join(process.cwd(), 'data', 'device-prefs.json');
 
-type DevicePrefs = { vehicleType: string; chipNumber?: string; iccid?: string };
+type DevicePrefs = { vehicleType: string; chipNumber?: string; iccid?: string; customKm?: string };
 
 function readPrefs(): Record<string, DevicePrefs> {
   try {
@@ -24,10 +24,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const { deviceId, vehicleType, chipNumber, iccid } = await req.json();
+  const { deviceId, vehicleType, chipNumber, iccid, customKm } = await req.json();
   if (!deviceId) return NextResponse.json({ error: 'Inválido' }, { status: 400 });
   const prefs = readPrefs();
-  prefs[String(deviceId)] = { ...(prefs[String(deviceId)] || {}), vehicleType, chipNumber, iccid };
+  prefs[String(deviceId)] = { ...(prefs[String(deviceId)] || {}), vehicleType, chipNumber, iccid, customKm };
   savePrefs(prefs);
   return NextResponse.json({ success: true });
 }

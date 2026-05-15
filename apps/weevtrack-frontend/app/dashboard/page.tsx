@@ -60,7 +60,9 @@ function fmtDateTime(dt: string | null | undefined): string {
 }
 
 type DeviceStatus = 'movendo' | 'parado' | 'offline' | 'expirado';
-type DevicePref = { vehicleType: string; chipNumber?: string; iccid?: string };
+type DevicePref = { vehicleType: string; chipNumber?: string; iccid?: string; customKm?: string };
+
+type OwnerInfo = { name: string; email: string; phone?: string; cpfCnpj?: string };
 
 function getStatus(device: TraccarDevice, pos?: TraccarPosition): DeviceStatus {
   if (device.status === 'online') {
@@ -260,9 +262,13 @@ interface DeviceDetailProps {
   isAdmin?: boolean;
   variant?: 'sheet' | 'panel';
   licenseInfo?: { daysLeft: number; status: string };
+  ownerInfo?: OwnerInfo | null;
+  iccid?: string;
+  customKm?: string;
+  onSaveCustomKm?: (deviceId: number, km: string) => void;
 }
 
-function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, clientName, isAdmin, variant = 'sheet', licenseInfo }: DeviceDetailProps) {
+function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, clientName, isAdmin, variant = 'sheet', licenseInfo, ownerInfo, iccid, customKm, onSaveCustomKm }: DeviceDetailProps) {
   const [cmdLoading, setCmdLoading] = useState<string | null>(null);
   const [cmdMsg, setCmdMsg] = useState('');
   const [confirmCmd, setConfirmCmd] = useState<{ type: string; label: string } | null>(null);
@@ -274,6 +280,10 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
   const [prefsLoading, setPrefsLoading] = useState(false);
   const [pushEnabled, setPushEnabled] = useState<boolean | null>(null);
+  const [infoTab, setInfoTab] = useState<'dispositivo' | 'proprietario'>('dispositivo');
+  const [editingKm, setEditingKm] = useState(false);
+  const [kmInput, setKmInput] = useState(customKm || '');
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     if (!pos || (pos.latitude === 0 && pos.longitude === 0)) {
@@ -300,6 +310,20 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
       .then(sub => setPushEnabled(!!sub))
       .catch(() => setPushEnabled(false));
   }, []);
+
+  useEffect(() => { setKmInput(customKm || ''); }, [customKm]);
+
+  function saveKm() {
+    setEditingKm(false);
+    if (onSaveCustomKm) onSaveCustomKm(device.id, kmInput);
+  }
+
+  function copyToClipboard(text: string, label: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyFeedback(label);
+      setTimeout(() => setCopyFeedback(null), 2000);
+    }).catch(() => {});
+  }
 
   async function activatePush() {
     try {
@@ -656,6 +680,122 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
       )}
 
       {pos && <p className="text-xs text-center mt-1" style={{ color: 'var(--text-lo)' }}>{pos.latitude.toFixed(6)}, {pos.longitude.toFixed(6)}</p>}
+
+      {/* Tabs Dispositivo / Proprietário */}
+      <div className="mt-4">
+        {copyFeedback && (
+          <div className="text-xs text-center mb-2 py-1.5 rounded-lg font-medium"
+            style={{ background: 'rgba(52,199,89,0.12)', color: '#34C759' }}>
+            ✅ {copyFeedback} copiado!
+          </div>
+        )}
+        <div className="flex rounded-xl overflow-hidden mb-3" style={{ border: '1px solid var(--bg-border)' }}>
+          {(['dispositivo', 'proprietario'] as const).map(tab => (
+            <button key={tab} onClick={() => setInfoTab(tab)}
+              className="flex-1 py-2.5 text-xs font-semibold transition-all"
+              style={{
+                background: infoTab === tab ? 'rgba(0,122,255,0.12)' : 'var(--bg-input)',
+                color: infoTab === tab ? '#007AFF' : 'var(--text-lo)',
+                borderRight: tab === 'dispositivo' ? '1px solid var(--bg-border)' : 'none',
+              }}>
+              {tab === 'dispositivo' ? 'Dispositivo' : 'Proprietário'}
+            </button>
+          ))}
+        </div>
+
+        {infoTab === 'dispositivo' && (
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--bg-border)' }}>
+            {/* IMEI — clique para copiar */}
+            <button onClick={() => copyToClipboard(device.uniqueId, 'IMEI')}
+              className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+              style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--bg-border)' }}>
+              <span className="text-xs" style={{ color: 'var(--text-lo)' }}>IMEI</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-mono font-semibold" style={{ color: 'var(--text-mid)' }}>{device.uniqueId}</span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </div>
+            </button>
+            {/* Modelo */}
+            <div className="flex items-center justify-between px-3 py-2.5"
+              style={{ background: 'transparent', borderBottom: '1px solid var(--bg-border)' }}>
+              <span className="text-xs" style={{ color: 'var(--text-lo)' }}>Modelo</span>
+              <span className="text-xs font-semibold" style={{ color: 'var(--text-mid)' }}>{device.model || '—'}</span>
+            </div>
+            {/* ICCID — clique para copiar */}
+            <button onClick={() => iccid && copyToClipboard(iccid, 'ICCID')}
+              className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+              style={{ background: 'var(--bg-input)', borderBottom: '1px solid var(--bg-border)', cursor: iccid ? 'pointer' : 'default' }}>
+              <span className="text-xs" style={{ color: 'var(--text-lo)' }}>ICCID</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-mono font-semibold" style={{ color: 'var(--text-mid)' }}>{iccid || '—'}</span>
+                {iccid && (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                )}
+              </div>
+            </button>
+            {/* KM do veículo — editável */}
+            <div className="flex items-center justify-between px-3 py-2.5" style={{ background: 'transparent' }}>
+              <span className="text-xs" style={{ color: 'var(--text-lo)' }}>KM do veículo</span>
+              {editingKm ? (
+                <div className="flex items-center gap-1">
+                  <input autoFocus type="number" value={kmInput}
+                    onChange={e => setKmInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveKm(); if (e.key === 'Escape') { setEditingKm(false); setKmInput(customKm || ''); } }}
+                    className="w-24 text-xs text-right rounded-lg px-2 py-1 focus:outline-none"
+                    style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid #007AFF' }} />
+                  <span className="text-xs" style={{ color: 'var(--text-lo)' }}>km</span>
+                  <button onClick={saveKm} className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(52,199,89,0.15)' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#34C759" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                  <button onClick={() => { setEditingKm(false); setKmInput(customKm || ''); }} className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(255,59,48,0.1)' }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FF3B30" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold" style={{ color: kmInput ? 'var(--text-mid)' : 'var(--text-lo)' }}>
+                    {kmInput ? `${Number(kmInput).toLocaleString('pt-BR')} km` : '—'}
+                  </span>
+                  <button onClick={() => setEditingKm(true)} className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'rgba(0,122,255,0.1)' }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {infoTab === 'proprietario' && (
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--bg-border)' }}>
+            {ownerInfo ? (
+              [
+                { label: 'Nome', value: ownerInfo.name || '—' },
+                { label: 'E-mail', value: ownerInfo.email || '—' },
+                { label: 'Telefone', value: ownerInfo.phone || '—' },
+                { label: 'CPF/CNPJ', value: ownerInfo.cpfCnpj || '—' },
+              ].map((row, i, arr) => (
+                <div key={row.label} className="flex items-center justify-between px-3 py-2.5"
+                  style={{ background: i % 2 === 0 ? 'var(--bg-input)' : 'transparent', borderBottom: i < arr.length - 1 ? '1px solid var(--bg-border)' : 'none' }}>
+                  <span className="text-xs" style={{ color: 'var(--text-lo)' }}>{row.label}</span>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--text-mid)', maxWidth: '60%', textAlign: 'right', wordBreak: 'break-all' }}>{row.value}</span>
+                </div>
+              ))
+            ) : (
+              <div className="py-6 text-center">
+                <p className="text-xs" style={{ color: 'var(--text-lo)' }}>Sem informações do proprietário</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       </>}
 
       {/* Confirmation popup for block/unblock */}
@@ -866,6 +1006,8 @@ export default function DashboardPage() {
   const [licenses, setLicenses] = useState<Record<string, { daysLeft: number; status: string }>>({});
   const [geofenceDeviceId, setGeofenceDeviceId] = useState<number | null>(null);
   const [showUsersModal, setShowUsersModal] = useState(false);
+  const [deviceOwners, setDeviceOwners] = useState<Record<number, OwnerInfo>>({});
+  const [selfOwnerInfo, setSelfOwnerInfo] = useState<OwnerInfo | null>(null);
   const [usersList, setUsersList] = useState<UserEntry[]>([]);
   const [profileUser, setProfileUser] = useState<UserEntry | null>(null);
   const [faturaProfileUser, setFaturaProfileUser] = useState<UserEntry | null>(null);
@@ -923,6 +1065,40 @@ export default function DashboardPage() {
       if (data && typeof data === 'object') setLicenses(data);
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (user.administrator && !asUser) {
+      fetch('/api/admin/device-owners').then(r => r.json()).then(data => {
+        if (data && typeof data === 'object') {
+          const mapped: Record<number, OwnerInfo> = {};
+          for (const [id, info] of Object.entries(data)) mapped[Number(id)] = info as OwnerInfo;
+          setDeviceOwners(mapped);
+        }
+      }).catch(() => {});
+    } else if (!user.administrator) {
+      fetch('/api/me').then(r => r.json()).then(data => {
+        if (!data.error) {
+          setSelfOwnerInfo({
+            name: data.name || '',
+            email: data.attributes?.realEmail || data.email || '',
+            phone: data.phone || '',
+            cpfCnpj: data.attributes?.cpfCnpj || '',
+          });
+        }
+      }).catch(() => {});
+    }
+  }, [user.administrator, asUser]);
+
+  async function saveCustomKm(deviceId: number, km: string) {
+    const currentPrefs = vehiclePrefs[deviceId] || { vehicleType: 'car' };
+    const updated: DevicePref = { ...currentPrefs, customKm: km };
+    await fetch('/api/devices/prefs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId, ...updated }),
+    }).catch(() => {});
+    setVehiclePrefs(prev => ({ ...prev, [deviceId]: updated }));
+  }
 
   const fetchData = useCallback(async () => {
     try {
@@ -1297,6 +1473,10 @@ export default function DashboardPage() {
                 clientName={assignments[selectedId]} isAdmin={user.administrator}
                 licenseInfo={licenses[String(selectedId)]}
                 variant="sheet"
+                ownerInfo={user.administrator && !asUser ? (deviceOwners[selectedId] ?? null) : selfOwnerInfo}
+                iccid={vehiclePrefs[selectedId]?.iccid}
+                customKm={vehiclePrefs[selectedId]?.customKm}
+                onSaveCustomKm={saveCustomKm}
               />
             </div>
           )}
@@ -1333,7 +1513,12 @@ export default function DashboardPage() {
               onGeofence={() => setGeofenceDeviceId(selectedId)}
               clientName={assignments[selectedId]} isAdmin={user.administrator}
               licenseInfo={licenses[String(selectedId)]}
-              variant="panel" />
+              variant="panel"
+              ownerInfo={user.administrator && !asUser ? (deviceOwners[selectedId] ?? null) : selfOwnerInfo}
+              iccid={vehiclePrefs[selectedId]?.iccid}
+              customKm={vehiclePrefs[selectedId]?.customKm}
+              onSaveCustomKm={saveCustomKm}
+            />
           </div>
         )}
 
