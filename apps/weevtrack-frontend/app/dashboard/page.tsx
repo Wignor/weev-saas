@@ -1026,8 +1026,8 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, lice
           {fixTime && !isOffline && <span style={{ fontSize: '10px', color: 'var(--text-lo)' }}>· {fixTime}</span>}
           {clientName && <span style={{ fontSize: '10px', color: 'var(--text-lo)' }}>· {clientName}</span>}
         </div>
-        {/* Row 3: full IMEI */}
-        <span style={{ fontSize: '9.5px', color: 'var(--text-lo)', fontFamily: 'monospace', opacity: 0.6, letterSpacing: '0.02em' }}>
+        {/* Row 3: full IMEI — only on mobile */}
+        <span className="md:hidden" style={{ fontSize: '9.5px', color: 'var(--text-lo)', fontFamily: 'monospace', opacity: 0.6, letterSpacing: '0.02em' }}>
           {device.uniqueId}
         </span>
       </div>
@@ -1333,14 +1333,31 @@ export default function DashboardPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+          <span className="hidden md:flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-semibold"
+            style={{ background: 'rgba(52,199,89,0.15)', color: '#34C759' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse flex-shrink-0" />
+            {countByStatus.online} online
+          </span>
+          <span className="flex md:hidden items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
             style={{ background: 'rgba(52,199,89,0.15)', color: '#34C759' }}>
             {countByStatus.online} online
           </span>
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+          <span className="hidden md:flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-semibold"
+            style={{ background: 'rgba(107,114,128,0.15)', color: '#6B7280' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
+            {countByStatus.offline} offline
+          </span>
+          <span className="flex md:hidden items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
             style={{ background: 'rgba(107,114,128,0.15)', color: '#6B7280' }}>
             {countByStatus.offline + countByStatus.expirando} offline
           </span>
+          {countByStatus.expirando > 0 && (
+            <span className="hidden md:flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-semibold"
+              style={{ background: 'rgba(255,59,48,0.15)', color: '#FF3B30' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
+              {countByStatus.expirando} expirado
+            </span>
+          )}
           {asUser ? (
             <a href="/dashboard" className="text-xs px-2.5 py-1 rounded-lg font-medium no-underline"
               style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30' }}>✕ Sair</a>
@@ -1420,7 +1437,30 @@ export default function DashboardPage() {
           </button>
           {!listCollapsed && (
             <>
+              {/* Sidebar header */}
+              <div className="flex-shrink-0 flex items-center justify-between px-3 py-2.5" style={{ borderBottom: '1px solid var(--bg-border)' }}>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-lo)' }}>Veículos</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(0,122,255,0.12)', color: '#007AFF' }}>{displayDevices.length}</span>
+              </div>
               <div className="flex-shrink-0 p-3" style={{ borderBottom: '1px solid var(--bg-border)' }}>
+                {/* Stats bar */}
+                <div className="flex gap-1.5 mb-2.5">
+                  <div className="flex-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5" style={{ background: 'rgba(52,199,89,0.08)', border: '1px solid rgba(52,199,89,0.18)' }}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse" style={{ background: '#34C759' }} />
+                    <span className="text-xs font-bold" style={{ color: '#34C759' }}>{countByStatus.online}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-lo)' }}>online</span>
+                  </div>
+                  <div className="flex-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5" style={{ background: 'rgba(107,114,128,0.08)', border: '1px solid rgba(107,114,128,0.18)' }}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#6B7280' }} />
+                    <span className="text-xs font-bold" style={{ color: 'var(--text-mid)' }}>{countByStatus.offline}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-lo)' }}>offline</span>
+                  </div>
+                  <div className="flex-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5" style={{ background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.18)' }}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#FF3B30' }} />
+                    <span className="text-xs font-bold" style={{ color: '#FF3B30' }}>{countByStatus.expirando}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-lo)' }}>expir.</span>
+                  </div>
+                </div>
                 <div className="relative mb-2">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24"
                     fill="none" stroke="var(--text-lo)" strokeWidth="2" strokeLinecap="round">
@@ -1431,13 +1471,23 @@ export default function DashboardPage() {
                     style={{ background: 'var(--bg-input)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }} />
                 </div>
                 <div className="flex gap-1 flex-wrap">
-                  {filterTabs.map(f => (
-                    <button key={f.key} onClick={() => setFilter(f.key)}
-                      className="flex-1 text-xs py-1 rounded-lg font-medium transition-all"
-                      style={{ background: filter === f.key ? '#007AFF' : 'var(--bg-input)', color: filter === f.key ? 'white' : 'var(--text-lo)', minWidth: '48px' }}>
-                      {f.label} ({f.count})
-                    </button>
-                  ))}
+                  {filterTabs.map(f => {
+                    const activeColor = f.key === 'todos' ? '#007AFF' : f.key === 'online' ? '#34C759' : f.key === 'offline' ? '#6B7280' : '#FF3B30';
+                    const activeBg = f.key === 'todos' ? 'rgba(0,122,255,0.14)' : f.key === 'online' ? 'rgba(52,199,89,0.14)' : f.key === 'offline' ? 'rgba(107,114,128,0.14)' : 'rgba(255,59,48,0.14)';
+                    const activeBorder = f.key === 'todos' ? 'rgba(0,122,255,0.3)' : f.key === 'online' ? 'rgba(52,199,89,0.3)' : f.key === 'offline' ? 'rgba(107,114,128,0.3)' : 'rgba(255,59,48,0.3)';
+                    return (
+                      <button key={f.key} onClick={() => setFilter(f.key)}
+                        className="flex-1 text-xs py-1.5 rounded-lg font-semibold transition-all"
+                        style={{
+                          background: filter === f.key ? activeBg : 'var(--bg-input)',
+                          color: filter === f.key ? activeColor : 'var(--text-lo)',
+                          minWidth: '48px',
+                          border: filter === f.key ? `1px solid ${activeBorder}` : '1px solid transparent',
+                        }}>
+                        {f.label} {f.count > 0 ? `(${f.count})` : '(0)'}
+                      </button>
+                    );
+                  })}
                 </div>
                 {user.administrator && !asUser && (
                   <button onClick={() => setMergeMode(m => !m)}
