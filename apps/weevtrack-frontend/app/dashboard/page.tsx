@@ -989,23 +989,34 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, lice
     <div onClick={onSelect} style={{
       display: 'flex', alignItems: 'center', gap: '10px',
       padding: '8px 12px 8px 0',
-      background: isSelected ? 'var(--bg-hover)' : 'transparent',
+      background: isSelected ? `${S_COLOR[status]}12` : 'transparent',
       borderBottom: '1px solid var(--bg-border)',
       borderLeft: `3px solid ${S_COLOR[status]}`,
       paddingLeft: '11px',
       cursor: 'pointer',
       transition: 'background 0.15s',
+      boxShadow: isSelected ? `inset 0 0 0 1px ${S_COLOR[status]}22` : 'none',
     }}>
 
       {/* Circular vehicle icon */}
-      <div style={{
-        width: '42px', height: '42px', borderRadius: '50%',
-        background: isOffline ? 'var(--bg-input)' : `${S_COLOR[status]}18`,
-        border: `2px solid ${isOffline ? 'var(--bg-border)' : S_COLOR[status]}60`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
-      }}>
-        <VehicleIcon type={effectiveType} color={iconColor} />
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <div style={{
+          width: '42px', height: '42px', borderRadius: '50%',
+          background: isOffline ? 'var(--bg-input)' : `${S_COLOR[status]}18`,
+          border: `2px solid ${isOffline ? 'var(--bg-border)' : S_COLOR[status]}60`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <VehicleIcon type={effectiveType} color={iconColor} />
+        </div>
+        {(status === 'movendo' || status === 'parado') && (
+          <span style={{
+            position: 'absolute', bottom: '1px', right: '1px',
+            width: '9px', height: '9px', borderRadius: '50%',
+            background: S_COLOR[status],
+            border: '2px solid var(--bg-card)',
+            animation: status === 'movendo' ? 'pulse 1.8s ease-in-out infinite' : 'none',
+          }} />
+        )}
       </div>
 
       {/* Info */}
@@ -1021,7 +1032,7 @@ function DeviceListItem({ device, pos, isSelected, clientName, vehicleType, lice
         </div>
         {/* Row 2: speed / state age + client */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px', flexWrap: 'wrap' }}>
-          {speed > 2 && <span style={{ fontSize: '11px', fontWeight: 700, color: S_COLOR[status] }}>{speed} km/h</span>}
+          {speed > 2 && <span style={{ fontSize: '10px', fontWeight: 700, color: S_COLOR[status], background: `${S_COLOR[status]}14`, borderRadius: '20px', padding: '1px 6px', lineHeight: 1.5 }}>{speed} km/h</span>}
           {stateAge && <span style={{ fontSize: '10px', color: 'var(--text-lo)' }}>há {stateAge}</span>}
           {fixTime && !isOffline && <span style={{ fontSize: '10px', color: 'var(--text-lo)' }}>· {fixTime}</span>}
           {clientName && <span style={{ fontSize: '10px', color: 'var(--text-lo)' }}>· {clientName}</span>}

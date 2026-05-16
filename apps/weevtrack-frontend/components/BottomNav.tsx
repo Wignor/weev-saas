@@ -130,7 +130,15 @@ export default function BottomNav() {
             key={tab.href}
             href={tab.href}
             className="flex-1 flex flex-col items-center justify-center gap-0.5 no-underline py-2"
+            style={{ position: 'relative' }}
           >
+            {active && (
+              <span style={{
+                position: 'absolute', top: 0, left: '20%', right: '20%',
+                height: '2px', borderRadius: '0 0 2px 2px',
+                background: '#007AFF',
+              }} />
+            )}
             {tab.icon(active)}
             <span className="text-[10px] font-medium" style={{ color: active ? '#007AFF' : '#6B7280' }}>
               {tab.label}

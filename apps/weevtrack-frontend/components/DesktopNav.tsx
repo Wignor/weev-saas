@@ -147,10 +147,12 @@ export default function DesktopNav() {
                 display: 'flex', alignItems: 'center',
                 gap: collapsed ? 0 : 10,
                 padding: collapsed ? '10px 0' : '10px 12px',
+                paddingLeft: collapsed ? 0 : active ? '9px' : '12px',
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 borderRadius: 10, marginBottom: 2, textDecoration: 'none',
                 background: active ? 'rgba(0,122,255,0.12)' : 'transparent',
-                transition: 'background 0.15s',
+                borderLeft: collapsed ? 'none' : active ? '3px solid #007AFF' : '3px solid transparent',
+                transition: 'background 0.15s, border-color 0.15s',
               }}
             >
               <NavIcon path={tab.key} active={active} />
