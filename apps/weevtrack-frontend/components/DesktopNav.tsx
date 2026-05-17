@@ -33,6 +33,12 @@ function NavIcon({ path, active }: { path: string; active: boolean }) {
         <polyline points="10 9 9 9 8 9"/>
       </svg>
     ),
+    mapa: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+        <circle cx="12" cy="10" r="3"/>
+      </svg>
+    ),
     distribuidor: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round">
         <rect x="3" y="3" width="7" height="7" rx="1"/>
@@ -93,6 +99,7 @@ export default function DesktopNav() {
   const tabs = [
     ...(isDistribuidor ? [{ key: 'distribuidor', href: '/distribuidor', label: 'Meu Painel' }] : []),
     { key: 'dashboard',  href: '/dashboard',  label: 'Veículos' },
+    { key: 'mapa',       href: '/mapa',       label: 'Mapa' },
     { key: 'historico',  href: '/historico',  label: 'Trajetos' },
     { key: 'alertas',    href: '/alertas',    label: 'Alertas' },
     { key: 'relatorios', href: '/relatorios', label: 'Relatórios' },
