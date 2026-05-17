@@ -37,6 +37,9 @@ export default function DistribuidorPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [newClient, setNewClient] = useState({ name: '', email: '', password: '', phone: '' });
   const [creating, setCreating] = useState(false);
+  const [showAddDevice, setShowAddDevice] = useState(false);
+  const [newDevice, setNewDevice] = useState({ name: '', uniqueId: '', modelo: '', iccid: '', chip: '' });
+  const [addingDevice, setAddingDevice] = useState(false);
   const [msg, setMsg] = useState('');
   const [contratoUser, setContratoUser] = useState<TClient | null>(null);
   const [clientSearch, setClientSearch] = useState('');
@@ -157,6 +160,28 @@ export default function DistribuidorPage() {
       }
     } catch { flash('❌ Erro de conexão'); }
     setCreating(false);
+  }
+
+  async function addDevice() {
+    if (!newDevice.name || !newDevice.uniqueId) return;
+    setAddingDevice(true);
+    try {
+      const res = await fetch('/api/distribuidor/devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDevice),
+      });
+      if (res.ok) {
+        flash('✅ Dispositivo cadastrado com sucesso');
+        setNewDevice({ name: '', uniqueId: '', modelo: '', iccid: '', chip: '' });
+        setShowAddDevice(false);
+        await loadMyDevices();
+      } else {
+        const err = await res.json();
+        flash(`❌ ${err.error || 'Erro ao cadastrar dispositivo'}`);
+      }
+    } catch { flash('❌ Erro de conexão'); }
+    setAddingDevice(false);
   }
 
   async function assignDevice(clientId: number, deviceId: number) {
@@ -390,31 +415,41 @@ export default function DistribuidorPage() {
       )}
 
       {/* Meus Dispositivos */}
-      {(ownDevicesLoading || ownDevices.length > 0) && (
-        <div className="flex-shrink-0 mx-4 mt-3 rounded-xl overflow-hidden"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
-          <div className="flex items-center justify-between px-4 py-2.5"
-            style={{ borderBottom: '1px solid var(--bg-border)', background: 'rgba(0,122,255,0.06)' }}>
-            <div className="flex items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
-                <rect x="1" y="3" width="15" height="13" rx="2"/>
-                <path d="M16 8h5l2 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
-              </svg>
-              <p className="text-xs font-bold" style={{ color: '#007AFF' }}>Meus Dispositivos</p>
-            </div>
+      <div className="flex-shrink-0 mx-4 mt-3 rounded-xl overflow-hidden"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+        <div className="flex items-center justify-between px-4 py-2.5"
+          style={{ borderBottom: '1px solid var(--bg-border)', background: 'rgba(0,122,255,0.06)' }}>
+          <div className="flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
+              <rect x="1" y="3" width="15" height="13" rx="2"/>
+              <path d="M16 8h5l2 4v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+            </svg>
+            <p className="text-xs font-bold" style={{ color: '#007AFF' }}>Meus Dispositivos</p>
+          </div>
+          <div className="flex items-center gap-2">
             <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
               style={{ background: 'rgba(0,122,255,0.1)', color: '#007AFF' }}>
               {ownDevices.length}
             </span>
+            <button onClick={() => setShowAddDevice(true)}
+              className="text-xs px-2.5 py-1 rounded-lg font-semibold"
+              style={{ background: 'rgba(0,122,255,0.15)', color: '#007AFF' }}>
+              + Novo
+            </button>
           </div>
+        </div>
           {ownDevicesLoading ? (
             <div className="flex justify-center py-4">
               <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"/>
             </div>
+          ) : ownDevices.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-xs t-text-lo">Nenhum dispositivo cadastrado</p>
+            </div>
           ) : ownDevices.map((dev, i) => {
             const lic = dev.license;
             const licColor = !lic ? '#6B7280' : lic.status === 'expired' ? '#FF3B30' : lic.status === 'expiring' ? '#FF9500' : '#34C759';
-            const licLabel = !lic ? 'Sem licença' : lic.status === 'expired' ? 'Expirado' : lic.status === 'expiring' ? `${lic.daysLeft}d` : `${lic.daysLeft}d`;
+            const licLabel = !lic ? 'Sem licença' : lic.status === 'expired' ? 'Expirado' : `${lic.daysLeft}d`;
             return (
               <div key={dev.id} className="flex items-center gap-3 px-4 py-3"
                 style={{ borderTop: i > 0 ? '1px solid var(--bg-border)' : 'none' }}>
@@ -437,7 +472,6 @@ export default function DistribuidorPage() {
             );
           })}
         </div>
-      )}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel: client list */}
@@ -557,6 +591,55 @@ export default function DistribuidorPage() {
           )}
         </div>
       </div>
+
+      {/* Modal novo dispositivo */}
+      {showAddDevice && (
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: navWidth, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowAddDevice(false); }}>
+          <div className="w-full max-w-lg rounded-t-2xl overflow-hidden"
+            style={{ background: 'var(--bg-card)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="flex items-center justify-between px-5 py-4"
+              style={{ borderBottom: '1px solid var(--bg-border)' }}>
+              <h2 className="font-bold text-base t-text-hi">Novo Dispositivo</h2>
+              <button onClick={() => setShowAddDevice(false)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: 'var(--bg-page)' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-lo)" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="p-5 pb-24 space-y-4">
+              {[
+                { label: 'Nome do veículo *', key: 'name', type: 'text', placeholder: 'Ex: KWID - ABC1234' },
+                { label: 'IMEI *', key: 'uniqueId', type: 'text', placeholder: '15 dígitos do rastreador' },
+                { label: 'Modelo do rastreador', key: 'modelo', type: 'text', placeholder: 'Ex: SL44 4G' },
+                { label: 'ICCID do chip', key: 'iccid', type: 'text', placeholder: 'Número do chip (opcional)' },
+                { label: 'Operadora/Chip', key: 'chip', type: 'text', placeholder: 'Ex: Claro, Vivo (opcional)' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="block text-xs font-medium t-text-lo mb-1.5">{f.label}</label>
+                  <input
+                    type={f.type}
+                    placeholder={f.placeholder}
+                    value={newDevice[f.key as keyof typeof newDevice]}
+                    onChange={e => setNewDevice(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    className="w-full rounded-xl px-4 py-3 text-sm focus:outline-none"
+                    style={{ background: 'var(--bg-page)', color: 'var(--text-hi)', border: '1px solid var(--bg-border)' }}
+                  />
+                </div>
+              ))}
+              <button
+                onClick={addDevice}
+                disabled={addingDevice || !newDevice.name || !newDevice.uniqueId}
+                className="w-full bg-primary text-white font-semibold py-3.5 rounded-xl mt-2 disabled:opacity-60"
+              >
+                {addingDevice ? 'Cadastrando...' : 'Cadastrar dispositivo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal criar cliente */}
       {showCreate && (
