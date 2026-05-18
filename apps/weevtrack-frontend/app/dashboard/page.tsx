@@ -1972,7 +1972,7 @@ export default function DashboardPage() {
             <div style={{ overflowY: 'auto', flex: 1 }}>
               {[
                 { label: 'Nome completo', value: profileUser.name },
-                { label: 'E-mail', value: profileUser.email },
+                { label: 'E-mail', value: profileUser.attributes?.realEmail || profileUser.email },
                 { label: 'Telefone', value: profileUser.phone || '—' },
                 { label: 'CPF / CNPJ', value: profileUser.attributes?.cpfCnpj || '—' },
                 { label: 'Função', value: profileUser.role === 'admin' ? 'Administrador' : profileUser.role === 'distribuidor' ? 'Distribuidor' : profileUser.role === 'distribuidor_geral' ? 'Distribuidor Geral' : profileUser.role === 'monitor' ? 'Monitor' : 'Usuário' },
