@@ -1150,7 +1150,7 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    const isClient = !user.administrator && user.role !== 'distribuidor' && user.role !== 'distribuidor_geral';
+    const isClient = !user.administrator;
     if (!isClient || Object.keys(licenses).length === 0) return;
     const overdue = Object.values(licenses).reduce((max, l) => {
       if (!l.expiresAt) return max;
@@ -1201,6 +1201,21 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     try {
       const suffix = asUser ? `?asUser=${asUser}` : '';
+      const cacheKey = `wt_devpos_${asUser || 'admin'}`;
+
+      // Exibir dados do cache imediatamente enquanto busca em background
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const { d, p, ts } = JSON.parse(cached);
+          if (Date.now() - ts < 30000 && Array.isArray(d) && Array.isArray(p)) {
+            setDevices(d);
+            setPositions(p);
+            setLoading(false);
+          }
+        }
+      } catch { /**/ }
+
       const [devRes, posRes] = await Promise.all([fetch(`/api/devices${suffix}`), fetch(`/api/positions${suffix}`)]);
       if (devRes.status === 401) { window.location.href = '/login'; return; }
       const [devData, posData] = await Promise.all([devRes.json(), posRes.json()]);
@@ -1220,6 +1235,11 @@ export default function DashboardPage() {
         }
         if (changed) setLiveTrail(new Map(liveTrailRef.current));
       }
+      // Salvar no cache após fetch bem-sucedido
+      try {
+        if (Array.isArray(devData) && Array.isArray(posData))
+          sessionStorage.setItem(cacheKey, JSON.stringify({ d: devData, p: posData, ts: Date.now() }));
+      } catch { /**/ }
       setLastUpdate(new Date());
     } catch { /**/ }
     finally { setLoading(false); }
@@ -1237,12 +1257,32 @@ export default function DashboardPage() {
   async function fetchAllFleet() {
     setMergeFetching(true);
     try {
+      // Exibir frota do cache enquanto busca em background
+      try {
+        const cached = sessionStorage.getItem('wt_allfleet');
+        if (cached) {
+          const { d, p, ts } = JSON.parse(cached);
+          if (Date.now() - ts < 30000 && Array.isArray(d) && Array.isArray(p)) {
+            setAllDevices(d);
+            setAllPositions(p);
+            setMergeFetching(false);
+          }
+        }
+      } catch { /**/ }
+
       const [devRes, posRes] = await Promise.all([
         fetch('/api/admin/all-devices'),
         fetch('/api/admin/all-positions'),
       ]);
-      if (devRes.ok) setAllDevices(await devRes.json());
-      if (posRes.ok) setAllPositions(await posRes.json());
+      const [allDev, allPos] = await Promise.all([
+        devRes.ok ? devRes.json() : Promise.resolve(null),
+        posRes.ok ? posRes.json() : Promise.resolve(null),
+      ]);
+      if (allDev) setAllDevices(allDev);
+      if (allPos) setAllPositions(allPos);
+      try {
+        if (allDev && allPos) sessionStorage.setItem('wt_allfleet', JSON.stringify({ d: allDev, p: allPos, ts: Date.now() }));
+      } catch { /**/ }
     } catch { /**/ } finally { setMergeFetching(false); }
   }
 
@@ -1344,7 +1384,7 @@ export default function DashboardPage() {
     return u.name.toLowerCase().includes(q) || displayEmail.includes(q);
   });
 
-  const isRegularClient = !user.administrator && user.role !== 'distribuidor' && user.role !== 'distribuidor_geral';
+  const isRegularClient = !user.administrator;
   const worstOverdueDays = isRegularClient
     ? Object.values(licenses).reduce((max, l) => {
         if (!l.expiresAt) return max;
