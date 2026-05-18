@@ -60,7 +60,7 @@ function fmtDateTime(dt: string | null | undefined): string {
 }
 
 type DeviceStatus = 'movendo' | 'parado' | 'offline' | 'expirado';
-type DevicePref = { vehicleType: string; chipNumber?: string; iccid?: string; customKm?: string; deviceModel?: string };
+type DevicePref = { vehicleType: string; chipNumber?: string; iccid?: string; customKm?: string; customKmBaseDist?: number; deviceModel?: string };
 
 type OwnerInfo = { name: string; email: string; phone?: string; cpfCnpj?: string };
 
@@ -265,11 +265,12 @@ interface DeviceDetailProps {
   ownerInfo?: OwnerInfo | null;
   iccid?: string;
   customKm?: string;
+  customKmBaseDist?: number;
   deviceModel?: string;
   onSavePrefs?: (deviceId: number, updates: Partial<DevicePref>) => void;
 }
 
-function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, clientName, isAdmin, variant = 'sheet', licenseInfo, ownerInfo, iccid, customKm, deviceModel, onSavePrefs }: DeviceDetailProps) {
+function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, clientName, isAdmin, variant = 'sheet', licenseInfo, ownerInfo, iccid, customKm, customKmBaseDist, deviceModel, onSavePrefs }: DeviceDetailProps) {
   const [cmdLoading, setCmdLoading] = useState<string | null>(null);
   const [cmdMsg, setCmdMsg] = useState('');
   const [confirmCmd, setConfirmCmd] = useState<{ type: string; label: string } | null>(null);
@@ -322,7 +323,8 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
 
   function saveKm() {
     setEditingKm(false);
-    if (onSavePrefs) onSavePrefs(device.id, { customKm: kmInput });
+    const gpsDist = pos?.attributes?.totalDistance as number ?? 0;
+    if (onSavePrefs) onSavePrefs(device.id, { customKm: kmInput, customKmBaseDist: gpsDist });
   }
 
   function saveIccid() {
@@ -822,7 +824,12 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
               ) : (
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-semibold" style={{ color: kmInput ? 'var(--text-mid)' : 'var(--text-lo)' }}>
-                    {kmInput ? `${Number(kmInput).toLocaleString('pt-BR')} km` : '—'}
+                    {kmInput ? (() => {
+                      const base = Number(kmInput);
+                      const currentGps = pos?.attributes?.totalDistance as number ?? 0;
+                      const delta = customKmBaseDist && currentGps > customKmBaseDist ? (currentGps - customKmBaseDist) / 1000 : 0;
+                      return `${Math.round(base + delta).toLocaleString('pt-BR')} km`;
+                    })() : '—'}
                   </span>
                   <button onClick={() => setEditingKm(true)} className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'rgba(0,122,255,0.1)' }}>
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#007AFF" strokeWidth="2" strokeLinecap="round">
@@ -1601,6 +1608,7 @@ export default function DashboardPage() {
                 ownerInfo={user.administrator && !asUser ? (deviceOwners[selectedId] ?? null) : selfOwnerInfo}
                 iccid={vehiclePrefs[selectedId]?.iccid}
                 customKm={vehiclePrefs[selectedId]?.customKm}
+                customKmBaseDist={vehiclePrefs[selectedId]?.customKmBaseDist}
                 deviceModel={vehiclePrefs[selectedId]?.deviceModel || selectedDevice.model || ''}
                 onSavePrefs={saveDevicePrefs}
               />
@@ -1643,6 +1651,7 @@ export default function DashboardPage() {
               ownerInfo={user.administrator && !asUser ? (deviceOwners[selectedId] ?? null) : selfOwnerInfo}
               iccid={vehiclePrefs[selectedId]?.iccid}
               customKm={vehiclePrefs[selectedId]?.customKm}
+              customKmBaseDist={vehiclePrefs[selectedId]?.customKmBaseDist}
               deviceModel={vehiclePrefs[selectedId]?.deviceModel || selectedDevice.model || ''}
               onSavePrefs={saveDevicePrefs}
             />

@@ -259,7 +259,9 @@ function HistoricoContent() {
   }
 
   const maxSpeed = route.length ? Math.max(...route.map((p) => knotsToKmh(p.speed))) : 0;
-  const distanceKm = route.length > 1 ? ((route[route.length - 1].attributes?.totalDistance as number ?? 0) / 1000) : 0;
+  const distanceKm = route.length > 1
+    ? Math.max(0, ((route[route.length - 1].attributes?.totalDistance as number ?? 0) - (route[0].attributes?.totalDistance as number ?? 0)) / 1000)
+    : 0;
   const totalParkSec = stops.reduce((sum, s) => sum + s.durationSeconds, 0);
 
   return (
