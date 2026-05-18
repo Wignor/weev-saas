@@ -1085,7 +1085,8 @@ export default function DashboardPage() {
   const [vehiclePrefs, setVehiclePrefs] = useState<Record<number, DevicePref>>({});
   const [menuDeviceId, setMenuDeviceId] = useState<number | null>(null);
   const [infoDeviceId, setInfoDeviceId] = useState<number | null>(null);
-  const [licenses, setLicenses] = useState<Record<string, { daysLeft: number; status: string }>>({});
+  const [licenses, setLicenses] = useState<Record<string, { daysLeft: number; status: string; expiresAt?: string }>>({});
+  const [overdueInvoiceUrl, setOverdueInvoiceUrl] = useState<string | null>(null);
   const [geofenceDeviceId, setGeofenceDeviceId] = useState<number | null>(null);
   const [showUsersModal, setShowUsersModal] = useState(false);
   const [deviceOwners, setDeviceOwners] = useState<Record<number, OwnerInfo>>({});
@@ -1147,6 +1148,21 @@ export default function DashboardPage() {
       if (data && typeof data === 'object') setLicenses(data);
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const isClient = !user.administrator && user.role !== 'distribuidor' && user.role !== 'distribuidor_geral';
+    if (!isClient || Object.keys(licenses).length === 0) return;
+    const overdue = Object.values(licenses).reduce((max, l) => {
+      if (!l.expiresAt) return max;
+      return Math.max(max, Math.max(0, Math.ceil((Date.now() - new Date(l.expiresAt).getTime()) / 86400000)));
+    }, 0);
+    if (overdue > 0) {
+      fetch('/api/me/invoices').then(r => r.json()).then((data: { status: string; invoiceUrl?: string }[]) => {
+        const inv = Array.isArray(data) ? data.find(i => i.status === 'OVERDUE' || i.status === 'PENDING') : null;
+        setOverdueInvoiceUrl(inv?.invoiceUrl ?? null);
+      }).catch(() => {});
+    }
+  }, [licenses, user.administrator, user.role]);
 
   useEffect(() => {
     if (user.administrator && !asUser) {
@@ -1328,8 +1344,62 @@ export default function DashboardPage() {
     return u.name.toLowerCase().includes(q) || displayEmail.includes(q);
   });
 
+  const isRegularClient = !user.administrator && user.role !== 'distribuidor' && user.role !== 'distribuidor_geral';
+  const worstOverdueDays = isRegularClient
+    ? Object.values(licenses).reduce((max, l) => {
+        if (!l.expiresAt) return max;
+        return Math.max(max, Math.max(0, Math.ceil((Date.now() - new Date(l.expiresAt).getTime()) / 86400000)));
+      }, 0)
+    : 0;
+
   return (
     <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth }}>
+
+      {/* ── Aviso inadimplência (1-2 dias em atraso) ── */}
+      {worstOverdueDays > 0 && worstOverdueDays < 3 && (
+        <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 9998 }}>
+          <div style={{ background: '#FF9500', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <span style={{ fontSize: '22px', lineHeight: 1 }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 700, color: '#fff', margin: 0, marginBottom: 4 }}>Fatura em atraso</p>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.92)', margin: 0 }}>
+                  Regularize o pagamento. Em {3 - worstOverdueDays} {3 - worstOverdueDays === 1 ? 'dia' : 'dias'} seu acesso será bloqueado.
+                </p>
+                {overdueInvoiceUrl && (
+                  <a href={overdueInvoiceUrl} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'inline-block', marginTop: 10, background: '#fff', color: '#FF9500', fontWeight: 700, fontSize: 13, padding: '8px 16px', borderRadius: 8, textDecoration: 'none' }}>
+                    Pagar agora →
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bloqueio total (3+ dias em atraso) ── */}
+      {worstOverdueDays >= 3 && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.97)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, textAlign: 'center' }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>🚫</div>
+          <h2 style={{ color: '#fff', fontSize: 22, fontWeight: 800, margin: '0 0 8px' }}>Acesso Suspenso</h2>
+          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, margin: '0 0 8px', maxWidth: 320 }}>
+            Seu acesso foi suspenso por atraso de {worstOverdueDays} {worstOverdueDays === 1 ? 'dia' : 'dias'} no pagamento.
+          </p>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: '0 0 24px', maxWidth: 320 }}>
+            Regularize sua fatura para reativar o sistema imediatamente.
+          </p>
+          {overdueInvoiceUrl ? (
+            <a href={overdueInvoiceUrl} target="_blank" rel="noopener noreferrer"
+              style={{ background: '#34C759', color: '#fff', fontWeight: 700, fontSize: 16, padding: '14px 28px', borderRadius: 12, textDecoration: 'none' }}>
+              Pagar e reativar acesso →
+            </a>
+          ) : (
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>Entre em contato com o suporte para regularizar.</p>
+          )}
+        </div>
+      )}
+
       {/* ── Header ── */}
       <header className="flex-shrink-0 flex items-center justify-between px-4 h-14 z-20"
         style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)' }}>
