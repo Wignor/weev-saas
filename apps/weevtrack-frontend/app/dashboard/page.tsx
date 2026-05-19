@@ -1154,7 +1154,7 @@ export default function DashboardPage() {
     if (!isClient || Object.keys(licenses).length === 0) return;
     const overdue = Object.values(licenses).reduce((max, l) => {
       if (!l.expiresAt) return max;
-      return Math.max(max, Math.max(0, Math.ceil((Date.now() - new Date(l.expiresAt).getTime()) / 86400000)));
+      return Math.max(max, Math.max(0, Math.floor((Date.now() - new Date(l.expiresAt).getTime()) / 86400000)));
     }, 0);
     if (overdue > 0) {
       fetch('/api/me/invoices').then(r => r.json()).then((data: { status: string; invoiceUrl?: string }[]) => {
@@ -1388,7 +1388,7 @@ export default function DashboardPage() {
   const worstOverdueDays = isRegularClient
     ? Object.values(licenses).reduce((max, l) => {
         if (!l.expiresAt) return max;
-        return Math.max(max, Math.max(0, Math.ceil((Date.now() - new Date(l.expiresAt).getTime()) / 86400000)));
+        return Math.max(max, Math.max(0, Math.floor((Date.now() - new Date(l.expiresAt).getTime()) / 86400000)));
       }, 0)
     : 0;
 
