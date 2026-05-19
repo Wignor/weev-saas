@@ -216,7 +216,8 @@ export default function PerfilPage() {
   const clientSince = attrs.clientSince;
 
   function fmtDate(iso: string) {
-    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const [y, m, d] = iso.split('T')[0].split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
   function fmtCurrency(val: number) {
     return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

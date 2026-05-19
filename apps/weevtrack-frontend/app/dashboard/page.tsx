@@ -1087,6 +1087,7 @@ export default function DashboardPage() {
   const [infoDeviceId, setInfoDeviceId] = useState<number | null>(null);
   const [licenses, setLicenses] = useState<Record<string, { daysLeft: number; status: string; expiresAt?: string }>>({});
   const [overdueInvoiceUrl, setOverdueInvoiceUrl] = useState<string | null>(null);
+  const [minInvoiceDueDays, setMinInvoiceDueDays] = useState<number>(Infinity);
   const [geofenceDeviceId, setGeofenceDeviceId] = useState<number | null>(null);
   const [showUsersModal, setShowUsersModal] = useState(false);
   const [deviceOwners, setDeviceOwners] = useState<Record<number, OwnerInfo>>({});
@@ -1150,28 +1151,24 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    const isClient = !user.administrator;
-    if (!isClient || Object.keys(licenses).length === 0) return;
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const overdue = Object.values(licenses).reduce((max, l) => {
-      if (!l.expiresAt) return max;
-      return Math.max(max, Math.max(0, Math.floor((Date.now() - new Date(l.expiresAt).getTime()) / 86400000)));
-    }, 0);
-    const minDaysLeft = Object.values(licenses).reduce((min, l) => {
-      if (!l.expiresAt) return min;
-      const exp = new Date(l.expiresAt);
-      if (exp.getTime() <= Date.now()) return min;
-      const expDay = new Date(exp.getFullYear(), exp.getMonth(), exp.getDate()).getTime();
-      return Math.min(min, Math.round((expDay - todayStart) / 86400000));
-    }, Infinity);
-    if (overdue > 0 || minDaysLeft <= 1) {
-      fetch('/api/me/invoices').then(r => r.json()).then((data: { status: string; invoiceUrl?: string }[]) => {
-        const inv = Array.isArray(data) ? data.find(i => i.status === 'OVERDUE' || i.status === 'PENDING') : null;
-        setOverdueInvoiceUrl(inv?.invoiceUrl ?? null);
-      }).catch(() => {});
-    }
-  }, [licenses, user.administrator, user.role]);
+    if (user.administrator) return;
+    fetch('/api/me/invoices').then(r => r.json()).then((data: { status: string; invoiceUrl?: string; dueDate?: string }[]) => {
+      if (!Array.isArray(data)) return;
+      const inv = data.find(i => i.status === 'OVERDUE' || i.status === 'PENDING');
+      setOverdueInvoiceUrl(inv?.invoiceUrl ?? null);
+      const now = new Date();
+      const todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const minDays = data
+        .filter(i => i.status === 'PENDING' || i.status === 'OVERDUE')
+        .reduce((min, i) => {
+          if (!i.dueDate) return min;
+          const [y, m, d] = i.dueDate.split('T')[0].split('-').map(Number);
+          const dueMs = new Date(y, m - 1, d).getTime();
+          return Math.min(min, Math.round((dueMs - todayMs) / 86400000));
+        }, Infinity);
+      setMinInvoiceDueDays(minDays);
+    }).catch(() => {});
+  }, [user.administrator]);
 
   useEffect(() => {
     if (user.administrator && !asUser) {
@@ -1401,23 +1398,11 @@ export default function DashboardPage() {
       }, 0)
     : 0;
 
-  const _nowForExpiry = new Date();
-  const _todayStartMs = new Date(_nowForExpiry.getFullYear(), _nowForExpiry.getMonth(), _nowForExpiry.getDate()).getTime();
-  const minDaysUntilExpiry = isRegularClient
-    ? Object.values(licenses).reduce((min, l) => {
-        if (!l.expiresAt) return min;
-        const exp = new Date(l.expiresAt);
-        if (exp.getTime() <= Date.now()) return min;
-        const expDay = new Date(exp.getFullYear(), exp.getMonth(), exp.getDate()).getTime();
-        return Math.min(min, Math.round((expDay - _todayStartMs) / 86400000));
-      }, Infinity)
-    : Infinity;
-
   return (
     <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth }}>
 
       {/* ── Aviso vence amanhã ── */}
-      {worstOverdueDays === 0 && minDaysUntilExpiry === 1 && (
+      {worstOverdueDays === 0 && minInvoiceDueDays === 1 && (
         <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 9998 }}>
           <div style={{ background: '#007AFF', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
@@ -1440,7 +1425,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── Aviso vence hoje ── */}
-      {worstOverdueDays === 0 && minDaysUntilExpiry === 0 && (
+      {worstOverdueDays === 0 && minInvoiceDueDays === 0 && (
         <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 9998 }}>
           <div style={{ background: '#FF9500', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
