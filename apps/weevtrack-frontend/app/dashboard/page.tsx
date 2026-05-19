@@ -1152,11 +1152,20 @@ export default function DashboardPage() {
   useEffect(() => {
     const isClient = !user.administrator;
     if (!isClient || Object.keys(licenses).length === 0) return;
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const overdue = Object.values(licenses).reduce((max, l) => {
       if (!l.expiresAt) return max;
       return Math.max(max, Math.max(0, Math.floor((Date.now() - new Date(l.expiresAt).getTime()) / 86400000)));
     }, 0);
-    if (overdue > 0) {
+    const minDaysLeft = Object.values(licenses).reduce((min, l) => {
+      if (!l.expiresAt) return min;
+      const exp = new Date(l.expiresAt);
+      if (exp.getTime() <= Date.now()) return min;
+      const expDay = new Date(exp.getFullYear(), exp.getMonth(), exp.getDate()).getTime();
+      return Math.min(min, Math.round((expDay - todayStart) / 86400000));
+    }, Infinity);
+    if (overdue > 0 || minDaysLeft <= 1) {
       fetch('/api/me/invoices').then(r => r.json()).then((data: { status: string; invoiceUrl?: string }[]) => {
         const inv = Array.isArray(data) ? data.find(i => i.status === 'OVERDUE' || i.status === 'PENDING') : null;
         setOverdueInvoiceUrl(inv?.invoiceUrl ?? null);
@@ -1392,8 +1401,66 @@ export default function DashboardPage() {
       }, 0)
     : 0;
 
+  const _nowForExpiry = new Date();
+  const _todayStartMs = new Date(_nowForExpiry.getFullYear(), _nowForExpiry.getMonth(), _nowForExpiry.getDate()).getTime();
+  const minDaysUntilExpiry = isRegularClient
+    ? Object.values(licenses).reduce((min, l) => {
+        if (!l.expiresAt) return min;
+        const exp = new Date(l.expiresAt);
+        if (exp.getTime() <= Date.now()) return min;
+        const expDay = new Date(exp.getFullYear(), exp.getMonth(), exp.getDate()).getTime();
+        return Math.min(min, Math.round((expDay - _todayStartMs) / 86400000));
+      }, Infinity)
+    : Infinity;
+
   return (
     <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth }}>
+
+      {/* ── Aviso vence amanhã ── */}
+      {worstOverdueDays === 0 && minDaysUntilExpiry === 1 && (
+        <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 9998 }}>
+          <div style={{ background: '#007AFF', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <span style={{ fontSize: '22px', lineHeight: 1 }}>📅</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 700, color: '#fff', margin: 0, marginBottom: 4 }}>Sua assinatura vence amanhã</p>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.92)', margin: 0 }}>
+                  Renove com antecedência para manter o acesso sem interrupção.
+                </p>
+                {overdueInvoiceUrl && (
+                  <a href={overdueInvoiceUrl} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'inline-block', marginTop: 10, background: '#fff', color: '#007AFF', fontWeight: 700, fontSize: 13, padding: '8px 16px', borderRadius: 8, textDecoration: 'none' }}>
+                    Renovar agora →
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Aviso vence hoje ── */}
+      {worstOverdueDays === 0 && minDaysUntilExpiry === 0 && (
+        <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 9998 }}>
+          <div style={{ background: '#FF9500', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <span style={{ fontSize: '22px', lineHeight: 1 }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 700, color: '#fff', margin: 0, marginBottom: 4 }}>Sua assinatura vence hoje</p>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.92)', margin: 0 }}>
+                  Renove agora para não perder o acesso.
+                </p>
+                {overdueInvoiceUrl && (
+                  <a href={overdueInvoiceUrl} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'inline-block', marginTop: 10, background: '#fff', color: '#FF9500', fontWeight: 700, fontSize: 13, padding: '8px 16px', borderRadius: 8, textDecoration: 'none' }}>
+                    Renovar agora →
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Aviso inadimplência (1-2 dias em atraso) ── */}
       {worstOverdueDays > 0 && worstOverdueDays < 3 && (
