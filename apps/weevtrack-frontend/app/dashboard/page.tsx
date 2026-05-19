@@ -1447,6 +1447,29 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* ── Aviso fatura vencida no Asaas (licença ainda válida) ── */}
+      {worstOverdueDays === 0 && minInvoiceDueDays !== Infinity && minInvoiceDueDays < 0 && (
+        <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 9998 }}>
+          <div style={{ background: '#FF3B30', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <span style={{ fontSize: '22px', lineHeight: 1 }}>🚨</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 700, color: '#fff', margin: 0, marginBottom: 4 }}>Fatura vencida</p>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.92)', margin: 0 }}>
+                  Sua fatura está vencida há {-minInvoiceDueDays} {-minInvoiceDueDays === 1 ? 'dia' : 'dias'}. Regularize para evitar bloqueio.
+                </p>
+                {overdueInvoiceUrl && (
+                  <a href={overdueInvoiceUrl} target="_blank" rel="noopener noreferrer"
+                    style={{ display: 'inline-block', marginTop: 10, background: '#fff', color: '#FF3B30', fontWeight: 700, fontSize: 13, padding: '8px 16px', borderRadius: 8, textDecoration: 'none' }}>
+                    Pagar agora →
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Aviso inadimplência (1-2 dias em atraso) ── */}
       {worstOverdueDays > 0 && worstOverdueDays < 3 && (
         <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 9998 }}>
