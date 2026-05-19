@@ -121,7 +121,21 @@ export default function GestaoPage() {
   }, [router]);
 
   async function loadData() {
-    setLoading(true);
+    // Exibe cache imediatamente se disponível (< 60s)
+    try {
+      const cached = sessionStorage.getItem('wt_gestao_cache');
+      if (cached) {
+        const { u, d, a, l, ts } = JSON.parse(cached);
+        if (Date.now() - ts < 60000) {
+          if (Array.isArray(u)) setUsers(u);
+          if (Array.isArray(d)) setAllDevices(d);
+          if (a && typeof a === 'object') setAssignments(a);
+          if (l && typeof l === 'object') setLicenses(l);
+          setLoading(false);
+        }
+      }
+    } catch { /**/ }
+
     try {
       const [usersRes, devicesRes, assignRes, licRes] = await Promise.all([
         fetch('/api/admin/users'),
@@ -136,6 +150,16 @@ export default function GestaoPage() {
       if (Array.isArray(devicesData)) setAllDevices(devicesData);
       if (assignData && typeof assignData === 'object') setAssignments(assignData);
       if (licData && typeof licData === 'object') setLicenses(licData);
+      // Salva cache após fetch bem-sucedido
+      try {
+        sessionStorage.setItem('wt_gestao_cache', JSON.stringify({
+          u: Array.isArray(usersData) ? usersData.filter((u: TUser) => !u.administrator) : [],
+          d: Array.isArray(devicesData) ? devicesData : [],
+          a: assignData,
+          l: licData,
+          ts: Date.now(),
+        }));
+      } catch { /**/ }
     } catch { /* silencioso */ }
     setLoading(false);
   }
