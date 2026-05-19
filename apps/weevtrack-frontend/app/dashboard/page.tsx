@@ -323,7 +323,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
 
   function saveKm() {
     setEditingKm(false);
-    const gpsDist = pos?.attributes?.totalDistance as number ?? 0;
+    const gpsDist = pos?.attributes?.totalDistance as number | undefined;
     if (onSavePrefs) onSavePrefs(device.id, { customKm: kmInput, customKmBaseDist: gpsDist });
   }
 
@@ -676,7 +676,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
           { label: 'GPS Fix', value: fmtDateTime(pos?.fixTime) },
           { label: `Fonte · ${powerSource}`, value: voltageStr, valueColor: voltage ? (voltage > 11 ? '#34C759' : '#FF9500') : undefined },
           { label: 'Ignição', value: ignition === true ? 'Ligada' : ignition === false ? `Desligada ${fmtDuration(statusSince)}` : '—', valueColor: ignition === true ? '#34C759' : ignition === false ? '#FF3B30' : undefined },
-          { label: 'Odômetro', value: odometerKm },
+          { label: 'Distância GPS', value: odometerKm },
           { label: 'Velocidade', value: `${speed} km/h`, valueColor: speed > 0 ? '#007AFF' : undefined },
           ...(licenseInfo ? [{ label: 'Licença', value: licenseInfo.status === 'expired' ? 'Expirada' : licenseInfo.daysLeft <= 7 ? `Expira em ${licenseInfo.daysLeft}d` : `${licenseInfo.daysLeft}d restantes`, valueColor: licenseInfo.status === 'expired' ? '#FF3B30' : licenseInfo.daysLeft <= 7 ? '#FF9500' : '#34C759' }] : []),
         ].map((item, i, arr) => (
@@ -827,7 +827,7 @@ function DeviceDetail({ device, pos, onClose, onHistory, onCenter, onGeofence, c
                     {kmInput ? (() => {
                       const base = Number(kmInput);
                       const currentGps = pos?.attributes?.totalDistance as number ?? 0;
-                      const delta = customKmBaseDist && currentGps > customKmBaseDist ? (currentGps - customKmBaseDist) / 1000 : 0;
+                      const delta = customKmBaseDist !== undefined && currentGps > customKmBaseDist ? (currentGps - customKmBaseDist) / 1000 : 0;
                       return `${Math.round(base + delta).toLocaleString('pt-BR')} km`;
                     })() : '—'}
                   </span>
