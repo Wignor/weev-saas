@@ -1169,6 +1169,33 @@ export default function GestaoPage() {
             </div>
           </div>
 
+          {(() => {
+            const filtered = allDevices.filter(d => {
+              if (!devSelectorSearch) return true;
+              const q = devSelectorSearch.toLowerCase();
+              const client = assignments[d.id] || '';
+              return d.name.toLowerCase().includes(q) || d.uniqueId.includes(devSelectorSearch) || client.toLowerCase().includes(q);
+            });
+            const allSelected = filtered.length > 0 && filtered.every(d => renovarDevices.some(x => x.id === d.id));
+            return (
+              <div style={{ padding: '8px 16px', background: 'var(--bg-card)', borderBottom: '1px solid var(--bg-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <span style={{ fontSize: 12, color: 'var(--text-lo)' }}>{filtered.length} dispositivo{filtered.length !== 1 ? 's' : ''}</span>
+                <button
+                  onClick={() => {
+                    if (allSelected) {
+                      setRenovarDevices(prev => prev.filter(x => !filtered.some(d => d.id === x.id)));
+                    } else {
+                      setRenovarDevices(prev => [...prev, ...filtered.filter(d => !prev.some(x => x.id === d.id))]);
+                    }
+                  }}
+                  style={{ fontSize: 13, fontWeight: 600, color: '#007AFF', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}
+                >
+                  {allSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+                </button>
+              </div>
+            );
+          })()}
+
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {allDevices
               .filter(d => {
@@ -1207,7 +1234,7 @@ export default function GestaoPage() {
 
           {renovarDevices.length > 0 && (
             <div style={{ padding: '12px 16px', background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <span style={{ fontSize: 13, color: 'var(--text-lo)' }}>Dispositivo selecionado: {renovarDevices.length}</span>
+              <span style={{ fontSize: 13, color: 'var(--text-lo)' }}>{renovarDevices.length} dispositivo{renovarDevices.length !== 1 ? 's' : ''} selecionado{renovarDevices.length !== 1 ? 's' : ''}</span>
               <button onClick={() => setShowDeviceSelector(false)}
                 style={{ padding: '8px 24px', borderRadius: 20, background: '#007AFF', color: 'white', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer' }}>OK</button>
             </div>
