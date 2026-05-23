@@ -31,8 +31,12 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     return NextResponse.json({ ...contract, signed: contract.status === 'signed' });
   }
 
+  // Contrato assinado: retorna dados completos (token = autenticação do signatário)
+  if (contract.status === 'signed') {
+    return NextResponse.json({ ...contract, signed: true });
+  }
   const { clientSignature, selfiePhoto, ...safe } = contract;
-  return NextResponse.json({ ...safe, signed: contract.status === 'signed' });
+  return NextResponse.json({ ...safe, signed: false });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { token: string } }) {
