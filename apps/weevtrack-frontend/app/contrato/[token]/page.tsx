@@ -156,16 +156,83 @@ export default function ContratoPage({ params }: { params: { token: string } }) 
   );
 
   if (step === 'already_signed') return (
-    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, background: '#f8f9fa' }}>
-      <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
-      <p style={{ fontSize: 20, fontWeight: 700, color: '#1a1a2e', marginBottom: 8 }}>Contrato já assinado</p>
-      <p style={{ fontSize: 14, color: '#6B7280', textAlign: 'center' }}>
-        Assinado em {contract?.signedAt ? new Date(contract.signedAt).toLocaleString('pt-BR') : '—'}
-      </p>
-      <div style={{ marginTop: 24, padding: '12px 20px', borderRadius: 12, background: 'rgba(52,199,89,0.1)', border: '1px solid rgba(52,199,89,0.2)' }}>
-        <p style={{ fontSize: 13, color: '#34C759', fontWeight: 600 }}>Obrigado, {contract?.clientName}!</p>
+    <>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fa; }
+        @media print {
+          .no-print { display: none !important; }
+          .contract-text { max-height: none !important; overflow: visible !important; }
+        }
+      `}</style>
+      <div style={{ maxWidth: 720, margin: '0 auto', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <header style={{ background: '#1a1a2e', color: 'white', padding: '16px 20px', flexShrink: 0 }} className="no-print">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#00C9A7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="7" cy="7" r="2.5" fill="white"/><path d="M7 1v2.5M7 10.5V13M1 7h2.5M10.5 7H13" stroke="white" strokeWidth="1.3" strokeLinecap="round"/></svg>
+            </div>
+            <div>
+              <p style={{ margin: 0, fontWeight: 800, fontSize: 15 }}>WeevTrack</p>
+              <p style={{ margin: 0, fontSize: 11, opacity: 0.7 }}>Contrato Digital — {contract?.templateName}</p>
+            </div>
+          </div>
+        </header>
+
+        {/* Status badge */}
+        <div style={{ background: 'rgba(52,199,89,0.1)', borderBottom: '1px solid rgba(52,199,89,0.2)', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }} className="no-print">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 24 }}>✅</span>
+            <div>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: '#1a1a2e' }}>Contrato assinado</p>
+              <p style={{ margin: 0, fontSize: 12, color: '#6B7280' }}>
+                {contract?.signedAt ? new Date(contract.signedAt).toLocaleString('pt-BR') : '—'} · {contract?.clientName}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.print()}
+            style={{ background: '#1a1a2e', color: 'white', border: 'none', borderRadius: 10, padding: '10px 18px', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Baixar / Imprimir PDF
+          </button>
+        </div>
+
+        {/* Contract text */}
+        <div
+          className="contract-text"
+          style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', background: 'white', fontSize: 13, lineHeight: 1.85, color: '#1a1a2e', whiteSpace: 'pre-wrap', fontFamily: 'Georgia, serif' }}
+        >
+          {contract?.contractText}
+
+          {/* Assinatura impressa */}
+          <div style={{ marginTop: 40, paddingTop: 24, borderTop: '2px solid #e5e7eb' }}>
+            <p style={{ fontWeight: 700, fontSize: 13, marginBottom: 16 }}>REGISTRO DE ASSINATURA DIGITAL</p>
+            <p style={{ fontSize: 12, color: '#374151', marginBottom: 6 }}>
+              <strong>Signatário:</strong> {contract?.clientName}
+            </p>
+            <p style={{ fontSize: 12, color: '#374151', marginBottom: 6 }}>
+              <strong>Data e hora:</strong> {contract?.signedAt ? new Date(contract.signedAt).toLocaleString('pt-BR') : '—'}
+            </p>
+            <p style={{ fontSize: 12, color: '#374151', marginBottom: 6 }}>
+              <strong>Documento:</strong> {contract?.clientCpfCnpj || '—'}
+            </p>
+            <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 12 }}>
+              Assinado eletronicamente nos termos da MP 2.200-2/2001 e Lei 14.063/2020. WeevTrack — Weev Consultoria e Serviços Ltda, CNPJ 34.266.884/0001-42.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer mobile */}
+        <div style={{ padding: '16px 20px', background: '#f8f9fa', borderTop: '1px solid #e5e7eb', textAlign: 'center' }} className="no-print">
+          <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>Weev Consultoria e Serviços Ltda · CNPJ 34.266.884/0001-42 · (19) 99978-0601</p>
+        </div>
       </div>
-    </div>
+    </>
   );
 
   if (step === 'done') return (

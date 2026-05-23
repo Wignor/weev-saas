@@ -1391,11 +1391,16 @@ export default function DashboardPage() {
   });
 
   const isRegularClient = !user.administrator;
+  // Dias de atraso da fatura Asaas mais vencida (minInvoiceDueDays é negativo quando vencido)
+  const invoiceOverdueDays = (minInvoiceDueDays !== Infinity && minInvoiceDueDays < 0) ? -minInvoiceDueDays : 0;
   const worstOverdueDays = isRegularClient
-    ? Object.values(licenses).reduce((max, l) => {
-        if (!l.expiresAt) return max;
-        return Math.max(max, Math.max(0, Math.floor((Date.now() - new Date(l.expiresAt).getTime()) / 86400000)));
-      }, 0)
+    ? Math.max(
+        Object.values(licenses).reduce((max, l) => {
+          if (!l.expiresAt) return max;
+          return Math.max(max, Math.max(0, Math.floor((Date.now() - new Date(l.expiresAt).getTime()) / 86400000)));
+        }, 0),
+        invoiceOverdueDays,
+      )
     : 0;
 
   return (
