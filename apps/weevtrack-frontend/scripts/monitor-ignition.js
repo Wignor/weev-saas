@@ -182,6 +182,31 @@ async function getRecentEvents(headers, fromTime) {
 const processedEventIds = new Set();
 let lastEventsCheck = Date.now();
 
+// Cache de assignments para evitar falha silenciosa a cada 10s
+let assignmentsCache = {};
+let lastAssignmentsRefresh = 0;
+const ASSIGNMENTS_TTL_MS = 60000; // refresca a cada 60s
+
+async function getAssignmentsCached(headers) {
+  const now = Date.now();
+  if (now - lastAssignmentsRefresh < ASSIGNMENTS_TTL_MS && Object.keys(assignmentsCache).length > 0) {
+    return assignmentsCache;
+  }
+  try {
+    const fresh = await getAssignments(headers);
+    if (Object.keys(fresh).length > 0) {
+      assignmentsCache = fresh;
+      lastAssignmentsRefresh = now;
+      console.log(`[assignments] Cache atualizado: ${Object.keys(fresh).length} dispositivos atribuídos`);
+    } else {
+      console.warn('[assignments] Retornou vazio — mantendo cache anterior');
+    }
+  } catch (err) {
+    console.warn('[assignments] Falha ao buscar — mantendo cache anterior:', err.message);
+  }
+  return assignmentsCache;
+}
+
 async function check() {
   try {
     const subscriptions = readSubs();
@@ -192,7 +217,7 @@ async function check() {
     const [devRes, posRes, assignments] = await Promise.all([
       fetch(`${TRACCAR_URL}/api/devices`, { headers }),
       fetch(`${TRACCAR_URL}/api/positions`, { headers }),
-      getAssignments(headers),
+      getAssignmentsCached(headers),
     ]);
 
     const devices = await devRes.json();
