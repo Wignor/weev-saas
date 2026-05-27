@@ -48,41 +48,67 @@ function classifyFromText(text: string): 'lead' | 'cliente' | null {
   return null;
 }
 
-// Merge small text parts into blocks of max ~maxWords words
-function mergeIntoBlocks(parts: string[], maxWords: number): string[] {
-  const blocks: string[] = [];
-  let current = '';
-  let wc = 0;
-  for (const part of parts) {
-    const w = part.trim().split(/\s+/).length;
-    if (wc + w > maxWords && current) {
-      blocks.push(current.trim());
-      current = part.trim();
-      wc = w;
-    } else {
-      current = current ? `${current}\n\n${part.trim()}` : part.trim();
-      wc += w;
-    }
-  }
-  if (current.trim()) blocks.push(current.trim());
-  return blocks.filter(Boolean);
-}
+// Split response into blocks of at most MAX_CHARS characters,
+// always breaking at a natural boundary (paragraph > sentence > word).
+const MAX_BLOCK_CHARS = 250;
 
-// Split response into conversational message blocks (aim for 2-4 messages)
 function splitIntoBlocks(text: string): string[] {
-  // 1. Try double-newline paragraph split
-  const byParagraph = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
-  if (byParagraph.length > 1) return mergeIntoBlocks(byParagraph, 80);
+  const normalized = text.replace(/\n{3,}/g, '\n\n').trim();
+  if (!normalized) return [];
+  if (normalized.length <= MAX_BLOCK_CHARS) return [normalized];
 
-  // 2. Try single-newline split
-  const byLine = text.split(/\n/).map(p => p.trim()).filter(Boolean);
-  if (byLine.length > 1) return mergeIntoBlocks(byLine, 80);
+  const blocks: string[] = [];
+  let remaining = normalized;
 
-  // 3. Split at sentence boundaries (. ! ?)
-  const bySentence = text.split(/(?<=[.!?])\s+/).filter(s => s.trim());
-  if (bySentence.length > 1) return mergeIntoBlocks(bySentence, 60);
+  while (remaining.length > 0) {
+    if (remaining.length <= MAX_BLOCK_CHARS) {
+      blocks.push(remaining.trim());
+      break;
+    }
 
-  return [text.trim()];
+    const chunk = remaining.slice(0, MAX_BLOCK_CHARS);
+
+    // 1. Paragraph break (\n\n)
+    const para = chunk.lastIndexOf('\n\n');
+    if (para > 20) {
+      blocks.push(remaining.slice(0, para).trim());
+      remaining = remaining.slice(para + 2).trim();
+      continue;
+    }
+
+    // 2. Single newline
+    const line = chunk.lastIndexOf('\n');
+    if (line > 20) {
+      blocks.push(remaining.slice(0, line).trim());
+      remaining = remaining.slice(line + 1).trim();
+      continue;
+    }
+
+    // 3. Sentence boundary (. ! ?)
+    const sent = Math.max(
+      chunk.lastIndexOf('. '), chunk.lastIndexOf('! '), chunk.lastIndexOf('? '),
+      chunk.lastIndexOf('.\n'), chunk.lastIndexOf('!\n'), chunk.lastIndexOf('?\n'),
+    );
+    if (sent > 20) {
+      blocks.push(remaining.slice(0, sent + 1).trim());
+      remaining = remaining.slice(sent + 2).trim();
+      continue;
+    }
+
+    // 4. Word boundary
+    const space = chunk.lastIndexOf(' ');
+    if (space > 20) {
+      blocks.push(remaining.slice(0, space).trim());
+      remaining = remaining.slice(space + 1).trim();
+      continue;
+    }
+
+    // 5. Hard cut (avoid infinite loop)
+    blocks.push(remaining.slice(0, MAX_BLOCK_CHARS).trim());
+    remaining = remaining.slice(MAX_BLOCK_CHARS).trim();
+  }
+
+  return blocks.filter(b => b.length > 0);
 }
 
 // Send each block with Evolution API's built-in "Digitando..." indicator
