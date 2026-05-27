@@ -11,11 +11,16 @@ function phone(remoteJid: string): string {
   return remoteJid.includes('@') ? remoteJid.split('@')[0] : remoteJid;
 }
 
-export async function sendMessage(remoteJid: string, text: string) {
+// delayMs: Evolution API shows "Digitando..." for this duration before delivering
+export async function sendMessage(remoteJid: string, text: string, delayMs = 0) {
+  const body: Record<string, unknown> = { number: phone(remoteJid), text };
+  if (delayMs > 0) {
+    body.options = { delay: delayMs, presence: 'composing' };
+  }
   await fetch(`${BASE_URL}/message/sendText/${encodeURIComponent(INSTANCE)}`, {
     method: 'POST',
     headers: headers(),
-    body: JSON.stringify({ number: phone(remoteJid), text }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -58,7 +63,6 @@ export async function sendDocument(remoteJid: string, mediaUrl: string, fileName
   });
 }
 
-// Send notification to internal attendant number
 export async function notifyAttendant(customerNumber: string, customerName: string, attendantNumber: string) {
   const text = `🔔 *Solicitação de Atendimento*\n\nCliente: *${customerName}* (${customerNumber}) está aguardando atendimento humano.`;
   await fetch(`${BASE_URL}/message/sendText/${encodeURIComponent(INSTANCE)}`, {

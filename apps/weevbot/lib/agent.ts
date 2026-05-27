@@ -99,6 +99,10 @@ Quando o cliente solicitar um PDF ou documento, use send_pdf.`;
     choice?.message?.content ||
     (toolCalls.includes('notify_attendant')
       ? 'Vou chamar um atendente para você agora mesmo! Aguarde um momento. 😊'
+      : toolCalls.includes('send_video')
+      ? 'Segue o vídeo! 🎬 Assista e qualquer dúvida é só me falar!'
+      : toolCalls.includes('send_pdf')
+      ? 'Segue o documento! 📄 Qualquer dúvida estou à disposição.'
       : 'Desculpe, não consegui processar sua mensagem no momento.');
 
   return { text, toolCalls };

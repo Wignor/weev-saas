@@ -140,3 +140,31 @@ export async function setSetting(key: string, value: string): Promise<void> {
     [value, key]
   );
 }
+
+// ─── Quick Replies ────────────────────────────────────────────────────────────
+
+export interface QuickReply {
+  id: number;
+  title: string;
+  content: string;
+  created_at: string;
+}
+
+export async function getQuickReplies(): Promise<QuickReply[]> {
+  const { rows } = await pool.query<QuickReply>(
+    `SELECT * FROM quick_replies ORDER BY title`
+  );
+  return rows;
+}
+
+export async function createQuickReply(title: string, content: string): Promise<QuickReply> {
+  const { rows } = await pool.query<QuickReply>(
+    `INSERT INTO quick_replies (title, content) VALUES ($1, $2) RETURNING *`,
+    [title, content]
+  );
+  return rows[0];
+}
+
+export async function deleteQuickReply(id: number): Promise<void> {
+  await pool.query(`DELETE FROM quick_replies WHERE id = $1`, [id]);
+}

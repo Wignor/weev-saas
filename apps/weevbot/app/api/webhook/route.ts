@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { redis, KEYS, TTL } from '@/lib/redis';
 import { upsertConversation, saveMessage, getSetting } from '@/lib/db';
-import { sendMessage, sendTyping, sendVideo, sendDocument, notifyAttendant } from '@/lib/evolution';
+import { sendMessage, sendVideo, sendDocument, notifyAttendant } from '@/lib/evolution';
 import { runAgent } from '@/lib/agent';
 import { getContact, insertNewContact, setContactStatus, touchContact } from '@/lib/contacts';
 
@@ -48,40 +48,52 @@ function classifyFromText(text: string): 'lead' | 'cliente' | null {
   return null;
 }
 
-// Split AI response into readable blocks (max 300 words each)
-function splitIntoBlocks(text: string, maxWords = 300): string[] {
-  const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
-  if (!paragraphs.length) return [text.trim()].filter(Boolean);
-
+// Merge small text parts into blocks of max ~maxWords words
+function mergeIntoBlocks(parts: string[], maxWords: number): string[] {
   const blocks: string[] = [];
   let current = '';
-  let wordCount = 0;
-
-  for (const para of paragraphs) {
-    const words = para.trim().split(/\s+/).length;
-    if (wordCount + words > maxWords && current) {
+  let wc = 0;
+  for (const part of parts) {
+    const w = part.trim().split(/\s+/).length;
+    if (wc + w > maxWords && current) {
       blocks.push(current.trim());
-      current = para;
-      wordCount = words;
+      current = part.trim();
+      wc = w;
     } else {
-      current = current ? `${current}\n\n${para}` : para;
-      wordCount += words;
+      current = current ? `${current}\n\n${part.trim()}` : part.trim();
+      wc += w;
     }
   }
   if (current.trim()) blocks.push(current.trim());
-  return blocks.length > 0 ? blocks : [text.trim()];
+  return blocks.filter(Boolean);
 }
 
-// Send response in blocks: typing indicator (3s) → send → pause (4s) → repeat
+// Split response into conversational message blocks (aim for 2-4 messages)
+function splitIntoBlocks(text: string): string[] {
+  // 1. Try double-newline paragraph split
+  const byParagraph = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+  if (byParagraph.length > 1) return mergeIntoBlocks(byParagraph, 80);
+
+  // 2. Try single-newline split
+  const byLine = text.split(/\n/).map(p => p.trim()).filter(Boolean);
+  if (byLine.length > 1) return mergeIntoBlocks(byLine, 80);
+
+  // 3. Split at sentence boundaries (. ! ?)
+  const bySentence = text.split(/(?<=[.!?])\s+/).filter(s => s.trim());
+  if (bySentence.length > 1) return mergeIntoBlocks(bySentence, 60);
+
+  return [text.trim()];
+}
+
+// Send each block with Evolution API's built-in "Digitando..." indicator
 async function sendBlocks(remoteJid: string, number: string, text: string) {
   const blocks = splitIntoBlocks(text);
   for (let i = 0; i < blocks.length; i++) {
     if ((await redis.get(KEYS.atendimento(number))) === 'humano') break;
-    await sendTyping(remoteJid);
-    await new Promise(r => setTimeout(r, 3000));
-    if ((await redis.get(KEYS.atendimento(number))) === 'humano') break;
-    await sendMessage(remoteJid, blocks[i]);
+    // Evolution API shows "Digitando..." for 3s before delivering each message
+    await sendMessage(remoteJid, blocks[i], 3000);
     if (i < blocks.length - 1) {
+      if ((await redis.get(KEYS.atendimento(number))) === 'humano') break;
       await new Promise(r => setTimeout(r, 4000));
     }
   }
@@ -118,9 +130,7 @@ async function processAIQueue(number: string) {
           classification === 'cliente'
             ? '✅ Ótimo! Já registrei você como *cliente*. Como posso ajudá-lo hoje?'
             : '✅ Perfeito! Fique à vontade para conhecer nossos serviços. Como posso ajudá-lo?';
-        await sendTyping(remoteJid);
-        await new Promise(r => setTimeout(r, 800));
-        await sendMessage(remoteJid, confirmMsg);
+        await sendMessage(remoteJid, confirmMsg, 800);
         const aiMsgId = `ai_classif_${number}_${Date.now()}`;
         await Promise.all([
           saveMessage(number, aiMsgId, 'assistant', confirmMsg),
@@ -129,7 +139,8 @@ async function processAIQueue(number: string) {
       } else {
         await sendMessage(
           remoteJid,
-          'Não entendi bem. Você pode me dizer: você *já é nosso cliente* (responda "sim") ou está conhecendo nossos serviços pela primeira vez (responda "não")?'
+          'Não entendi bem. Você pode me dizer: você *já é nosso cliente* (responda "sim") ou está conhecendo nossos serviços pela primeira vez (responda "não")?',
+          1000
         );
       }
       return;
@@ -145,9 +156,10 @@ async function processAIQueue(number: string) {
 
     await redis.set(KEYS.aiBusy(number), '1', 'EX', TTL.AI_BUSY);
 
+    // Tool calls before the text response
     if (toolCalls.includes('send_video')) {
       const videoUrl = await getSetting('video_url');
-      if (videoUrl) await sendVideo(remoteJid, videoUrl, 'Aqui está o vídeo! 🎬').catch(() => {});
+      if (videoUrl) await sendVideo(remoteJid, videoUrl, '').catch(() => {});
     }
     if (toolCalls.includes('send_pdf')) {
       const pdfUrl = await getSetting('pdf_url');
@@ -158,6 +170,7 @@ async function processAIQueue(number: string) {
       if (attendantNum) await notifyAttendant(number, pushName || number, attendantNum).catch(() => {});
     }
 
+    // Send text response in blocks with typing simulation
     await sendBlocks(remoteJid, number, aiResponse);
 
     const aiMsgId = `ai_${number}_${Date.now()}`;
@@ -169,7 +182,6 @@ async function processAIQueue(number: string) {
     console.error('[processAIQueue]', err);
   } finally {
     await redis.del(LOCK_KEY(number)).catch(() => {});
-    // If new messages arrived during processing, handle them immediately
     const remaining = await redis.llen(PENDING_KEY(number)).catch(() => 0);
     if (remaining > 0) {
       const relock = await redis.set(LOCK_KEY(number), '1', 'EX', 120, 'NX').catch(() => null);
@@ -178,7 +190,6 @@ async function processAIQueue(number: string) {
   }
 }
 
-// Poll until 8s of silence, then process queued messages
 function scheduleAIProcessing(number: string) {
   const check = async () => {
     try {
@@ -215,6 +226,12 @@ export async function POST(req: Request) {
     }
 
     const number = remoteJid.split('@')[0];
+
+    // Never process messages from the internal notification number
+    const notificationNum = await getSetting('notification_number');
+    if (notificationNum && number === notificationNum.replace(/\D/g, '')) {
+      return NextResponse.json({ ok: true });
+    }
 
     // Outgoing (fromMe=true) → pause AI if human attendant is responding
     if (fromMe) {
@@ -256,13 +273,11 @@ export async function POST(req: Request) {
       const rawWelcome = (await getSetting('welcome_message')) ||
         `Olá, {nome}! 👋\nSeja bem-vindo(a)!\n\nVocê já é nosso cliente ou está conhecendo nossos serviços pela primeira vez?\n\n👉 *JÁ SOU CLIENTE*\n👉 *QUERO CONHECER*`;
       const welcome = rawWelcome.replace(/\{nome\}/gi, displayName);
-      await sendTyping(remoteJid);
-      await new Promise(r => setTimeout(r, 1000));
-      await sendMessage(remoteJid, welcome);
+      await sendMessage(remoteJid, welcome, 1000);
       return NextResponse.json({ ok: true });
     }
 
-    // Contacts from other business lines — never respond to these
+    // Skip contacts from other business lines
     const BLOCKED_STATUSES = ['inquilino', 'outro'];
     if (contact.status && BLOCKED_STATUSES.includes(contact.status)) {
       return NextResponse.json({ ok: true });
@@ -274,7 +289,6 @@ export async function POST(req: Request) {
     await redis.expire(PENDING_KEY(number), 120);
     await redis.set(LAST_MSG_KEY(number), String(Date.now()), 'EX', 120);
 
-    // Only one processor per number (NX = set only if not exists)
     const lockAcquired = await redis.set(LOCK_KEY(number), '1', 'EX', 120, 'NX');
     if (lockAcquired === 'OK') {
       scheduleAIProcessing(number);
