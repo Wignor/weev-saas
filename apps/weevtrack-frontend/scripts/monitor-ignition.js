@@ -255,6 +255,7 @@ async function check() {
       const speedKmh = knotsToKmh(pos.speed || 0);
       const ignition = pos.attributes?.ignition;
       const battery = pos.attributes?.batteryLevel;
+      const charge = pos.attributes?.charge;
       const moving = speedKmh > 2;
       const { subs: targetSubs, logUserIds } = subsForDevice(pos.deviceId);
       const meta = { deviceId: pos.deviceId, deviceName: device.name, logUserIds };
@@ -265,12 +266,18 @@ async function check() {
         : SPEED_LIMIT_KMH;
 
       newState[id] = {
-        ignition, moving, speedKmh, battery,
+        ignition, moving, speedKmh, battery, charge,
         overspeedActive: prev.overspeedActive || false,
         lowBatteryNotified: prev.lowBatteryNotified || false,
         stoppedAt: prev.stoppedAt || null,
         parkingNotified: prev.parkingNotified || false,
       };
+
+      // --- Cabo de alimentação desconectado ---
+      if (charge !== undefined && prev.charge !== undefined && prev.charge === true && charge === false) {
+        await broadcastPush(targetSubs, 'powerCut', '⚡ Aparelho desconectado!',
+          `${device.name} — cabo de alimentação do veículo desconectado`, `/dashboard`, meta);
+      }
 
       // --- Ignição ---
       if (ignition !== undefined && prev.ignition !== undefined && prev.ignition !== ignition) {
