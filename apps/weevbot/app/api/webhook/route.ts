@@ -101,9 +101,9 @@ async function processAIQueue(number: string) {
 
     const contact = await getContact(number);
 
-    // Skip contacts managed by other business flows
-    const HANDLED_STATUSES = ['lead', 'cliente', 'pendente_classificacao'];
-    if (contact?.status && !HANDLED_STATUSES.includes(contact.status)) return;
+    // Skip contacts from other business lines
+    const BLOCKED_STATUSES = ['inquilino', 'outro'];
+    if (contact?.status && BLOCKED_STATUSES.includes(contact.status)) return;
 
     // Classification flow
     const awaitingClassif = await redis.get(CLASSIF_KEY(number));
@@ -262,9 +262,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Contacts with other business statuses (e.g. inquilino, pc1_enviado) are ignored
-    const HANDLED_STATUSES = ['lead', 'cliente', 'pendente_classificacao'];
-    if (contact.status && !HANDLED_STATUSES.includes(contact.status)) {
+    // Contacts from other business lines — never respond to these
+    const BLOCKED_STATUSES = ['inquilino', 'outro'];
+    if (contact.status && BLOCKED_STATUSES.includes(contact.status)) {
       return NextResponse.json({ ok: true });
     }
 
