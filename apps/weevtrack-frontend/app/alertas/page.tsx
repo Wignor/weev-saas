@@ -27,6 +27,7 @@ const alertConfig: Record<string, { icon: string; color: string }> = {
   geofenceEnter:  { icon: '📍', color: '#007AFF' },
   commandBlock:   { icon: '🔒', color: '#FF3B30' },
   commandUnblock: { icon: '🔓', color: '#34C759' },
+  powerCut:       { icon: '⚡', color: '#FF3B30' },
 };
 
 

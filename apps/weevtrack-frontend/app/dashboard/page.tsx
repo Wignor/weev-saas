@@ -124,13 +124,14 @@ const NOTIF_ITEMS = [
   { key: 'sos',         icon: '🆘', label: 'Botão de pânico (SOS)',  desc: 'Alerta quando o botão SOS for acionado' },
   { key: 'collision',   icon: '💥', label: 'Colisão / vibração',     desc: 'Impacto ou vibração forte detectado' },
   { key: 'geofenceExit', icon: '🚧', label: 'Cerca virtual',          desc: 'Notificar quando o veículo sair da área configurada' },
+  { key: 'powerCut',    icon: '⚡', label: 'Cabo desconectado',       desc: 'Aparelho removido da alimentação do veículo' },
 ] as const;
 
-type BoolPrefKey = 'ignitionOn' | 'ignitionOff' | 'moving' | 'overspeed' | 'parking' | 'lowBattery' | 'sos' | 'collision' | 'geofenceExit' | 'notifSound' | 'notifVibrate';
+type BoolPrefKey = 'ignitionOn' | 'ignitionOff' | 'moving' | 'overspeed' | 'parking' | 'lowBattery' | 'sos' | 'collision' | 'geofenceExit' | 'powerCut' | 'notifSound' | 'notifVibrate';
 type NotifPrefs = Record<BoolPrefKey, boolean> & { speedLimit: number };
 const DEFAULT_PREFS: NotifPrefs = {
   ignitionOn: true, ignitionOff: true, moving: false, overspeed: false,
-  parking: false, lowBattery: false, sos: true, collision: true, geofenceExit: true, speedLimit: 100,
+  parking: false, lowBattery: false, sos: true, collision: true, geofenceExit: true, powerCut: true, speedLimit: 100,
   notifSound: true, notifVibrate: true,
 };
 

@@ -20,7 +20,7 @@ const DEFAULT_PREFS = {
   ignitionOn: true, ignitionOff: true, moving: false,
   overspeed: false, speedLimit: 100,
   parking: false, lowBattery: false, sos: true, collision: true,
-  geofenceExit: true,
+  geofenceExit: true, powerCut: true,
   notifSound: true, notifVibrate: true,
 };
 
@@ -357,6 +357,10 @@ async function check() {
       if (['vibration', 'hardBraking', 'hardAcceleration', 'hardCornering'].includes(alarm)) {
         await broadcastPush(evSubs, 'collision', '💥 Possível colisão detectada',
           `${evDevice.name} — impacto ou vibração forte (${alarm})`, `/dashboard`, evMeta);
+      }
+      if (alarm === 'powerCut') {
+        await broadcastPush(evSubs, 'powerCut', '⚡ Aparelho desconectado!',
+          `${evDevice.name} — cabo de alimentação do veículo desconectado`, `/dashboard`, evMeta);
       }
       if (ev.type === 'geofenceExit') {
         await broadcastPush(evSubs, 'geofenceExit', '🚧 Cerca virtual — Saída detectada!',

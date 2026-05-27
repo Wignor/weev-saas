@@ -15,6 +15,7 @@ const DEFAULT_PREFS = {
   lowBattery: false,
   sos: true,
   collision: true,
+  powerCut: true,
   notifSound: true,
   notifVibrate: true,
 };
