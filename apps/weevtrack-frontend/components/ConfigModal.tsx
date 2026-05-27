@@ -244,11 +244,11 @@ export default function ConfigModal({ onClose }: Props) {
                       <div key={s.id} style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--bg-input)', border: '1px solid var(--bg-border)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-hi)' }}>{s.name}</p>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-hi)' }}>{s.isDefault ? (s.company || s.name) : s.name}</p>
                             {s.isDefault && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'rgba(0,122,255,0.15)', color: '#007AFF', fontWeight: 700 }}>padrão</span>}
                           </div>
-                          <p style={{ margin: 0, fontSize: 12, color: 'var(--text-lo)' }}>CPF: {s.cpf}</p>
-                          {s.company && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-lo)' }}>{s.company}{s.cnpj ? ` — ${s.cnpj}` : ''}</p>}
+                          {!s.isDefault && <p style={{ margin: 0, fontSize: 12, color: 'var(--text-lo)' }}>CPF: {s.cpf}</p>}
+                          {s.isDefault ? (s.cnpj && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-lo)' }}>CNPJ: {s.cnpj}</p>) : (s.company && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-lo)' }}>{s.company}{s.cnpj ? ` — ${s.cnpj}` : ''}</p>)}
                         </div>
                         {!s.isDefault && (
                           <button onClick={() => deleteSignatory(s.id)} disabled={deletingSigId === s.id}
