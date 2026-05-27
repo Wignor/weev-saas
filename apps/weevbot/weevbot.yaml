@@ -1,0 +1,61 @@
+version: "3.7"
+services:
+
+## --------------------------- WeevBot --------------------------- ##
+
+  weevbot:
+    image: weevbot:latest
+
+    networks:
+      - weevpro
+
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOSTNAME=0.0.0.0
+
+      ## 🔴 Redis (container redis_redis na rede weevpro, DB 3)
+      - REDIS_HOST=redis_redis
+      - REDIS_PORT=6379
+      - REDIS_DB=3
+
+      ## 🗄️ PostgreSQL (container postgres na rede weevpro)
+      - DATABASE_URL=postgresql://postgres:20105906d814e746ac8e900ebb6c5ad0@postgres:5432/weevbot
+
+      ## 📱 Evolution API
+      - EVOLUTION_API_URL=https://api.weevzap.pro
+      - EVOLUTION_INSTANCE=AT WT
+      - EVOLUTION_API_KEY=2366fba6aade3fa7b00328dfc8df06ce
+
+      ## 🤖 OpenAI
+      - OPENAI_API_KEY=COLOQUE_SUA_CHAVE_OPENAI_AQUI
+
+      ## 💬 Prompt do agente (opcional)
+      # - AGENT_SYSTEM_PROMPT=Você é um assistente da Empresa X...
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.weevbot.rule=Host(`bot.weevzap.pro`)
+        - traefik.http.routers.weevbot.entrypoints=websecure
+        - traefik.http.routers.weevbot.priority=1
+        - traefik.http.routers.weevbot.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.weevbot.service=weevbot
+        - traefik.http.services.weevbot.loadbalancer.server.port=3001
+        - traefik.http.services.weevbot.loadbalancer.passHostHeader=true
+
+## --------------------------- WeevBot --------------------------- ##
+
+networks:
+  weevpro:
+    external: true
+    name: weevpro
