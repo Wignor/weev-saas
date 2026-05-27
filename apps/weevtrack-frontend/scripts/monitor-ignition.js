@@ -256,6 +256,8 @@ async function check() {
       const ignition = pos.attributes?.ignition;
       const battery = pos.attributes?.batteryLevel;
       const charge = pos.attributes?.charge;
+      const posAlarm = String(pos.attributes?.alarm || '').toLowerCase();
+      const hasPowerCutAlarm = posAlarm.includes('powercut');
       const moving = speedKmh > 2;
       const { subs: targetSubs, logUserIds } = subsForDevice(pos.deviceId);
       const meta = { deviceId: pos.deviceId, deviceName: device.name, logUserIds };
@@ -269,14 +271,23 @@ async function check() {
         ignition, moving, speedKmh, battery, charge,
         overspeedActive: prev.overspeedActive || false,
         lowBatteryNotified: prev.lowBatteryNotified || false,
+        // resetar quando alarme sumir (dispositivo reconectado)
+        powerCutNotified: hasPowerCutAlarm ? (prev.powerCutNotified || false) : false,
         stoppedAt: prev.stoppedAt || null,
         parkingNotified: prev.parkingNotified || false,
       };
 
       // --- Cabo de alimentação desconectado ---
-      if (charge !== undefined && prev.charge !== undefined && prev.charge === true && charge === false) {
+      // Método 1: atributo alarm=powerCut na posição (SL28 e similares)
+      if (hasPowerCutAlarm && !prev.powerCutNotified) {
         await broadcastPush(targetSubs, 'powerCut', '⚡ Aparelho desconectado!',
           `${device.name} — cabo de alimentação do veículo desconectado`, `/dashboard`, meta);
+        newState[id].powerCutNotified = true;
+      // Método 2: atributo charge transicionou true→false (SL24 e similares)
+      } else if (!hasPowerCutAlarm && charge === false && prev.charge === true && !prev.powerCutNotified) {
+        await broadcastPush(targetSubs, 'powerCut', '⚡ Aparelho desconectado!',
+          `${device.name} — cabo de alimentação do veículo desconectado`, `/dashboard`, meta);
+        newState[id].powerCutNotified = true;
       }
 
       // --- Ignição ---
