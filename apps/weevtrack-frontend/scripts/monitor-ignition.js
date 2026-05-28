@@ -267,24 +267,29 @@ async function check() {
         ? Math.min(...enabledOvSubs.map(s => Number(getPrefsForUser(s.userId).speedLimit) || SPEED_LIMIT_KMH))
         : SPEED_LIMIT_KMH;
 
+      // Detecta início de possível corte — reseta quando sinal volta
+      const powerCutDetected = hasPowerCutAlarm || (charge === false && prev.charge === true);
+      const powerCutStillActive = hasPowerCutAlarm || charge === false;
+      const prevFirstSeen = powerCutStillActive ? (prev.powerCutFirstSeen || null) : null;
+      const powerCutFirstSeen = powerCutDetected && !prev.powerCutNotified
+        ? (prev.powerCutFirstSeen || Date.now())
+        : prevFirstSeen;
+
       newState[id] = {
         ignition, moving, speedKmh, battery, charge,
         overspeedActive: prev.overspeedActive || false,
         lowBatteryNotified: prev.lowBatteryNotified || false,
-        // resetar quando alarme sumir (dispositivo reconectado)
-        powerCutNotified: hasPowerCutAlarm ? (prev.powerCutNotified || false) : false,
+        // resetar tudo quando dispositivo reconectar (alarme some)
+        powerCutNotified: powerCutStillActive ? (prev.powerCutNotified || false) : false,
+        powerCutFirstSeen: powerCutStillActive ? powerCutFirstSeen : null,
         stoppedAt: prev.stoppedAt || null,
         parkingNotified: prev.parkingNotified || false,
       };
 
       // --- Cabo de alimentação desconectado ---
-      // Método 1: atributo alarm=powerCut na posição (SL28 e similares)
-      if (hasPowerCutAlarm && !prev.powerCutNotified) {
-        await broadcastPush(targetSubs, 'powerCut', '⚡ Aparelho desconectado!',
-          `${device.name} — cabo de alimentação do veículo desconectado`, `/dashboard`, meta);
-        newState[id].powerCutNotified = true;
-      // Método 2: atributo charge transicionou true→false (SL24 e similares)
-      } else if (!hasPowerCutAlarm && charge === false && prev.charge === true && !prev.powerCutNotified) {
+      // Só dispara após 60s contínuos de corte — elimina falso positivo de sleep/hibernação
+      const POWER_CUT_CONFIRM_MS = 60000;
+      if (powerCutStillActive && !prev.powerCutNotified && powerCutFirstSeen && (Date.now() - powerCutFirstSeen) >= POWER_CUT_CONFIRM_MS) {
         await broadcastPush(targetSubs, 'powerCut', '⚡ Aparelho desconectado!',
           `${device.name} — cabo de alimentação do veículo desconectado`, `/dashboard`, meta);
         newState[id].powerCutNotified = true;
