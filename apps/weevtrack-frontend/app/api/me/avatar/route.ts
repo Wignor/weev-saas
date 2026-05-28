@@ -19,8 +19,20 @@ function writeAvatars(data: Record<string, string>) {
   fs.writeFileSync(AVATARS_FILE, JSON.stringify(data));
 }
 
-async function getUserId(session: string): Promise<number | null> {
+async function resolveUserId(cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<number | null> {
+  // When impersonating, use the client's ID from wt_user cookie
   try {
+    const raw = cookieStore.get('wt_user')?.value;
+    if (raw) {
+      const u = JSON.parse(decodeURIComponent(raw));
+      if (u.impersonating && u.id) return Number(u.id);
+    }
+  } catch { /**/ }
+
+  // Normal: resolve via Traccar session
+  try {
+    const session = cookieStore.get('wt_session')?.value;
+    if (!session) return null;
     const res = await fetch(`${TRACCAR_URL}/api/session`, {
       headers: { Cookie: `JSESSIONID=${session}` },
       cache: 'no-store',
@@ -32,11 +44,8 @@ async function getUserId(session: string): Promise<number | null> {
 
 export async function GET() {
   const cookieStore = await cookies();
-  const session = cookieStore.get('wt_session')?.value;
-  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-
-  const userId = await getUserId(session);
-  if (!userId) return NextResponse.json({ error: 'Sessão inválida' }, { status: 401 });
+  const userId = await resolveUserId(cookieStore);
+  if (!userId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
   const avatars = readAvatars();
   return NextResponse.json({ avatar: avatars[String(userId)] || null });
@@ -44,11 +53,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const cookieStore = await cookies();
-  const session = cookieStore.get('wt_session')?.value;
-  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-
-  const userId = await getUserId(session);
-  if (!userId) return NextResponse.json({ error: 'Sessão inválida' }, { status: 401 });
+  const userId = await resolveUserId(cookieStore);
+  if (!userId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
   const { avatar } = await req.json();
   if (!avatar || !String(avatar).startsWith('data:image/')) {
@@ -66,11 +72,8 @@ export async function POST(req: Request) {
 
 export async function DELETE() {
   const cookieStore = await cookies();
-  const session = cookieStore.get('wt_session')?.value;
-  if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-
-  const userId = await getUserId(session);
-  if (!userId) return NextResponse.json({ error: 'Sessão inválida' }, { status: 401 });
+  const userId = await resolveUserId(cookieStore);
+  if (!userId) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
   const avatars = readAvatars();
   delete avatars[String(userId)];

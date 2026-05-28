@@ -3,13 +3,27 @@ import { cookies } from 'next/headers';
 
 const TRACCAR_URL = process.env.TRACCAR_URL || 'http://localhost:8082';
 
+function getImpersonatedId(cookieStore: Awaited<ReturnType<typeof cookies>>): string | null {
+  try {
+    const raw = cookieStore.get('wt_user')?.value;
+    if (!raw) return null;
+    const u = JSON.parse(decodeURIComponent(raw));
+    return u.impersonating && u.id ? String(u.id) : null;
+  } catch { return null; }
+}
+
 export async function GET() {
   const cookieStore = await cookies();
   const session = cookieStore.get('wt_session')?.value;
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
   try {
-    const res = await fetch(`${TRACCAR_URL}/api/session`, {
+    const impersonatedId = getImpersonatedId(cookieStore);
+    const url = impersonatedId
+      ? `${TRACCAR_URL}/api/users/${impersonatedId}`
+      : `${TRACCAR_URL}/api/session`;
+
+    const res = await fetch(url, {
       headers: { Cookie: `JSESSIONID=${session}` },
       cache: 'no-store',
     });
@@ -29,7 +43,12 @@ export async function PATCH(req: Request) {
   try {
     const { realEmail } = await req.json();
 
-    const getRes = await fetch(`${TRACCAR_URL}/api/session`, {
+    const impersonatedId = getImpersonatedId(cookieStore);
+    const sessionUrl = impersonatedId
+      ? `${TRACCAR_URL}/api/users/${impersonatedId}`
+      : `${TRACCAR_URL}/api/session`;
+
+    const getRes = await fetch(sessionUrl, {
       headers: { Cookie: `JSESSIONID=${session}` },
       cache: 'no-store',
     });
