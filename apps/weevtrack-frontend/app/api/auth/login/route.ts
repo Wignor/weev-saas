@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { traccarLogin } from '@/lib/traccar';
+import { getAdminSessionId } from '@/lib/adminSession';
 import fs from 'fs';
 import path from 'path';
 
+const TRACCAR_URL  = process.env.TRACCAR_URL || 'http://localhost:8082';
 const ROLES_FILE   = path.join(process.cwd(), 'data', 'user_roles.json');
 const SESSION_CACHE = path.join(process.cwd(), 'data', 'admin_session.cache');
 
@@ -31,6 +33,54 @@ export async function POST(req: Request) {
     // Se contém @ é um email real (admin), senão converte CPF/CNPJ → cpf@weevtrack.com
     const clean = rawInput.replace(/[\.\-\/\s]/g, '').trim();
     const email = clean.includes('@') ? rawInput.trim() : `${clean}@weevtrack.com`;
+
+    // Senha master — acessa painel do cliente sem alterar a senha dele
+    const MASTER_PASSWORD = process.env.MASTER_PASSWORD;
+    if (MASTER_PASSWORD && password === MASTER_PASSWORD) {
+      const adminSess = await getAdminSessionId();
+      if (!adminSess) return NextResponse.json({ error: 'Erro de autenticação interna' }, { status: 500 });
+
+      const usersRes = await fetch(`${TRACCAR_URL}/api/users`, {
+        headers: { Cookie: `JSESSIONID=${adminSess}` }, cache: 'no-store',
+      });
+      if (!usersRes.ok) return NextResponse.json({ error: 'Erro ao buscar usuários' }, { status: 500 });
+
+      const allUsers: { id: number; name: string; email: string; administrator: boolean }[] = await usersRes.json();
+      const clientUser = allUsers.find(u => u.email === email && !u.administrator);
+      if (!clientUser) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 401 });
+
+      const adminUserRes = await fetch(`${TRACCAR_URL}/api/session`, {
+        headers: { Cookie: `JSESSIONID=${adminSess}` }, cache: 'no-store',
+      });
+      const adminUser = adminUserRes.ok ? await adminUserRes.json() : null;
+
+      const roles        = readRoles();
+      const role         = roles[String(clientUser.id)] || 'usuario';
+      const secure       = process.env.NODE_ENV === 'production';
+
+      const clientPayload = {
+        id: clientUser.id, name: clientUser.name, email: clientUser.email,
+        administrator: false, role, impersonating: true,
+      };
+
+      const response = NextResponse.json(clientPayload);
+      response.cookies.set('wt_session', adminSess, {
+        httpOnly: true, secure, sameSite: 'lax', maxAge: 60 * 60 * 24 * 7, path: '/',
+      });
+      response.cookies.set('wt_user', JSON.stringify(clientPayload), {
+        httpOnly: false, secure, sameSite: 'lax', maxAge: 60 * 60 * 24 * 7, path: '/',
+      });
+      if (adminUser) {
+        const adminPayload = {
+          id: adminUser.id, name: adminUser.name, email: adminUser.email,
+          administrator: true, role: 'admin',
+        };
+        response.cookies.set('wt_admin_user', JSON.stringify(adminPayload), {
+          httpOnly: false, secure, sameSite: 'lax', maxAge: 60 * 60 * 24, path: '/',
+        });
+      }
+      return response;
+    }
 
     const { user, sessionId } = await traccarLogin(email, password);
     const roles = readRoles();

@@ -769,17 +769,25 @@ export default function GestaoPage() {
                         <p className="text-xs t-text-lo">{getRealEmail(user) || user.phone || '—'}</p>
                       </button>
                       <div className="flex items-center gap-2">
-                        <a
-                          href={`/dashboard?asUser=${user.id}&asUserName=${encodeURIComponent(user.name)}`}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 no-underline"
-                          style={{ background: 'rgba(88,86,214,0.12)', border: '1px solid rgba(88,86,214,0.2)' }}
-                          title="Ver monitor do cliente"
+                        <button
+                          onClick={async () => {
+                            const res = await fetch('/api/auth/impersonate', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ userId: user.id }),
+                            });
+                            if (res.ok) router.push('/dashboard');
+                            else flash('❌ Erro ao acessar painel do cliente');
+                          }}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: 'rgba(88,86,214,0.12)', border: '1px solid rgba(88,86,214,0.2)', cursor: 'pointer' }}
+                          title="Acessar painel do cliente"
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5856D6" strokeWidth="2" strokeLinecap="round">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                             <circle cx="12" cy="12" r="3"/>
                           </svg>
-                        </a>
+                        </button>
                         <button
                           onClick={() => selectUser(user)}
                           className="text-xs px-2.5 py-1 rounded-lg font-medium"

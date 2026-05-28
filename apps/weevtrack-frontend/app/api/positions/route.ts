@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
   let isAdmin = false;
+  let isImpersonating = false;
   let traccarUserId = '';
   let role = 'usuario';
   try {
@@ -53,6 +54,7 @@ export async function GET(req: NextRequest) {
     if (raw) {
       const u = JSON.parse(decodeURIComponent(raw));
       isAdmin = !!u.administrator;
+      isImpersonating = !!u.impersonating;
       traccarUserId = String(u.id || '');
       role = u.role || 'usuario';
     }
@@ -67,6 +69,15 @@ export async function GET(req: NextRequest) {
   const asUser = req.nextUrl.searchParams.get('asUser');
 
   try {
+    // Impersonation: admin session but filtered to client's positions
+    if (isImpersonating && traccarUserId) {
+      const r = await fetch(`${TRACCAR_URL}/api/positions?userId=${traccarUserId}`, {
+        headers: { Cookie: `JSESSIONID=${session}` }, cache: 'no-store',
+      });
+      if (!r.ok) return NextResponse.json({ error: `Traccar ${r.status}` }, { status: r.status });
+      return NextResponse.json(await r.json());
+    }
+
     // Distribuidor viewing one of their clients — use admin session for Traccar
     if (asUser && isDistributor && traccarUserId) {
       const clientIds = readDistClients()[traccarUserId] || [];

@@ -68,6 +68,8 @@ export default function DesktopNav() {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDistribuidor, setIsDistribuidor] = useState(false);
+  const [impersonating, setImpersonating] = useState(false);
+  const [impersonatedName, setImpersonatedName] = useState('');
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -78,6 +80,8 @@ export default function DesktopNav() {
         const u = JSON.parse(decodeURIComponent(raw));
         setIsAdmin(!!u.administrator);
         setIsDistribuidor(u.role === 'distribuidor' || u.role === 'distribuidor_geral');
+        setImpersonating(!!u.impersonating);
+        if (u.impersonating) setImpersonatedName(u.name || '');
       }
     } catch { /**/ }
     const saved = localStorage.getItem('nav_collapsed');
@@ -103,7 +107,7 @@ export default function DesktopNav() {
     { key: 'historico',  href: '/historico',  label: 'Trajetos' },
     { key: 'alertas',    href: '/alertas',    label: 'Alertas' },
     { key: 'relatorios', href: '/relatorios', label: 'Relatórios' },
-    ...(isAdmin ? [{ key: 'gestao', href: '/gestao', label: 'Gestão' }] : []),
+    ...(!impersonating && isAdmin ? [{ key: 'gestao', href: '/gestao', label: 'Gestão' }] : []),
     { key: 'perfil',     href: '/perfil',     label: 'Perfil' },
   ];
 
@@ -175,6 +179,37 @@ export default function DesktopNav() {
           );
         })}
       </div>
+
+      {/* Impersonation banner */}
+      {impersonating && (
+        <div style={{ padding: '8px', borderTop: '1px solid var(--bg-border)', flexShrink: 0 }}>
+          {!collapsed && (
+            <div style={{ padding: '8px 10px', background: 'rgba(88,86,214,0.1)', borderRadius: 8, marginBottom: 6, border: '1px solid rgba(88,86,214,0.25)' }}>
+              <p style={{ fontSize: 10, color: '#5856D6', fontWeight: 700, margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Visualizando</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-hi)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{impersonatedName}</p>
+            </div>
+          )}
+          <button
+            onClick={async () => {
+              await fetch('/api/auth/impersonate-exit', { method: 'POST' });
+              window.location.href = '/gestao';
+            }}
+            title="Voltar ao painel admin"
+            style={{
+              width: '100%', padding: collapsed ? '10px 0' : '10px 12px',
+              borderRadius: 8, background: '#5856D6', color: 'white',
+              border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13,
+              display: 'flex', alignItems: 'center',
+              justifyContent: collapsed ? 'center' : 'flex-start', gap: 8,
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            {!collapsed && 'Voltar ao admin'}
+          </button>
+        </div>
+      )}
 
       {/* Toggle collapse button */}
       <button

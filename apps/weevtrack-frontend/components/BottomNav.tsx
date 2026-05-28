@@ -100,6 +100,8 @@ export default function BottomNav() {
   const pathname = usePathname();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDistribuidor, setIsDistribuidor] = useState(false);
+  const [impersonating, setImpersonating] = useState(false);
+  const [impersonatedName, setImpersonatedName] = useState('');
 
   useEffect(() => {
     try {
@@ -108,6 +110,8 @@ export default function BottomNav() {
         const u = JSON.parse(decodeURIComponent(raw));
         setIsAdmin(!!u.administrator);
         setIsDistribuidor(u.role === 'distribuidor' || u.role === 'distribuidor_geral');
+        setImpersonating(!!u.impersonating);
+        if (u.impersonating) setImpersonatedName(u.name || '');
       }
     } catch { /* silencioso */ }
   }, []);
@@ -115,10 +119,29 @@ export default function BottomNav() {
   const tabs = [
     ...(isDistribuidor ? distribuidorTabs.slice(0, 1) : []),
     ...baseTabs,
-    ...(isAdmin ? [gestaoTab] : []),
+    ...(!impersonating && isAdmin ? [gestaoTab] : []),
   ];
 
   return (
+    <>
+      {impersonating && (
+        <div className="md:hidden fixed left-0 right-0 z-50 flex items-center justify-between px-4 py-2"
+          style={{ bottom: 64, background: 'rgba(88,86,214,0.92)', backdropFilter: 'blur(8px)' }}>
+          <span className="text-xs font-semibold text-white truncate mr-2">
+            👤 {impersonatedName}
+          </span>
+          <button
+            onClick={async () => {
+              await fetch('/api/auth/impersonate-exit', { method: 'POST' });
+              window.location.href = '/gestao';
+            }}
+            className="text-xs font-bold px-3 py-1 rounded-full flex-shrink-0"
+            style={{ background: 'white', color: '#5856D6' }}
+          >
+            ← Voltar
+          </button>
+        </div>
+      )}
     <nav
       className="md:hidden fixed bottom-0 left-0 right-0 h-16 flex items-center z-50"
       style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--bg-border)' }}
@@ -147,5 +170,6 @@ export default function BottomNav() {
         );
       })}
     </nav>
+    </>
   );
 }
