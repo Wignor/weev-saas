@@ -12,20 +12,19 @@ export async function GET() {
     const instance = tenant.evolution_instance;
     const webhookUrl = `${process.env.NEXT_PUBLIC_URL || 'https://agente.weevzap.pro'}/api/webhook`;
 
-    let status = await getInstanceStatus(instance);
-
-    // Auto-create instance if it doesn't exist in Evolution API
-    if (!status || status.state === undefined) {
-      await createInstance(instance, webhookUrl).catch(() => {});
-      status = await getInstanceStatus(instance).catch(() => ({ state: 'close' }));
-    }
-
+    const status = await getInstanceStatus(instance);
     const connected = status?.state === 'open';
 
     let qrCode = null;
     if (!connected) {
+      // Try to get QR; if it fails the instance was deleted — recreate it first
       const qrData = await getQrCode(instance).catch(() => null);
       qrCode = qrData?.base64 ?? null;
+      if (!qrCode) {
+        await createInstance(instance, webhookUrl).catch(() => {});
+        const qrData2 = await getQrCode(instance).catch(() => null);
+        qrCode = qrData2?.base64 ?? null;
+      }
     }
 
     return NextResponse.json({ connected, instance, qrCode });

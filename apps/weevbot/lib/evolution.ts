@@ -11,16 +11,20 @@ function phone(remoteJid: string): string {
   return remoteJid.includes('@') ? remoteJid.split('@')[0] : remoteJid;
 }
 
-// delayMs: Evolution API shows "Digitando..." for this duration before delivering
 export async function sendMessage(remoteJid: string, text: string, delayMs = 0) {
-  const body: Record<string, unknown> = { number: phone(remoteJid), text };
+  const number = phone(remoteJid);
   if (delayMs > 0) {
-    body.options = { delay: delayMs, presence: 'composing' };
+    await fetch(`${BASE_URL}/chat/updatePresence/${encodeURIComponent(INSTANCE)}`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ number, options: { presence: 'composing', delay: delayMs } }),
+    }).catch(() => {});
+    await new Promise(r => setTimeout(r, delayMs));
   }
   await fetch(`${BASE_URL}/message/sendText/${encodeURIComponent(INSTANCE)}`, {
     method: 'POST',
     headers: headers(),
-    body: JSON.stringify(body),
+    body: JSON.stringify({ number, text }),
   });
 }
 

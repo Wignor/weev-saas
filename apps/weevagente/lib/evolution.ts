@@ -46,9 +46,16 @@ export async function logoutInstance(instanceName: string) {
 }
 
 export async function sendMessage(instance: string, remoteJid: string, text: string, delay = 0) {
-  const body: Record<string, unknown> = { number: remoteJid, text };
-  if (delay > 0) body.options = { delay, presence: 'composing' };
-  return evol('POST', `/message/sendText/${instance}`, body);
+  const number = remoteJid.includes('@') ? remoteJid.split('@')[0] : remoteJid;
+  if (delay > 0) {
+    await fetch(`${BASE}/chat/updatePresence/${instance}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: KEY },
+      body: JSON.stringify({ number, options: { presence: 'composing', delay } }),
+    }).catch(() => {});
+    await new Promise(r => setTimeout(r, delay));
+  }
+  return evol('POST', `/message/sendText/${instance}`, { number, text });
 }
 
 export async function sendVideo(instance: string, remoteJid: string, url: string, caption = '') {

@@ -78,6 +78,7 @@ Quando o cliente solicitar um PDF ou documento, use send_pdf.`;
   } else if (contactStatus === 'cliente') {
     systemContent += '\n\n[Contexto: Este contato é um CLIENTE — já utiliza seus serviços. Seja objetivo e foque em resolver a necessidade dele.]';
   }
+  systemContent += '\n\nREGRA DE MEMÓRIA OBRIGATÓRIA: Leia TODO o histórico desta conversa antes de responder. NUNCA pergunte uma informação que o cliente já forneceu anteriormente — cidade, quantidade de veículos, nome, tipo de uso ou qualquer outro dado. Se a informação já está no histórico, use-a diretamente e avance na conversa. Repetir perguntas já respondidas é estritamente proibido.';
 
   const limit = parseInt(historyLimitSetting || '20', 10);
   const limitedHistory = history.slice(-limit);

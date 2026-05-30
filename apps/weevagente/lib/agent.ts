@@ -31,6 +31,7 @@ export async function runAgent(
     systemPrompt || 'Você é um assistente prestativo.',
     contactStatus ? `Status do contato: ${contactStatus}` : '',
     pushName ? `Nome do contato: ${pushName}` : '',
+    'REGRA DE MEMÓRIA OBRIGATÓRIA: Leia TODO o histórico desta conversa antes de responder. NUNCA pergunte uma informação que o cliente já forneceu anteriormente — cidade, nome, quantidade, tipo de uso ou qualquer outro dado. Se a informação já está no histórico, use-a diretamente e avance na conversa. Repetir perguntas já respondidas é estritamente proibido.',
   ].filter(Boolean).join('\n');
 
   const msgs: OpenAI.Chat.ChatCompletionMessageParam[] = [
