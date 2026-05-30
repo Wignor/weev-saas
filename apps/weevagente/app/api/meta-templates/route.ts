@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSetting } from '@/lib/db';
 import { getTenantId } from '@/lib/tenant-context';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   const tenantId = await getTenantId().catch(() => null);
   if (!tenantId) return NextResponse.json({ templates: [] });
