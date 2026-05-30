@@ -5,7 +5,8 @@ import {
   Bot, Settings, MessageSquare, Send, Zap,
   Phone, Clock, Plus, Trash2, CheckCircle, Save, RefreshCw,
   PauseCircle, PlayCircle, X, Menu, ChevronLeft,
-  Wifi, WifiOff, LogOut,
+  Wifi, WifiOff, LogOut, Megaphone, Info, AlertTriangle,
+  ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -26,7 +27,10 @@ interface Setting { key: string; value: string; label: string; description: stri
 interface QuickReply { id: number; title: string; content: string; }
 interface TenantInstance { id: string; instance_name: string; label: string | null; connected: boolean; qrCode: string | null; }
 
-type Tab = 'inbox' | 'whatsapp' | 'settings';
+type Tab = 'inbox' | 'whatsapp' | 'settings' | 'broadcast';
+
+interface MetaTemplate { name: string; status: string; category: string; language: string; }
+interface BroadcastResult { number: string; ok: boolean; error?: string; }
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 const COLORS = ['bg-violet-600','bg-blue-600','bg-indigo-600','bg-rose-600','bg-amber-600','bg-cyan-600'];
@@ -195,6 +199,18 @@ export default function DashboardPage() {
   const [showQrPicker, setShowQrPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource|null>(null);
+
+  // ── Broadcast state ───────────────────────────────────────────────────────
+  const [bcastMsgType, setBcastMsgType] = useState<'template'|'free'>('template');
+  const [bcastNumbers, setBcastNumbers] = useState('');
+  const [bcastTemplateName, setBcastTemplateName] = useState('');
+  const [bcastTemplateLang, setBcastTemplateLang] = useState('pt_BR');
+  const [bcastTemplateVars, setBcastTemplateVars] = useState<string[]>(['']);
+  const [bcastFreeText, setBcastFreeText] = useState('');
+  const [bcastSending, setBcastSending] = useState(false);
+  const [bcastResults, setBcastResults] = useState<BroadcastResult[]>([]);
+  const [bcastTemplates, setBcastTemplates] = useState<MetaTemplate[]>([]);
+  const [bcastTemplatesLoaded, setBcastTemplatesLoaded] = useState(false);
 
   // ── Load conversations ────────────────────────────────────────────────────
   const loadConversations = useCallback(async () => {
@@ -370,6 +386,46 @@ export default function DashboardPage() {
 
   const convName = (c: Conversation) => c.push_name || c.id;
 
+  // ── Broadcast ─────────────────────────────────────────────────────────────
+  const loadBcastTemplates = async () => {
+    if (bcastTemplatesLoaded) return;
+    const r = await fetch('/api/meta-templates').catch(() => null);
+    if (r?.ok) {
+      const d = await r.json();
+      setBcastTemplates(d.templates || []);
+    }
+    setBcastTemplatesLoaded(true);
+  };
+
+  useEffect(() => { if (tab === 'broadcast') loadBcastTemplates(); }, [tab]);
+
+  const parsedNumbers = bcastNumbers.split('\n').map(n => n.replace(/\D/g,'').trim()).filter(Boolean);
+
+  const sendBroadcast = async () => {
+    if (!parsedNumbers.length) return;
+    if (!window.confirm(`Enviar para ${parsedNumbers.length} número(s)?`)) return;
+    setBcastSending(true);
+    setBcastResults([]);
+    try {
+      const r = await fetch('/api/meta-broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          msgType: bcastMsgType,
+          freeText: bcastFreeText,
+          templateName: bcastTemplateName,
+          templateLang: bcastTemplateLang,
+          templateVars: bcastTemplateVars,
+          numbers: parsedNumbers,
+        }),
+      });
+      const data = await r.json();
+      if (data.error) { alert(data.error); return; }
+      setBcastResults(data.results || []);
+    } catch { alert('Erro ao conectar com a API.'); }
+    finally { setBcastSending(false); }
+  };
+
   return (
     <div className="flex h-screen bg-slate-900 text-white overflow-hidden">
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
@@ -384,7 +440,7 @@ export default function DashboardPage() {
         </div>
         {/* Nav tabs */}
         <div className="flex border-b border-slate-700/60">
-          {([['inbox','Inbox',MessageSquare],['whatsapp','WhatsApp',Phone],['settings','Config',Settings]] as const).map(([t,label,Icon])=>(
+          {([['inbox','Inbox',MessageSquare],['whatsapp','WhatsApp',Phone],['broadcast','Disparo',Megaphone],['settings','Config',Settings]] as const).map(([t,label,Icon])=>(
             <button key={t} onClick={()=>setTab(t)}
               className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs transition-colors ${tab===t?'text-violet-400 border-b-2 border-violet-500':'text-slate-400 hover:text-slate-200'}`}>
               <Icon size={15}/>{label}
@@ -557,87 +613,292 @@ export default function DashboardPage() {
 
       {/* ── Main area ────────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <header className="flex items-center gap-3 px-4 py-3 border-b border-slate-700/60 shrink-0">
-          <button onClick={()=>setSidebarOpen(v=>!v)} className="text-slate-400 hover:text-white" title={sidebarOpen?'Minimizar':'Expandir'}>
-            {sidebarOpen ? <ChevronLeft size={20}/> : <Menu size={20}/>}
-          </button>
-          {selected && selectedConv ? (
-            <>
-              <button onClick={()=>setSelected(null)} className="text-slate-400 hover:text-white lg:hidden"><ChevronLeft size={20}/></button>
-              <Avatar name={convName(selectedConv)} size="md"/>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate">{convName(selectedConv)}</p>
-                <div className="flex items-center gap-1.5"><Clock size={11} className="text-slate-500"/><StatusBadge status={selectedConv.status}/></div>
-              </div>
-              <button onClick={togglePause}
-                className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${selectedConv.status==='paused'?'bg-violet-600/20 text-violet-400 hover:bg-violet-600/30':'bg-amber-600/20 text-amber-400 hover:bg-amber-600/30'}`}>
-                {selectedConv.status==='paused'
-                  ? <><PlayCircle size={14}/> Retomar IA</>
-                  : <><PauseCircle size={14}/> Assumir</>}
-              </button>
-            </>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-violet-600 rounded-lg flex items-center justify-center"><Zap size={14}/></div>
-              <span className="font-semibold text-sm">WeevAgente</span>
-            </div>
-          )}
-        </header>
 
-        {/* Messages / Empty state */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {!selected ? (
-            <div className="h-full flex flex-col items-center justify-center text-center px-8">
-              <div className="w-16 h-16 bg-violet-600/20 rounded-2xl flex items-center justify-center mb-4">
-                <MessageSquare size={28} className="text-violet-400"/>
+        {/* ── BROADCAST PANEL ────────────────────────────────────────────── */}
+        {tab === 'broadcast' ? (
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            {/* Title */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-violet-600/20 rounded-xl flex items-center justify-center">
+                <Megaphone size={20} className="text-violet-400"/>
               </div>
-              <p className="text-slate-300 font-medium mb-1">Selecione uma conversa</p>
-              <p className="text-slate-500 text-sm">Escolha uma conversa no painel à esquerda para visualizar as mensagens.</p>
-              {conversations.length===0 && (
-                <button onClick={()=>setTab('whatsapp')}
-                  className="mt-4 flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-                  <Phone size={15}/> Conectar WhatsApp
-                </button>
-              )}
+              <div>
+                <h2 className="text-white font-semibold">Disparo em Massa</h2>
+                <p className="text-slate-400 text-xs">Via Meta WhatsApp API Oficial</p>
+              </div>
             </div>
-          ) : (
-            messages.map(m=><MsgBubble key={m.id} msg={m}/>)
-          )}
-          <div ref={messagesEndRef}/>
-        </div>
 
-        {/* Reply box */}
-        {selected && (
-          <div className="border-t border-slate-700/60 p-3 shrink-0">
-            {/* Quick replies picker */}
-            {showQrPicker && quickReplies.length>0 && (
-              <div className="mb-2 flex flex-wrap gap-1.5">
-                {quickReplies.map(q=>(
-                  <button key={q.id} onClick={()=>{ setReplyText(q.content); setShowQrPicker(false); }}
-                    className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 py-1.5 rounded-lg transition-colors">
-                    {q.title}
+            {/* Credentials check */}
+            {(!settingValues['meta_phone_number_id'] || !settingValues['meta_access_token']) && (
+              <div className="bg-amber-900/30 border border-amber-700/50 rounded-xl p-4 flex gap-3">
+                <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5"/>
+                <div>
+                  <p className="text-amber-300 text-sm font-medium">Credenciais não configuradas</p>
+                  <p className="text-amber-400/80 text-xs mt-0.5">
+                    Configure o <strong>Phone Number ID</strong> e o <strong>Token de Acesso</strong> nas Configurações antes de enviar.
+                  </p>
+                  <button onClick={()=>setTab('settings')} className="mt-2 text-xs text-amber-300 underline hover:text-amber-200">
+                    Ir para Configurações →
                   </button>
-                ))}
-                <button onClick={()=>setShowQrPicker(false)} className="text-slate-500 hover:text-white"><X size={14}/></button>
+                </div>
               </div>
             )}
-            <div className="flex gap-2">
-              {quickReplies.length>0 && (
-                <button onClick={()=>setShowQrPicker(v=>!v)}
-                  className="w-9 h-9 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded-xl text-slate-300 shrink-0 transition-colors">
-                  <Zap size={16}/>
+
+            {/* Step 1 — Message type */}
+            <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-5 h-5 rounded-full bg-violet-600 text-white text-xs flex items-center justify-center font-bold">1</span>
+                <p className="text-white text-sm font-medium">Tipo de Mensagem</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={()=>setBcastMsgType('template')}
+                  className={`p-3 rounded-xl border text-left transition-colors ${bcastMsgType==='template'?'border-violet-500 bg-violet-600/10':'border-slate-600 hover:border-slate-500'}`}>
+                  <p className="text-sm font-medium text-white">📋 Template Aprovado</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Envia templates criados e aprovados pela Meta. Funciona para qualquer contato, mesmo sem conversa ativa.</p>
                 </button>
-              )}
-              <textarea value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="Digite uma mensagem como atendente..."
-                rows={1} onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendReply();} }}
-                className="flex-1 bg-slate-700 text-sm text-white rounded-xl px-3 py-2.5 outline-none focus:ring-1 focus:ring-violet-500 resize-none min-h-[40px] max-h-[120px]"/>
-              <button onClick={sendReply} disabled={sending||!replyText.trim()}
-                className="w-10 h-10 flex items-center justify-center bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl shrink-0 transition-colors">
-                <Send size={16}/>
-              </button>
+                <button onClick={()=>setBcastMsgType('free')}
+                  className={`p-3 rounded-xl border text-left transition-colors ${bcastMsgType==='free'?'border-violet-500 bg-violet-600/10':'border-slate-600 hover:border-slate-500'}`}>
+                  <p className="text-sm font-medium text-white">💬 Texto Livre</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Mensagem de texto normal. <span className="text-amber-400 font-medium">Válida somente se o contato enviou uma mensagem nas últimas 24h.</span></p>
+                </button>
+              </div>
             </div>
+
+            {/* Step 2 — Message content */}
+            <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-5 h-5 rounded-full bg-violet-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+                <p className="text-white text-sm font-medium">{bcastMsgType==='template' ? 'Template' : 'Mensagem'}</p>
+              </div>
+
+              {bcastMsgType === 'template' ? (
+                <div className="space-y-3">
+                  <div className="bg-slate-700/50 rounded-lg p-3 flex gap-2">
+                    <Info size={14} className="text-blue-400 shrink-0 mt-0.5"/>
+                    <p className="text-xs text-slate-300">
+                      O <strong>nome do template</strong> é o identificador técnico, não o nome de exibição. Exemplo: <code className="bg-slate-600 px-1 rounded">boas_vindas_cliente</code>. Crie e aprove templates em: <strong>Meta Business Manager → WhatsApp → Modelos de Mensagem</strong>.
+                    </p>
+                  </div>
+
+                  {bcastTemplates.length > 0 && (
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Templates aprovados (clique para usar)</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {bcastTemplates.map(t => (
+                          <button key={t.name} onClick={()=>{ setBcastTemplateName(t.name); setBcastTemplateLang(t.language||'pt_BR'); }}
+                            className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${bcastTemplateName===t.name?'border-violet-500 bg-violet-600/20 text-violet-300':'border-slate-600 text-slate-300 hover:border-slate-400'}`}>
+                            {t.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Nome do template *</label>
+                      <input value={bcastTemplateName} onChange={e=>setBcastTemplateName(e.target.value)}
+                        placeholder="ex: lembrete_agendamento"
+                        className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500 font-mono"/>
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Código do idioma</label>
+                      <input value={bcastTemplateLang} onChange={e=>setBcastTemplateLang(e.target.value)}
+                        placeholder="pt_BR"
+                        className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs text-slate-400">Variáveis do template (opcional)</label>
+                      <button onClick={()=>setBcastTemplateVars(v=>[...v,''])} className="text-xs text-violet-400 hover:text-violet-300">+ Adicionar variável</button>
+                    </div>
+                    <div className="bg-slate-700/50 rounded-lg p-2.5 mb-2 flex gap-2">
+                      <Info size={13} className="text-blue-400 shrink-0 mt-0.5"/>
+                      <p className="text-xs text-slate-400">
+                        Se seu template usa <code className="bg-slate-600 px-1 rounded">{'{{1}}'}</code>, <code className="bg-slate-600 px-1 rounded">{'{{2}}'}</code> etc., preencha os valores abaixo na mesma ordem. Todos os destinatários receberão os mesmos valores.
+                      </p>
+                    </div>
+                    {bcastTemplateVars.map((v, i) => (
+                      <div key={i} className="flex gap-2 mb-2">
+                        <span className="text-xs text-slate-500 w-16 flex items-center shrink-0">{`{{${i+1}}}`}</span>
+                        <input value={v} onChange={e=>setBcastTemplateVars(prev=>prev.map((x,j)=>j===i?e.target.value:x))}
+                          placeholder={`Valor para {{${i+1}}}`}
+                          className="flex-1 bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                        {bcastTemplateVars.length > 1 && (
+                          <button onClick={()=>setBcastTemplateVars(prev=>prev.filter((_,j)=>j!==i))}
+                            className="text-slate-500 hover:text-red-400"><X size={14}/></button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="bg-amber-900/30 border border-amber-700/40 rounded-lg p-3 flex gap-2">
+                    <AlertTriangle size={14} className="text-amber-400 shrink-0 mt-0.5"/>
+                    <p className="text-xs text-amber-300">
+                      Mensagens de texto livre só podem ser enviadas para contatos que interagiram com seu número nas <strong>últimas 24 horas</strong>. Enviar para contatos fora dessa janela viola as políticas da Meta e pode resultar em suspensão do número.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Mensagem *</label>
+                    <textarea value={bcastFreeText} onChange={e=>setBcastFreeText(e.target.value)}
+                      placeholder="Digite a mensagem que será enviada para todos os destinatários..."
+                      rows={4}
+                      className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-violet-500 resize-y"/>
+                    <p className="text-xs text-slate-500 mt-1">{bcastFreeText.length} caracteres</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Step 3 — Recipients */}
+            <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-5 h-5 rounded-full bg-violet-600 text-white text-xs flex items-center justify-center font-bold">3</span>
+                <p className="text-white text-sm font-medium">Destinatários</p>
+              </div>
+              <div className="bg-slate-700/50 rounded-lg p-3 flex gap-2">
+                <Info size={14} className="text-blue-400 shrink-0 mt-0.5"/>
+                <p className="text-xs text-slate-300">
+                  Cole os números um por linha. Use o formato completo com DDI + DDD + número, sem espaços ou traços.<br/>
+                  <strong>Exemplo:</strong> <code className="bg-slate-600 px-1 rounded">5519999991111</code> (Brasil 55 + DDD 19 + número)
+                </p>
+              </div>
+              <textarea value={bcastNumbers} onChange={e=>setBcastNumbers(e.target.value)}
+                placeholder={'5511999991111\n5521988887777\n5519912345678'}
+                rows={6}
+                className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-violet-500 resize-y font-mono"/>
+              <p className="text-xs text-slate-400">
+                {parsedNumbers.length > 0
+                  ? <span className="text-violet-400 font-medium">{parsedNumbers.length} número(s) válido(s) detectado(s)</span>
+                  : 'Nenhum número detectado ainda'}
+              </p>
+            </div>
+
+            {/* Send button */}
+            <button
+              onClick={sendBroadcast}
+              disabled={bcastSending || parsedNumbers.length === 0 || (bcastMsgType==='template' && !bcastTemplateName) || (bcastMsgType==='free' && !bcastFreeText.trim())}
+              className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors">
+              {bcastSending
+                ? <><RefreshCw size={16} className="animate-spin"/> Enviando…</>
+                : <><Megaphone size={16}/> Enviar para {parsedNumbers.length} número(s)</>}
+            </button>
+
+            {/* Results */}
+            {bcastResults.length > 0 && (
+              <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-white text-sm font-medium">Resultado do Envio</p>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-emerald-400">✓ {bcastResults.filter(r=>r.ok).length} enviados</span>
+                    {bcastResults.filter(r=>!r.ok).length > 0 && (
+                      <span className="text-red-400">✗ {bcastResults.filter(r=>!r.ok).length} falhas</span>
+                    )}
+                  </div>
+                </div>
+                <div className="max-h-64 overflow-y-auto space-y-1.5">
+                  {bcastResults.map((r, i) => (
+                    <div key={i} className={`flex items-start gap-2.5 px-3 py-2 rounded-lg text-xs ${r.ok?'bg-emerald-900/20 border border-emerald-700/30':'bg-red-900/20 border border-red-700/30'}`}>
+                      <span className={r.ok?'text-emerald-400':'text-red-400'}>{r.ok?'✓':'✗'}</span>
+                      <span className="font-mono text-slate-300">{r.number}</span>
+                      {r.error && <span className="text-red-400 ml-auto truncate max-w-[50%]">{r.error}</span>}
+                      {r.ok && <span className="text-emerald-400 ml-auto">Enviado</span>}
+                    </div>
+                  ))}
+                </div>
+                <button onClick={()=>setBcastResults([])} className="text-xs text-slate-500 hover:text-slate-300">Limpar resultados</button>
+              </div>
+            )}
           </div>
+
+        ) : (
+          <>
+            {/* Top bar */}
+            <header className="flex items-center gap-3 px-4 py-3 border-b border-slate-700/60 shrink-0">
+              <button onClick={()=>setSidebarOpen(v=>!v)} className="text-slate-400 hover:text-white" title={sidebarOpen?'Minimizar':'Expandir'}>
+                {sidebarOpen ? <ChevronLeft size={20}/> : <Menu size={20}/>}
+              </button>
+              {selected && selectedConv ? (
+                <>
+                  <button onClick={()=>setSelected(null)} className="text-slate-400 hover:text-white lg:hidden"><ChevronLeft size={20}/></button>
+                  <Avatar name={convName(selectedConv)} size="md"/>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate">{convName(selectedConv)}</p>
+                    <div className="flex items-center gap-1.5"><Clock size={11} className="text-slate-500"/><StatusBadge status={selectedConv.status}/></div>
+                  </div>
+                  <button onClick={togglePause}
+                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${selectedConv.status==='paused'?'bg-violet-600/20 text-violet-400 hover:bg-violet-600/30':'bg-amber-600/20 text-amber-400 hover:bg-amber-600/30'}`}>
+                    {selectedConv.status==='paused'
+                      ? <><PlayCircle size={14}/> Retomar IA</>
+                      : <><PauseCircle size={14}/> Assumir</>}
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-violet-600 rounded-lg flex items-center justify-center"><Zap size={14}/></div>
+                  <span className="font-semibold text-sm">WeevAgente</span>
+                </div>
+              )}
+            </header>
+
+            {/* Messages / Empty state */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {!selected ? (
+                <div className="h-full flex flex-col items-center justify-center text-center px-8">
+                  <div className="w-16 h-16 bg-violet-600/20 rounded-2xl flex items-center justify-center mb-4">
+                    <MessageSquare size={28} className="text-violet-400"/>
+                  </div>
+                  <p className="text-slate-300 font-medium mb-1">Selecione uma conversa</p>
+                  <p className="text-slate-500 text-sm">Escolha uma conversa no painel à esquerda para visualizar as mensagens.</p>
+                  {conversations.length===0 && (
+                    <button onClick={()=>setTab('whatsapp')}
+                      className="mt-4 flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                      <Phone size={15}/> Conectar WhatsApp
+                    </button>
+                  )}
+                </div>
+              ) : (
+                messages.map(m=><MsgBubble key={m.id} msg={m}/>)
+              )}
+              <div ref={messagesEndRef}/>
+            </div>
+
+            {/* Reply box */}
+            {selected && (
+              <div className="border-t border-slate-700/60 p-3 shrink-0">
+                {showQrPicker && quickReplies.length>0 && (
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {quickReplies.map(q=>(
+                      <button key={q.id} onClick={()=>{ setReplyText(q.content); setShowQrPicker(false); }}
+                        className="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 py-1.5 rounded-lg transition-colors">
+                        {q.title}
+                      </button>
+                    ))}
+                    <button onClick={()=>setShowQrPicker(false)} className="text-slate-500 hover:text-white"><X size={14}/></button>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  {quickReplies.length>0 && (
+                    <button onClick={()=>setShowQrPicker(v=>!v)}
+                      className="w-9 h-9 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded-xl text-slate-300 shrink-0 transition-colors">
+                      <Zap size={16}/>
+                    </button>
+                  )}
+                  <textarea value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="Digite uma mensagem como atendente..."
+                    rows={1} onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendReply();} }}
+                    className="flex-1 bg-slate-700 text-sm text-white rounded-xl px-3 py-2.5 outline-none focus:ring-1 focus:ring-violet-500 resize-none min-h-[40px] max-h-[120px]"/>
+                  <button onClick={sendReply} disabled={sending||!replyText.trim()}
+                    className="w-10 h-10 flex items-center justify-center bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl shrink-0 transition-colors">
+                    <Send size={16}/>
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

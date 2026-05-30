@@ -141,8 +141,10 @@ export async function getAllSettings(): Promise<Setting[]> {
 
 export async function setSetting(key: string, value: string): Promise<void> {
   await pool.query(
-    `UPDATE settings SET value = $1 WHERE key = $2`,
-    [value, key]
+    `INSERT INTO settings (key, value, label, description)
+     VALUES ($1, $2, $1, '')
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+    [key, value]
   );
 }
 

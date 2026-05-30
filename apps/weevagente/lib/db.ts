@@ -164,6 +164,9 @@ const DEFAULT_SETTINGS = [
   { key: 'tts_voice',               label: 'Voz do TTS',                        description: 'Voz utilizada na sintese de fala. Nova = feminina natural.', value: 'nova' },
   { key: 'allowed_numbers',         label: 'Somente Responder (Whitelist)',      description: 'Se preenchido, a IA so responde os numeros listados. Deixe vazio para responder todos.', value: '' },
   { key: 'blocked_numbers',         label: 'Nao Responder (Blacklist)',          description: 'Numeros que a IA nunca deve responder.', value: '' },
+  { key: 'meta_phone_number_id',    label: 'Phone Number ID (Meta API Oficial)', description: 'ID do numero de telefone no Meta Business Manager. Encontrado em: WhatsApp > API Setup > Phone Number ID.', value: '' },
+  { key: 'meta_access_token',       label: 'Token de Acesso (Meta API Oficial)', description: 'Token permanente de acesso da Meta. Gere em: Meta for Developers > WhatsApp > Configuration > Temporary/Permanent Token.', value: '' },
+  { key: 'meta_business_account_id', label: 'Business Account ID (Meta)',        description: 'ID da conta comercial. Necessario para listar seus templates aprovados. Encontrado no Meta Business Manager.', value: '' },
 ];
 
 async function initTenantSettings(tenantId: string): Promise<void> {
@@ -194,8 +197,10 @@ export async function getSetting(tenantId: string, key: string): Promise<string 
 
 export async function setSetting(tenantId: string, key: string, value: string): Promise<void> {
   await pool.query(
-    `UPDATE settings SET value = $1 WHERE tenant_id = $2 AND key = $3`,
-    [value, tenantId, key]
+    `INSERT INTO settings (tenant_id, key, value, label, description)
+     VALUES ($1, $2, $3, $2, '')
+     ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value`,
+    [tenantId, key, value]
   );
 }
 

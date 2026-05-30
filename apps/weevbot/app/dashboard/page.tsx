@@ -6,14 +6,17 @@ import {
   Phone, Clock, Plus, Trash2, CheckCircle, Save, RefreshCw,
   PauseCircle, PlayCircle, X, Menu, ChevronLeft,
   Paperclip, Upload, Film, FileText, Image, Music, Library,
-  ExternalLink, Download, LogOut,
+  ExternalLink, Download, LogOut, Megaphone, Info, AlertTriangle,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Conversation, Message, Setting, QuickReply, MediaItem } from '@/lib/db';
 
-type Tab = 'inbox' | 'settings';
+type Tab = 'inbox' | 'settings' | 'broadcast';
 type View = 'chat' | 'kanban';
 type StatusFilter = 'all' | 'active' | 'paused' | 'waiting';
+
+interface MetaTemplate { name: string; status: string; category: string; language: string; }
+interface BroadcastResult { number: string; ok: boolean; error?: string; }
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 
@@ -338,6 +341,18 @@ export default function DashboardPage() {
   const [sseError,setSseError]=useState(false);
   const [contactPhotos,setContactPhotos]=useState<Record<string,string|null>>({});
   const [deletingConv,setDeletingConv]=useState<string|null>(null);
+
+  // ── Broadcast state ───────────────────────────────────────────────────────
+  const [bcastMsgType,setBcastMsgType]=useState<'template'|'free'>('template');
+  const [bcastNumbers,setBcastNumbers]=useState('');
+  const [bcastTemplateName,setBcastTemplateName]=useState('');
+  const [bcastTemplateLang,setBcastTemplateLang]=useState('pt_BR');
+  const [bcastTemplateVars,setBcastTemplateVars]=useState<string[]>(['']);
+  const [bcastFreeText,setBcastFreeText]=useState('');
+  const [bcastSending,setBcastSending]=useState(false);
+  const [bcastResults,setBcastResults]=useState<BroadcastResult[]>([]);
+  const [bcastTemplates,setBcastTemplates]=useState<MetaTemplate[]>([]);
+  const [bcastTemplatesLoaded,setBcastTemplatesLoaded]=useState(false);
   const bottomRef=useRef<HTMLDivElement>(null);
   const replyRef=useRef<HTMLTextAreaElement>(null);
   const mediaUploadRef=useRef<HTMLInputElement>(null);
@@ -477,6 +492,28 @@ export default function DashboardPage() {
     setDeletingConv(null);
   }
 
+  // ── Broadcast ─────────────────────────────────────────────────────────────
+  useEffect(()=>{
+    if(tab!=='broadcast'||bcastTemplatesLoaded)return;
+    fetch('/api/meta-templates').then(r=>r.ok?r.json():null).then(d=>{if(d)setBcastTemplates(d.templates||[]);}).catch(()=>{});
+    setBcastTemplatesLoaded(true);
+  },[tab,bcastTemplatesLoaded]);
+
+  const parsedBcastNums=bcastNumbers.split('\n').map(n=>n.replace(/\D/g,'').trim()).filter(Boolean);
+
+  async function sendBroadcast(){
+    if(!parsedBcastNums.length)return;
+    if(!window.confirm(`Enviar para ${parsedBcastNums.length} número(s)?`))return;
+    setBcastSending(true);setBcastResults([]);
+    try{
+      const r=await fetch('/api/meta-broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msgType:bcastMsgType,freeText:bcastFreeText,templateName:bcastTemplateName,templateLang:bcastTemplateLang,templateVars:bcastTemplateVars,numbers:parsedBcastNums})});
+      const d=await r.json();
+      if(d.error){alert(d.error);return;}
+      setBcastResults(d.results||[]);
+    }catch{alert('Erro ao conectar com a API.');}
+    finally{setBcastSending(false);}
+  }
+
   const stats={
     total:conversations.length,
     active:conversations.filter(c=>c.status==='active').length,
@@ -522,6 +559,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-1 bg-slate-700/60 rounded-xl p-1">
             <NavBtn active={tab==='inbox'} onClick={()=>setTab('inbox')} icon={<MessageSquare size={13}/>} label="Inbox"/>
+            <NavBtn active={tab==='broadcast'} onClick={()=>setTab('broadcast')} icon={<Megaphone size={13}/>} label="Disparo"/>
             <NavBtn active={tab==='settings'} onClick={()=>setTab('settings')} icon={<Settings size={13}/>} label="Config"/>
           </div>
           <button
@@ -815,6 +853,171 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── BROADCAST ── */}
+      {tab==='broadcast'&&(
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="max-w-2xl mx-auto space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-violet-600/20 rounded-xl flex items-center justify-center">
+                <Megaphone size={20} className="text-violet-400"/>
+              </div>
+              <div>
+                <h2 className="text-white font-semibold">Disparo em Massa</h2>
+                <p className="text-slate-400 text-xs">Via Meta WhatsApp API Oficial</p>
+              </div>
+            </div>
+
+            {(!settingValues['meta_phone_number_id']||!settingValues['meta_access_token'])&&(
+              <div className="bg-amber-900/30 border border-amber-700/50 rounded-xl p-4 flex gap-3">
+                <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5"/>
+                <div>
+                  <p className="text-amber-300 text-sm font-medium">Credenciais não configuradas</p>
+                  <p className="text-amber-400/80 text-xs mt-0.5">Configure o <strong>Phone Number ID</strong> e o <strong>Token de Acesso</strong> nas Configurações antes de enviar.</p>
+                  <button onClick={()=>setTab('settings')} className="mt-2 text-xs text-amber-300 underline hover:text-amber-200">Ir para Configurações →</button>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-5 h-5 rounded-full bg-violet-600 text-white text-xs flex items-center justify-center font-bold">1</span>
+                <p className="text-white text-sm font-medium">Tipo de Mensagem</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={()=>setBcastMsgType('template')}
+                  className={`p-3 rounded-xl border text-left transition-colors ${bcastMsgType==='template'?'border-violet-500 bg-violet-600/10':'border-slate-600 hover:border-slate-500'}`}>
+                  <p className="text-sm font-medium text-white">📋 Template Aprovado</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Templates criados e aprovados pela Meta. Funciona para qualquer contato, mesmo sem conversa ativa.</p>
+                </button>
+                <button onClick={()=>setBcastMsgType('free')}
+                  className={`p-3 rounded-xl border text-left transition-colors ${bcastMsgType==='free'?'border-violet-500 bg-violet-600/10':'border-slate-600 hover:border-slate-500'}`}>
+                  <p className="text-sm font-medium text-white">💬 Texto Livre</p>
+                  <p className="text-xs text-slate-400 mt-0.5"><span className="text-amber-400 font-medium">Válida somente se o contato enviou mensagem nas últimas 24h.</span> Use com cuidado.</p>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-5 h-5 rounded-full bg-violet-600 text-white text-xs flex items-center justify-center font-bold">2</span>
+                <p className="text-white text-sm font-medium">{bcastMsgType==='template'?'Template':'Mensagem'}</p>
+              </div>
+              {bcastMsgType==='template'?(
+                <div className="space-y-3">
+                  <div className="bg-slate-700/50 rounded-lg p-3 flex gap-2">
+                    <Info size={14} className="text-blue-400 shrink-0 mt-0.5"/>
+                    <p className="text-xs text-slate-300">O <strong>nome do template</strong> é o identificador técnico (ex: <code className="bg-slate-600 px-1 rounded">lembrete_consulta</code>). Crie e aprove em: <strong>Meta Business Manager → WhatsApp → Modelos de Mensagem</strong>.</p>
+                  </div>
+                  {bcastTemplates.length>0&&(
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Templates aprovados (clique para selecionar)</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {bcastTemplates.map(t=>(
+                          <button key={t.name} onClick={()=>{setBcastTemplateName(t.name);setBcastTemplateLang(t.language||'pt_BR');}}
+                            className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${bcastTemplateName===t.name?'border-violet-500 bg-violet-600/20 text-violet-300':'border-slate-600 text-slate-300 hover:border-slate-400'}`}>
+                            {t.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Nome do template *</label>
+                      <input value={bcastTemplateName} onChange={e=>setBcastTemplateName(e.target.value)} placeholder="ex: lembrete_agendamento"
+                        className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500 font-mono"/>
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400 block mb-1">Código do idioma</label>
+                      <input value={bcastTemplateLang} onChange={e=>setBcastTemplateLang(e.target.value)} placeholder="pt_BR"
+                        className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs text-slate-400">Variáveis do template (opcional)</label>
+                      <button onClick={()=>setBcastTemplateVars(v=>[...v,''])} className="text-xs text-violet-400 hover:text-violet-300">+ Adicionar variável</button>
+                    </div>
+                    <div className="bg-slate-700/50 rounded-lg p-2.5 mb-2 flex gap-2">
+                      <Info size={13} className="text-blue-400 shrink-0 mt-0.5"/>
+                      <p className="text-xs text-slate-400">Se o template usa <code className="bg-slate-600 px-1 rounded">{'{{1}}'}</code>, <code className="bg-slate-600 px-1 rounded">{'{{2}}'}</code> etc., preencha na mesma ordem. Todos os destinatários receberão os mesmos valores.</p>
+                    </div>
+                    {bcastTemplateVars.map((v,i)=>(
+                      <div key={i} className="flex gap-2 mb-2">
+                        <span className="text-xs text-slate-500 w-16 flex items-center shrink-0">{`{{${i+1}}}`}</span>
+                        <input value={v} onChange={e=>setBcastTemplateVars(prev=>prev.map((x,j)=>j===i?e.target.value:x))} placeholder={`Valor para {{${i+1}}}`}
+                          className="flex-1 bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                        {bcastTemplateVars.length>1&&<button onClick={()=>setBcastTemplateVars(prev=>prev.filter((_,j)=>j!==i))} className="text-slate-500 hover:text-red-400"><X size={14}/></button>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ):(
+                <div className="space-y-3">
+                  <div className="bg-amber-900/30 border border-amber-700/40 rounded-lg p-3 flex gap-2">
+                    <AlertTriangle size={14} className="text-amber-400 shrink-0 mt-0.5"/>
+                    <p className="text-xs text-amber-300">Texto livre só pode ser enviado para contatos que interagiram com seu número nas <strong>últimas 24 horas</strong>. Enviar fora dessa janela viola as políticas da Meta e pode suspender o número.</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Mensagem *</label>
+                    <textarea value={bcastFreeText} onChange={e=>setBcastFreeText(e.target.value)} placeholder="Digite a mensagem..." rows={4}
+                      className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-violet-500 resize-y"/>
+                    <p className="text-xs text-slate-500 mt-1">{bcastFreeText.length} caracteres</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-5 h-5 rounded-full bg-violet-600 text-white text-xs flex items-center justify-center font-bold">3</span>
+                <p className="text-white text-sm font-medium">Destinatários</p>
+              </div>
+              <div className="bg-slate-700/50 rounded-lg p-3 flex gap-2">
+                <Info size={14} className="text-blue-400 shrink-0 mt-0.5"/>
+                <p className="text-xs text-slate-300">Cole os números um por linha, com DDI + DDD + número, sem espaços. <strong>Exemplo:</strong> <code className="bg-slate-600 px-1 rounded">5519999991111</code></p>
+              </div>
+              <textarea value={bcastNumbers} onChange={e=>setBcastNumbers(e.target.value)} placeholder={'5511999991111\n5521988887777\n5519912345678'} rows={6}
+                className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-violet-500 resize-y font-mono"/>
+              <p className="text-xs text-slate-400">
+                {parsedBcastNums.length>0
+                  ?<span className="text-violet-400 font-medium">{parsedBcastNums.length} número(s) válido(s)</span>
+                  :'Nenhum número detectado'}
+              </p>
+            </div>
+
+            <button onClick={sendBroadcast}
+              disabled={bcastSending||parsedBcastNums.length===0||(bcastMsgType==='template'&&!bcastTemplateName)||(bcastMsgType==='free'&&!bcastFreeText.trim())}
+              className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors">
+              {bcastSending?<><RefreshCw size={16} className="animate-spin"/>Enviando…</>:<><Megaphone size={16}/>Enviar para {parsedBcastNums.length} número(s)</>}
+            </button>
+
+            {bcastResults.length>0&&(
+              <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-white text-sm font-medium">Resultado</p>
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-emerald-400">✓ {bcastResults.filter(r=>r.ok).length} enviados</span>
+                    {bcastResults.filter(r=>!r.ok).length>0&&<span className="text-red-400">✗ {bcastResults.filter(r=>!r.ok).length} falhas</span>}
+                  </div>
+                </div>
+                <div className="max-h-64 overflow-y-auto space-y-1.5">
+                  {bcastResults.map((r,i)=>(
+                    <div key={i} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs ${r.ok?'bg-emerald-900/20 border border-emerald-700/30':'bg-red-900/20 border border-red-700/30'}`}>
+                      <span className={r.ok?'text-emerald-400':'text-red-400'}>{r.ok?'✓':'✗'}</span>
+                      <span className="font-mono text-slate-300">{r.number}</span>
+                      {r.error&&<span className="text-red-400 ml-auto truncate max-w-[50%]">{r.error}</span>}
+                      {r.ok&&<span className="text-emerald-400 ml-auto">Enviado</span>}
+                    </div>
+                  ))}
+                </div>
+                <button onClick={()=>setBcastResults([])} className="text-xs text-slate-500 hover:text-slate-300">Limpar resultados</button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
