@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { redis, KEYS, TTL } from '@/lib/redis';
 import { upsertConversation, saveMessage, getSetting } from '@/lib/db';
-import { sendMessage, sendVideo, sendDocument, notifyAttendant } from '@/lib/evolution';
+import { sendMessage, sendVideo, sendDocument, notifyAttendant, sendPTTAudio } from '@/lib/evolution';
+import { generateSpeech } from '@/lib/tts';
 import { runAgent } from '@/lib/agent';
 import { getContact, insertNewContact, setContactStatus, touchContact } from '@/lib/contacts';
+import { splitIntoBlocks } from '@/lib/message-utils';
 
 const CLASSIF_KEY = (n: string) => `classificacao_aguardando.${n}`;
 const PENDING_KEY = (n: string) => `pending_msgs.${n}`;
@@ -48,69 +50,6 @@ function classifyFromText(text: string): 'lead' | 'cliente' | null {
   return null;
 }
 
-// Split response into blocks of at most MAX_CHARS characters,
-// always breaking at a natural boundary (paragraph > sentence > word).
-const MAX_BLOCK_CHARS = 250;
-
-function splitIntoBlocks(text: string): string[] {
-  const normalized = text.replace(/\n{3,}/g, '\n\n').trim();
-  if (!normalized) return [];
-  if (normalized.length <= MAX_BLOCK_CHARS) return [normalized];
-
-  const blocks: string[] = [];
-  let remaining = normalized;
-
-  while (remaining.length > 0) {
-    if (remaining.length <= MAX_BLOCK_CHARS) {
-      blocks.push(remaining.trim());
-      break;
-    }
-
-    const chunk = remaining.slice(0, MAX_BLOCK_CHARS);
-
-    // 1. Paragraph break (\n\n)
-    const para = chunk.lastIndexOf('\n\n');
-    if (para > 20) {
-      blocks.push(remaining.slice(0, para).trim());
-      remaining = remaining.slice(para + 2).trim();
-      continue;
-    }
-
-    // 2. Single newline
-    const line = chunk.lastIndexOf('\n');
-    if (line > 20) {
-      blocks.push(remaining.slice(0, line).trim());
-      remaining = remaining.slice(line + 1).trim();
-      continue;
-    }
-
-    // 3. Sentence boundary (. ! ?)
-    const sent = Math.max(
-      chunk.lastIndexOf('. '), chunk.lastIndexOf('! '), chunk.lastIndexOf('? '),
-      chunk.lastIndexOf('.\n'), chunk.lastIndexOf('!\n'), chunk.lastIndexOf('?\n'),
-    );
-    if (sent > 20) {
-      blocks.push(remaining.slice(0, sent + 1).trim());
-      remaining = remaining.slice(sent + 2).trim();
-      continue;
-    }
-
-    // 4. Word boundary
-    const space = chunk.lastIndexOf(' ');
-    if (space > 20) {
-      blocks.push(remaining.slice(0, space).trim());
-      remaining = remaining.slice(space + 1).trim();
-      continue;
-    }
-
-    // 5. Hard cut (avoid infinite loop)
-    blocks.push(remaining.slice(0, MAX_BLOCK_CHARS).trim());
-    remaining = remaining.slice(MAX_BLOCK_CHARS).trim();
-  }
-
-  return blocks.filter(b => b.length > 0);
-}
-
 // Send each block with Evolution API's built-in "Digitando..." indicator
 async function sendBlocks(remoteJid: string, number: string, text: string) {
   const blocks = splitIntoBlocks(text);
@@ -139,35 +78,52 @@ async function processAIQueue(number: string) {
 
     const contact = await getContact(number);
 
-    // Skip contacts from other business lines
-    const BLOCKED_STATUSES = ['inquilino', 'outro'];
-    if (contact?.status && BLOCKED_STATUSES.includes(contact.status)) return;
+    // Only respond to allowed statuses (whitelist from Supabase)
+    const ALLOWED_STATUSES = ['pendente_classificacao', 'lead', 'cliente'];
+    if (contact?.status && !ALLOWED_STATUSES.includes(contact.status)) return;
 
     // Classification flow
     const awaitingClassif = await redis.get(CLASSIF_KEY(number));
     if (awaitingClassif === '1' || contact?.status === 'pendente_classificacao') {
       const classification = classifyFromText(combinedText);
+      await redis.set(KEYS.aiBusy(number), '1', 'EX', TTL.AI_BUSY);
       if (classification) {
         await Promise.all([
           setContactStatus(number, classification, pushName),
           redis.del(CLASSIF_KEY(number)),
         ]);
-        const confirmMsg =
-          classification === 'cliente'
-            ? '✅ Ótimo! Já registrei você como *cliente*. Como posso ajudá-lo hoje?'
-            : '✅ Perfeito! Fique à vontade para conhecer nossos serviços. Como posso ajudá-lo?';
-        await sendMessage(remoteJid, confirmMsg, 800);
-        const aiMsgId = `ai_classif_${number}_${Date.now()}`;
-        await Promise.all([
-          saveMessage(number, aiMsgId, 'assistant', confirmMsg),
-          upsertConversation(number, 'active', confirmMsg),
-        ]);
+        // For 'cliente': send hardcoded confirm. For 'lead': hand off to AI immediately
+        // so it can start the qualification flow (ask about city, needs, etc.)
+        if (classification === 'cliente') {
+          const confirmMsg = '✅ Ótimo! Já registrei você como *cliente*. Como posso ajudá-lo hoje?';
+          await sendMessage(remoteJid, confirmMsg, 800);
+          const aiMsgId = `ai_classif_${number}_${Date.now()}`;
+          await Promise.all([
+            saveMessage(number, aiMsgId, 'assistant', confirmMsg),
+            upsertConversation(number, 'active', confirmMsg),
+          ]);
+        } else {
+          // Lead: run AI with the original message so it starts qualification
+          const { text: aiResponse, toolCalls } = await runAgent(
+            number, combinedText, 'lead', pushName
+          );
+          if ((await redis.get(KEYS.atendimento(number))) !== 'humano') {
+            await sendBlocks(remoteJid, number, aiResponse);
+            const aiMsgId = `ai_lead_${number}_${Date.now()}`;
+            await Promise.all([
+              saveMessage(number, aiMsgId, 'assistant', aiResponse),
+              upsertConversation(number, 'active', aiResponse),
+            ]);
+          }
+        }
       } else {
-        await sendMessage(
-          remoteJid,
-          'Não entendi bem. Você pode me dizer: você *já é nosso cliente* (responda "sim") ou está conhecendo nossos serviços pela primeira vez (responda "não")?',
-          1000
-        );
+        const retryMsg = 'Não entendi bem. Você pode me dizer: você *já é nosso cliente* (responda "sim") ou está conhecendo nossos serviços pela primeira vez (responda "não")?';
+        await sendMessage(remoteJid, retryMsg, 1000);
+        const retryId = `ai_noclassif_${number}_${Date.now()}`;
+        await Promise.all([
+          saveMessage(number, retryId, 'assistant', retryMsg),
+          upsertConversation(number, 'active', retryMsg),
+        ]);
       }
       return;
     }
@@ -185,19 +141,50 @@ async function processAIQueue(number: string) {
     // Tool calls before the text response
     if (toolCalls.includes('send_video')) {
       const videoUrl = await getSetting('video_url');
-      if (videoUrl) await sendVideo(remoteJid, videoUrl, '').catch(() => {});
+      if (videoUrl) {
+        await sendVideo(remoteJid, videoUrl, '').catch(() => {});
+        await saveMessage(number, `media_video_${number}_${Date.now()}`, 'assistant', `[MEDIA:video] ${videoUrl}`).catch(() => {});
+      }
     }
     if (toolCalls.includes('send_pdf')) {
       const pdfUrl = await getSetting('pdf_url');
-      if (pdfUrl) await sendDocument(remoteJid, pdfUrl, 'documento.pdf').catch(() => {});
+      if (pdfUrl) {
+        await sendDocument(remoteJid, pdfUrl, 'documento.pdf').catch(() => {});
+        await saveMessage(number, `media_pdf_${number}_${Date.now()}`, 'assistant', `[MEDIA:document:documento.pdf] ${pdfUrl}`).catch(() => {});
+      }
     }
     if (toolCalls.includes('notify_attendant')) {
       const attendantNum = await getSetting('notification_number');
       if (attendantNum) await notifyAttendant(number, pushName || number, attendantNum).catch(() => {});
     }
 
-    // Send text response in blocks with typing simulation
-    await sendBlocks(remoteJid, number, aiResponse);
+    // TTS: send voice note instead of / in addition to text
+    const ttsEnabled = await getSetting('tts_enabled');
+    const ttsMode = (await getSetting('tts_mode')) || 'both'; // 'text_only' | 'audio_only' | 'both'
+
+    if (ttsEnabled === 'true') {
+      const openaiKey = await getSetting('openai_api_key');
+      const ttsVoice = (await getSetting('tts_voice')) || 'nova';
+      if (openaiKey) {
+        const audioBuffer = await generateSpeech(openaiKey, aiResponse, ttsVoice);
+        if (audioBuffer) {
+          if (ttsMode !== 'audio_only') {
+            await sendBlocks(remoteJid, number, aiResponse);
+          }
+          if ((await redis.get(KEYS.atendimento(number))) !== 'humano') {
+            await redis.set(KEYS.aiBusy(number), '1', 'EX', TTL.AI_BUSY);
+            await sendPTTAudio(remoteJid, audioBuffer.toString('base64'));
+          }
+        } else {
+          await sendBlocks(remoteJid, number, aiResponse);
+        }
+      } else {
+        await sendBlocks(remoteJid, number, aiResponse);
+      }
+    } else {
+      // Send text response in blocks with typing simulation
+      await sendBlocks(remoteJid, number, aiResponse);
+    }
 
     const aiMsgId = `ai_${number}_${Date.now()}`;
     await Promise.all([
@@ -253,21 +240,23 @@ export async function POST(req: Request) {
 
     const number = remoteJid.split('@')[0];
 
-    // Never process messages from the internal notification number
-    const notificationNum = await getSetting('notification_number');
-    if (notificationNum && number === notificationNum.replace(/\D/g, '')) {
-      return NextResponse.json({ ok: true });
-    }
-
-    // Outgoing (fromMe=true) → pause AI if human attendant is responding
+    // Outgoing (fromMe=true) → save message + pause AI if human attendant is responding
     if (fromMe) {
       const aiBusy = await redis.get(KEYS.aiBusy(number));
+      const outText = extractText(data.message);
       if (aiBusy !== '1') {
-        const pauseTtl = parseInt(
-          (await getSetting('pause_ttl_seconds')) || String(TTL.PAUSA_HUMANO), 10
-        );
+        const reactivationMinutes = parseFloat((await getSetting('ai_reactivation_minutes')) || '60');
+        const pauseTtl = Math.round(reactivationMinutes * 60);
         await redis.set(KEYS.atendimento(number), 'humano', 'EX', pauseTtl);
-        await upsertConversation(number, 'paused');
+        if (outText.trim()) {
+          const humanMsgId = msgId || `human_${number}_${Date.now()}`;
+          await Promise.all([
+            saveMessage(number, humanMsgId, 'human', outText.trim()),
+            upsertConversation(number, 'paused', outText.trim()),
+          ]);
+        } else {
+          await upsertConversation(number, 'paused');
+        }
       }
       return NextResponse.json({ ok: true });
     }
@@ -278,6 +267,20 @@ export async function POST(req: Request) {
 
     const pushName: string | undefined = data.pushName;
     const instance = process.env.EVOLUTION_INSTANCE || 'AT WT';
+
+    // Whitelist: if set, only respond to listed numbers
+    const allowedRaw = await getSetting('allowed_numbers');
+    if (allowedRaw?.trim()) {
+      const allowed = allowedRaw.split(',').map(n => n.trim()).filter(Boolean);
+      if (!allowed.includes(number)) return NextResponse.json({ ok: true });
+    }
+
+    // Blacklist: never respond to blocked numbers
+    const blockedRaw = await getSetting('blocked_numbers');
+    if (blockedRaw?.trim()) {
+      const blocked = blockedRaw.split(',').map(n => n.trim()).filter(Boolean);
+      if (blocked.includes(number)) return NextResponse.json({ ok: true });
+    }
 
     if ((await redis.get(KEYS.atendimento(number))) === 'humano') {
       return NextResponse.json({ ok: true });
@@ -299,13 +302,20 @@ export async function POST(req: Request) {
       const rawWelcome = (await getSetting('welcome_message')) ||
         `Olá, {nome}! 👋\nSeja bem-vindo(a)!\n\nVocê já é nosso cliente ou está conhecendo nossos serviços pela primeira vez?\n\n👉 *JÁ SOU CLIENTE*\n👉 *QUERO CONHECER*`;
       const welcome = rawWelcome.replace(/\{nome\}/gi, displayName);
+      // Set aiBusy so the fromMe webhook callback doesn't mistakenly pause the AI
+      await redis.set(KEYS.aiBusy(number), '1', 'EX', TTL.AI_BUSY);
       await sendMessage(remoteJid, welcome, 1000);
+      const welcomeId = `welcome_${number}_${Date.now()}`;
+      await Promise.all([
+        saveMessage(number, welcomeId, 'assistant', welcome),
+        upsertConversation(number, 'active', welcome),
+      ]);
       return NextResponse.json({ ok: true });
     }
 
-    // Skip contacts from other business lines
-    const BLOCKED_STATUSES = ['inquilino', 'outro'];
-    if (contact.status && BLOCKED_STATUSES.includes(contact.status)) {
+    // Only respond to allowed statuses (whitelist from Supabase)
+    const ALLOWED_STATUSES = ['pendente_classificacao', 'lead', 'cliente'];
+    if (contact.status && !ALLOWED_STATUSES.includes(contact.status)) {
       return NextResponse.json({ ok: true });
     }
 

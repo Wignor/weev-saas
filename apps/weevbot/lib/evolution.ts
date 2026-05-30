@@ -63,6 +63,68 @@ export async function sendDocument(remoteJid: string, mediaUrl: string, fileName
   });
 }
 
+export async function sendImage(remoteJid: string, mediaUrl: string, caption = '') {
+  const ext = mediaUrl.split('?')[0].split('.').pop()?.toLowerCase();
+  const mimetype = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+  await fetch(`${BASE_URL}/message/sendMedia/${encodeURIComponent(INSTANCE)}`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({
+      number: phone(remoteJid),
+      mediatype: 'image',
+      mimetype,
+      media: mediaUrl,
+      caption,
+    }),
+  });
+}
+
+export async function sendAudio(remoteJid: string, mediaUrl: string) {
+  const ext = mediaUrl.split('?')[0].split('.').pop()?.toLowerCase();
+  const mimetype = ext === 'ogg' ? 'audio/ogg' : ext === 'wav' ? 'audio/wav' : 'audio/mpeg';
+  await fetch(`${BASE_URL}/message/sendMedia/${encodeURIComponent(INSTANCE)}`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({
+      number: phone(remoteJid),
+      mediatype: 'audio',
+      mimetype,
+      media: mediaUrl,
+    }),
+  });
+}
+
+// Send PTT (voice note) audio from base64-encoded opus data
+export async function sendPTTAudio(remoteJid: string, audioBase64: string) {
+  await fetch(`${BASE_URL}/message/sendWhatsAppAudio/${encodeURIComponent(INSTANCE)}`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({
+      number: phone(remoteJid),
+      audio: audioBase64,
+      encoding: true,
+    }),
+  });
+}
+
+export async function getProfilePictureUrl(number: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${BASE_URL}/chat/fetchProfilePictureUrl/${encodeURIComponent(INSTANCE)}`,
+      {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ number }),
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data?.profilePictureUrl as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function notifyAttendant(customerNumber: string, customerName: string, attendantNumber: string) {
   const text = `🔔 *Solicitação de Atendimento*\n\nCliente: *${customerName}* (${customerNumber}) está aguardando atendimento humano.`;
   await fetch(`${BASE_URL}/message/sendText/${encodeURIComponent(INSTANCE)}`, {

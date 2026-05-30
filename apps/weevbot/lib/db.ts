@@ -86,6 +86,11 @@ export async function updateConversationStatus(id: string, status: ConversationS
   await pool.query(`UPDATE conversations SET status = $1 WHERE id = $2`, [status, id]);
 }
 
+export async function deleteConversation(id: string): Promise<void> {
+  await pool.query(`DELETE FROM messages WHERE conversation_id = $1`, [id]);
+  await pool.query(`DELETE FROM conversations WHERE id = $1`, [id]);
+}
+
 // ─── Messages ────────────────────────────────────────────────────────────────
 
 export async function saveMessage(
@@ -101,10 +106,10 @@ export async function saveMessage(
   );
 }
 
-export async function getConversationHistory(number: string, limit = 20): Promise<Message[]> {
+export async function getConversationHistory(number: string, limit = 20, windowHours = 48): Promise<Message[]> {
   const { rows } = await pool.query<Message>(
-    `SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT $2`,
-    [number, limit]
+    `SELECT * FROM messages WHERE conversation_id = $1 AND created_at > NOW() - ($3 * INTERVAL '1 hour') ORDER BY created_at ASC LIMIT $2`,
+    [number, limit, windowHours]
   );
   return rows;
 }
@@ -167,4 +172,54 @@ export async function createQuickReply(title: string, content: string): Promise<
 
 export async function deleteQuickReply(id: number): Promise<void> {
   await pool.query(`DELETE FROM quick_replies WHERE id = $1`, [id]);
+}
+
+// ─── Media Library ────────────────────────────────────────────────────────────
+
+export interface MediaItem {
+  id: number;
+  name: string;
+  type: 'image' | 'video' | 'document' | 'audio';
+  url: string;
+  file_name: string;
+  size_bytes: number;
+  created_at: string;
+}
+
+export async function getMediaItems(): Promise<MediaItem[]> {
+  const { rows } = await pool.query<MediaItem>(
+    `SELECT * FROM media_library ORDER BY created_at DESC`
+  );
+  return rows;
+}
+
+export async function createMediaItem(
+  name: string,
+  type: string,
+  url: string,
+  fileName: string,
+  sizeBytes: number
+): Promise<MediaItem> {
+  const { rows } = await pool.query<MediaItem>(
+    `INSERT INTO media_library (name, type, url, file_name, size_bytes)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [name, type, url, fileName, sizeBytes]
+  );
+  return rows[0];
+}
+
+export async function getMediaItem(id: number): Promise<MediaItem | null> {
+  const { rows } = await pool.query<MediaItem>(
+    `SELECT * FROM media_library WHERE id = $1`,
+    [id]
+  );
+  return rows[0] ?? null;
+}
+
+export async function deleteMediaItemById(id: number): Promise<string | null> {
+  const { rows } = await pool.query<{ url: string }>(
+    `DELETE FROM media_library WHERE id = $1 RETURNING url`,
+    [id]
+  );
+  return rows[0]?.url ?? null;
 }

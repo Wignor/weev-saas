@@ -1,0 +1,36 @@
+version: "3.7"
+services:
+
+  weevagente:
+    image: weevagente:latest
+    networks:
+      - weevpro
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - HOSTNAME=0.0.0.0
+      - REDIS_HOST=redis_redis
+      - REDIS_PORT=6379
+      - REDIS_DB=4
+      - DATABASE_URL=postgresql://postgres:20105906d814e746ac8e900ebb6c5ad0@postgres:5432/weevagente
+      - EVOLUTION_API_URL=https://api.weevzap.pro
+      - EVOLUTION_API_KEY=2366fba6aade3fa7b00328dfc8df06ce
+      - SESSION_SECRET=GERAR_SECRET_AQUI
+      - KIWIFY_TOKEN=yxp7p8zrcxd
+      - NEXT_PUBLIC_URL=https://agente.weevzap.pro
+      # - RESEND_API_KEY=re_xxxx  (opcional - para envio automático de emails)
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.weevagente.rule=Host(`agente.weevzap.pro`)"
+        - "traefik.http.routers.weevagente.entrypoints=websecure"
+        - "traefik.http.routers.weevagente.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.weevagente.service=weevagente"
+        - "traefik.http.services.weevagente.loadbalancer.server.port=3002"
+        - "traefik.http.services.weevagente.loadbalancer.passHostHeader=true"
+
+networks:
+  weevpro:
+    external: true
