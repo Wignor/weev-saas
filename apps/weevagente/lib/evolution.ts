@@ -46,11 +46,9 @@ export async function logoutInstance(instanceName: string) {
 }
 
 export async function sendMessage(instance: string, remoteJid: string, text: string, delay = 0) {
-  return evol('POST', `/message/sendText/${instance}`, {
-    number: remoteJid,
-    text,
-    delay,
-  });
+  const body: Record<string, unknown> = { number: remoteJid, text };
+  if (delay > 0) body.options = { delay, presence: 'composing' };
+  return evol('POST', `/message/sendText/${instance}`, body);
 }
 
 export async function sendVideo(instance: string, remoteJid: string, url: string, caption = '') {
