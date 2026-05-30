@@ -7,6 +7,7 @@ import {
   PauseCircle, PlayCircle, X, Menu, ChevronLeft,
   Paperclip, Upload, Film, FileText, Image, Music, Library,
   ExternalLink, Download, LogOut, Megaphone, Info, AlertTriangle,
+  Mic, Square,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Conversation, Message, Setting, QuickReply, MediaItem } from '@/lib/db';
@@ -252,6 +253,7 @@ function SettingCard({setting,value,onChange,onSave,saving,saved}:{
   const isSecret = setting.key==='openai_api_key';
   const isNumberList = setting.key==='allowed_numbers'||setting.key==='blocked_numbers';
   const selectOptions: Record<string, {value:string;label:string}[]> = {
+    signature_enabled: [{value:'false',label:'Desativada'},{value:'true',label:'Ativada'}],
     tts_enabled: [{value:'false',label:'Desativado'},{value:'true',label:'Ativado'}],
     tts_voice: [
       {value:'nova',label:'Nova (feminina, natural)'},
@@ -341,6 +343,15 @@ export default function DashboardPage() {
   const [sseError,setSseError]=useState(false);
   const [contactPhotos,setContactPhotos]=useState<Record<string,string|null>>({});
   const [deletingConv,setDeletingConv]=useState<string|null>(null);
+
+  // ── Audio recording state ─────────────────────────────────────────────────
+  const [isRecording,setIsRecording]=useState(false);
+  const [recSecs,setRecSecs]=useState(0);
+  const [audioBlob,setAudioBlob]=useState<Blob|null>(null);
+  const [sendingAudio,setSendingAudio]=useState(false);
+  const mediaRecRef=useRef<MediaRecorder|null>(null);
+  const chunksRef=useRef<BlobPart[]>([]);
+  const recTimerRef=useRef<ReturnType<typeof setInterval>|null>(null);
 
   // ── Broadcast state ───────────────────────────────────────────────────────
   const [bcastMsgType,setBcastMsgType]=useState<'template'|'free'>('template');
@@ -491,6 +502,46 @@ export default function DashboardPage() {
     if(selected===id){setSelected(null);setMessages([]);setSelectedConv(null);}
     setDeletingConv(null);
   }
+
+  // ── Audio recording ───────────────────────────────────────────────────────
+  const startRecording=async()=>{
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      chunksRef.current=[];
+      const mr=new MediaRecorder(stream);
+      mr.ondataavailable=e=>{if(e.data.size>0)chunksRef.current.push(e.data);};
+      mr.onstop=()=>{
+        stream.getTracks().forEach(t=>t.stop());
+        setAudioBlob(new Blob(chunksRef.current,{type:mr.mimeType||'audio/webm'}));
+        setIsRecording(false);
+        if(recTimerRef.current)clearInterval(recTimerRef.current);
+      };
+      mr.start();mediaRecRef.current=mr;setIsRecording(true);setRecSecs(0);
+      recTimerRef.current=setInterval(()=>setRecSecs(s=>{if(s>=119){mr.stop();return s;}return s+1;}),1000);
+    }catch{alert('Não foi possível acessar o microfone. Verifique as permissões.');}
+  };
+  const stopRecording=()=>{mediaRecRef.current?.stop();};
+  const cancelRecording=()=>{
+    mediaRecRef.current?.stop();
+    if(recTimerRef.current)clearInterval(recTimerRef.current);
+    setIsRecording(false);setAudioBlob(null);setRecSecs(0);chunksRef.current=[];
+  };
+  const sendRecordedAudio=async()=>{
+    if(!audioBlob||!selected||sendingAudio)return;
+    setSendingAudio(true);
+    try{
+      const reader=new FileReader();
+      reader.onloadend=async()=>{
+        const base64=(reader.result as string).split(',')[1];
+        const r=await fetch('/api/send-audio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({number:selected,audioBase64:base64})});
+        if(r.ok){setAudioBlob(null);setRecSecs(0);await loadMessages(selected);}
+        else alert('Falha ao enviar áudio.');
+        setSendingAudio(false);
+      };
+      reader.readAsDataURL(audioBlob);
+    }catch{setSendingAudio(false);alert('Erro ao enviar áudio.');}
+  };
+  const fmtSecs=(s:number)=>`${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
 
   // ── Broadcast ─────────────────────────────────────────────────────────────
   useEffect(()=>{
@@ -787,23 +838,60 @@ export default function DashboardPage() {
 
                     {/* Reply box */}
                     <div className="border-t border-slate-700 bg-slate-800 px-3 py-3 flex items-end gap-2 shrink-0">
-                      <button onClick={()=>{setShowQR(v=>!v);setShowMedia(false);}} title="Respostas rápidas"
-                        className={`p-2 rounded-lg transition-colors shrink-0 ${showQR?'bg-amber-600 text-white':'text-slate-400 hover:text-white hover:bg-slate-700'}`}>
-                        <Zap size={17}/>
-                      </button>
-                      <button onClick={()=>{setShowMedia(v=>!v);setShowQR(false);}} title="Biblioteca de Mídia"
-                        className={`p-2 rounded-lg transition-colors shrink-0 ${showMedia?'bg-blue-600 text-white':'text-slate-400 hover:text-white hover:bg-slate-700'}`}>
-                        <Paperclip size={17}/>
-                      </button>
-                      <textarea ref={replyRef} value={replyText} onChange={e=>setReplyText(e.target.value)}
-                        onKeyDown={e=>{if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();sendReply();}}}
-                        placeholder="Responder como atendente… (Ctrl+Enter)"
-                        rows={2}
-                        className="flex-1 bg-slate-700 text-sm text-white placeholder-slate-400 rounded-xl px-4 py-2.5 outline-none focus:ring-1 focus:ring-violet-500 resize-none"/>
-                      <button onClick={sendReply} disabled={sending||!replyText.trim()}
-                        className="p-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl transition-colors shrink-0">
-                        <Send size={17}/>
-                      </button>
+                      {!isRecording&&!audioBlob&&(
+                        <>
+                          <button onClick={()=>{setShowQR(v=>!v);setShowMedia(false);}} title="Respostas rápidas"
+                            className={`p-2 rounded-lg transition-colors shrink-0 ${showQR?'bg-amber-600 text-white':'text-slate-400 hover:text-white hover:bg-slate-700'}`}>
+                            <Zap size={17}/>
+                          </button>
+                          <button onClick={()=>{setShowMedia(v=>!v);setShowQR(false);}} title="Biblioteca de Mídia"
+                            className={`p-2 rounded-lg transition-colors shrink-0 ${showMedia?'bg-blue-600 text-white':'text-slate-400 hover:text-white hover:bg-slate-700'}`}>
+                            <Paperclip size={17}/>
+                          </button>
+                        </>
+                      )}
+
+                      {isRecording?(
+                        <div className="flex-1 flex items-center gap-2.5 bg-red-900/30 border border-red-700/40 rounded-xl px-3 py-2.5">
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"/>
+                          <span className="text-sm font-mono text-red-400">{fmtSecs(recSecs)}</span>
+                          <span className="text-xs text-slate-400 flex-1">Gravando… (máx 2min)</span>
+                          <button onClick={cancelRecording} className="text-slate-500 hover:text-red-400"><X size={14}/></button>
+                        </div>
+                      ):audioBlob?(
+                        <div className="flex-1 flex items-center gap-2.5 bg-violet-900/20 border border-violet-700/40 rounded-xl px-3 py-2.5">
+                          <Music size={16} className="text-violet-400 shrink-0"/>
+                          <span className="text-sm text-slate-300 flex-1">Áudio gravado · {fmtSecs(recSecs)}</span>
+                          <button onClick={()=>{setAudioBlob(null);setRecSecs(0);}} className="text-slate-500 hover:text-red-400"><X size={14}/></button>
+                        </div>
+                      ):(
+                        <textarea ref={replyRef} value={replyText} onChange={e=>setReplyText(e.target.value)}
+                          onKeyDown={e=>{if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();sendReply();}}}
+                          placeholder="Responder como atendente… (Ctrl+Enter)"
+                          rows={2}
+                          className="flex-1 bg-slate-700 text-sm text-white placeholder-slate-400 rounded-xl px-4 py-2.5 outline-none focus:ring-1 focus:ring-violet-500 resize-none"/>
+                      )}
+
+                      {!audioBlob&&(
+                        <button onClick={isRecording?stopRecording:startRecording}
+                          className={`p-2.5 rounded-xl transition-colors shrink-0 ${isRecording?'bg-red-600 hover:bg-red-500 text-white':'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                          title={isRecording?'Parar gravação':'Gravar áudio'}>
+                          {isRecording?<Square size={15}/>:<Mic size={17}/>}
+                        </button>
+                      )}
+
+                      {audioBlob?(
+                        <button onClick={sendRecordedAudio} disabled={sendingAudio}
+                          className="p-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl transition-colors shrink-0"
+                          title="Enviar áudio">
+                          {sendingAudio?<RefreshCw size={15} className="animate-spin"/>:<Send size={17}/>}
+                        </button>
+                      ):!isRecording?(
+                        <button onClick={sendReply} disabled={sending||!replyText.trim()}
+                          className="p-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl transition-colors shrink-0">
+                          <Send size={17}/>
+                        </button>
+                      ):null}
                     </div>
                   </>
                 )}

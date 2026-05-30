@@ -10,17 +10,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'number and text required' }, { status: 400 });
     }
 
+    const [pauseTtlStr, sigEnabled, sigText] = await Promise.all([
+      getSetting('pause_ttl_seconds'),
+      getSetting('signature_enabled'),
+      getSetting('signature_text'),
+    ]);
+
+    const finalText = (sigEnabled === 'true' && sigText?.trim())
+      ? `${text.trim()}\n\n_${sigText.trim()}_`
+      : text.trim();
+
     const remoteJid = `${number}@s.whatsapp.net`;
-    await sendMessage(remoteJid, text.trim());
+    await sendMessage(remoteJid, finalText);
 
     const msgId = `human_${number}_${Date.now()}`;
-    const pauseTtl = parseInt(
-      (await getSetting('pause_ttl_seconds')) || String(TTL.PAUSA_HUMANO), 10
-    );
+    const pauseTtl = parseInt(pauseTtlStr || String(TTL.PAUSA_HUMANO), 10);
 
     await Promise.all([
-      saveMessage(number, msgId, 'human', text.trim()),
-      upsertConversation(number, 'paused', text.trim()),
+      saveMessage(number, msgId, 'human', finalText),
+      upsertConversation(number, 'paused', finalText),
       redis.set(KEYS.atendimento(number), 'humano', 'EX', pauseTtl),
     ]);
 

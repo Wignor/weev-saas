@@ -6,7 +6,7 @@ import {
   Phone, Clock, Plus, Trash2, CheckCircle, Save, RefreshCw,
   PauseCircle, PlayCircle, X, Menu, ChevronLeft,
   Wifi, WifiOff, LogOut, Megaphone, Info, AlertTriangle,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Mic, Square, Music,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -116,6 +116,7 @@ function SettingCard({ setting, value, onChange, onSave, saving, saved }: {
   const isSecret     = setting.key==='openai_api_key';
   const isNumberList = setting.key==='allowed_numbers'||setting.key==='blocked_numbers';
   const selectOptions: Record<string,{value:string;label:string}[]> = {
+    signature_enabled: [{value:'false',label:'Desativada'},{value:'true',label:'Ativada'}],
     tts_enabled: [{value:'false',label:'Desativado'},{value:'true',label:'Ativado'}],
     tts_voice: [
       {value:'nova',label:'Nova (feminina, natural)'},
@@ -199,6 +200,15 @@ export default function DashboardPage() {
   const [showQrPicker, setShowQrPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource|null>(null);
+
+  // ── Audio recording state ─────────────────────────────────────────────────
+  const [isRecording, setIsRecording] = useState(false);
+  const [recSecs, setRecSecs] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob|null>(null);
+  const [sendingAudio, setSendingAudio] = useState(false);
+  const mediaRecRef = useRef<MediaRecorder|null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+  const recTimerRef = useRef<ReturnType<typeof setInterval>|null>(null);
 
   // ── Broadcast state ───────────────────────────────────────────────────────
   const [bcastMsgType, setBcastMsgType] = useState<'template'|'free'>('template');
@@ -385,6 +395,71 @@ export default function DashboardPage() {
   };
 
   const convName = (c: Conversation) => c.push_name || c.id;
+
+  // ── Audio recording ───────────────────────────────────────────────────────
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
+        setAudioBlob(blob);
+        setIsRecording(false);
+        if (recTimerRef.current) clearInterval(recTimerRef.current);
+      };
+      mr.start();
+      mediaRecRef.current = mr;
+      setIsRecording(true);
+      setRecSecs(0);
+      recTimerRef.current = setInterval(() => setRecSecs(s => {
+        if (s >= 119) { mr.stop(); return s; }
+        return s + 1;
+      }), 1000);
+    } catch { alert('Não foi possível acessar o microfone. Verifique as permissões do navegador.'); }
+  };
+
+  const stopRecording = () => { mediaRecRef.current?.stop(); };
+
+  const cancelRecording = () => {
+    mediaRecRef.current?.stop();
+    if (recTimerRef.current) clearInterval(recTimerRef.current);
+    setIsRecording(false);
+    setAudioBlob(null);
+    setRecSecs(0);
+    chunksRef.current = [];
+  };
+
+  const sendRecordedAudio = async () => {
+    if (!audioBlob || !selected || sendingAudio) return;
+    setSendingAudio(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        const r = await fetch('/api/send-audio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number: selected, audioBase64: base64 }),
+        });
+        if (r.ok) {
+          setAudioBlob(null);
+          setRecSecs(0);
+          setTimeout(() => {
+            fetch(`/api/conversations/${selected}`).then(r=>r.json()).then(d=>{ setMessages(d.messages||[]); setSelectedConv(d.conversation||null); }).catch(()=>{});
+          }, 800);
+        } else {
+          alert('Falha ao enviar áudio.');
+        }
+        setSendingAudio(false);
+      };
+      reader.readAsDataURL(audioBlob);
+    } catch { setSendingAudio(false); alert('Erro ao enviar áudio.'); }
+  };
+
+  const fmtSecs = (s: number) => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
 
   // ── Broadcast ─────────────────────────────────────────────────────────────
   const loadBcastTemplates = async () => {
@@ -870,7 +945,8 @@ export default function DashboardPage() {
             {/* Reply box */}
             {selected && (
               <div className="border-t border-slate-700/60 p-3 shrink-0">
-                {showQrPicker && quickReplies.length>0 && (
+                {/* Quick replies picker */}
+                {showQrPicker && quickReplies.length>0 && !isRecording && !audioBlob && (
                   <div className="mb-2 flex flex-wrap gap-1.5">
                     {quickReplies.map(q=>(
                       <button key={q.id} onClick={()=>{ setReplyText(q.content); setShowQrPicker(false); }}
@@ -881,20 +957,60 @@ export default function DashboardPage() {
                     <button onClick={()=>setShowQrPicker(false)} className="text-slate-500 hover:text-white"><X size={14}/></button>
                   </div>
                 )}
-                <div className="flex gap-2">
-                  {quickReplies.length>0 && (
+                <div className="flex gap-2 items-end">
+                  {/* Quick replies button */}
+                  {quickReplies.length>0 && !isRecording && !audioBlob && (
                     <button onClick={()=>setShowQrPicker(v=>!v)}
                       className="w-9 h-9 flex items-center justify-center bg-slate-700 hover:bg-slate-600 rounded-xl text-slate-300 shrink-0 transition-colors">
                       <Zap size={16}/>
                     </button>
                   )}
-                  <textarea value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="Digite uma mensagem como atendente..."
-                    rows={1} onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendReply();} }}
-                    className="flex-1 bg-slate-700 text-sm text-white rounded-xl px-3 py-2.5 outline-none focus:ring-1 focus:ring-violet-500 resize-none min-h-[40px] max-h-[120px]"/>
-                  <button onClick={sendReply} disabled={sending||!replyText.trim()}
-                    className="w-10 h-10 flex items-center justify-center bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl shrink-0 transition-colors">
-                    <Send size={16}/>
-                  </button>
+
+                  {/* Recording indicator */}
+                  {isRecording ? (
+                    <div className="flex-1 flex items-center gap-2.5 bg-red-900/30 border border-red-700/40 rounded-xl px-3 py-2.5 min-h-[40px]">
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"/>
+                      <span className="text-sm font-mono text-red-400">{fmtSecs(recSecs)}</span>
+                      <span className="text-xs text-slate-400 flex-1">Gravando… (máx 2min)</span>
+                      <button onClick={cancelRecording} className="text-slate-500 hover:text-red-400 ml-auto"><X size={14}/></button>
+                    </div>
+                  ) : audioBlob ? (
+                    /* Audio preview */
+                    <div className="flex-1 flex items-center gap-2.5 bg-violet-900/20 border border-violet-700/40 rounded-xl px-3 py-2.5 min-h-[40px]">
+                      <Music size={16} className="text-violet-400 shrink-0"/>
+                      <span className="text-sm text-slate-300 flex-1">Áudio gravado · {fmtSecs(recSecs)}</span>
+                      <button onClick={()=>{ setAudioBlob(null); setRecSecs(0); }} className="text-slate-500 hover:text-red-400"><X size={14}/></button>
+                    </div>
+                  ) : (
+                    /* Normal textarea */
+                    <textarea value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="Digite uma mensagem como atendente..."
+                      rows={1} onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendReply();} }}
+                      className="flex-1 bg-slate-700 text-sm text-white rounded-xl px-3 py-2.5 outline-none focus:ring-1 focus:ring-violet-500 resize-none min-h-[40px] max-h-[120px]"/>
+                  )}
+
+                  {/* Mic / Stop / Send audio button */}
+                  {!audioBlob && (
+                    <button
+                      onClick={isRecording ? stopRecording : startRecording}
+                      className={`w-9 h-9 flex items-center justify-center rounded-xl shrink-0 transition-colors ${isRecording ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}
+                      title={isRecording ? 'Parar gravação' : 'Gravar áudio'}>
+                      {isRecording ? <Square size={14}/> : <Mic size={16}/>}
+                    </button>
+                  )}
+
+                  {/* Send text / Send audio button */}
+                  {audioBlob ? (
+                    <button onClick={sendRecordedAudio} disabled={sendingAudio}
+                      className="w-10 h-10 flex items-center justify-center bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-xl shrink-0 transition-colors"
+                      title="Enviar áudio">
+                      {sendingAudio ? <RefreshCw size={15} className="animate-spin"/> : <Send size={16}/>}
+                    </button>
+                  ) : !isRecording ? (
+                    <button onClick={sendReply} disabled={sending||!replyText.trim()}
+                      className="w-10 h-10 flex items-center justify-center bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl shrink-0 transition-colors">
+                      <Send size={16}/>
+                    </button>
+                  ) : null}
                 </div>
               </div>
             )}
