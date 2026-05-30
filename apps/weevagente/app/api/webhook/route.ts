@@ -57,8 +57,8 @@ async function processAIQueue(tenantId: string, instance: string, number: string
     if ((await redis.get(KEYS.atendimento(tenantId, number))) === 'humano') return;
 
     const contact = await getContact(tenantId, number);
-    const ALLOWED = ['pendente_classificacao', 'lead', 'cliente'];
-    if (contact?.status && !ALLOWED.includes(contact.status)) return;
+    const BLOCKED = ['inquilino', 'outro'];
+    if (contact?.status && BLOCKED.includes(contact.status)) return;
 
     const awaitingClassif = await redis.get(CLASSIF_KEY(tenantId, number));
     if (awaitingClassif === '1' || contact?.status === 'pendente_classificacao') {
@@ -166,6 +166,13 @@ export async function POST(req: Request) {
 
     const number = remoteJid.split('@')[0];
 
+    // Deduplicate: Evolution API sometimes fires the same event twice
+    if (msgId) {
+      const dedupKey = `t:${tenantId}:dedup:${msgId}`;
+      const isNew = await redis.set(dedupKey, '1', 'EX', 300, 'NX');
+      if (isNew !== 'OK') return NextResponse.json({ ok: true });
+    }
+
     // Outgoing (fromMe)
     if (fromMe) {
       const aiBusy = await redis.get(KEYS.aiBusy(tenantId, number));
@@ -210,8 +217,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    const ALLOWED = ['pendente_classificacao', 'lead', 'cliente'];
-    if (contact.status && !ALLOWED.includes(contact.status)) return NextResponse.json({ ok: true });
+    const BLOCKED = ['inquilino', 'outro'];
+    if (contact.status && BLOCKED.includes(contact.status)) return NextResponse.json({ ok: true });
 
     const pendingMsg: PendingMsg = { text, msgId: userMsgId, remoteJid, pushName };
     await redis.rpush(PENDING_KEY(tenantId, number), JSON.stringify(pendingMsg));

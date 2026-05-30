@@ -78,9 +78,9 @@ async function processAIQueue(number: string) {
 
     const contact = await getContact(number);
 
-    // Only respond to allowed statuses (whitelist from Supabase)
-    const ALLOWED_STATUSES = ['pendente_classificacao', 'lead', 'cliente'];
-    if (contact?.status && !ALLOWED_STATUSES.includes(contact.status)) return;
+    // Block only explicitly excluded statuses; respond to everything else
+    const BLOCKED_STATUSES = ['inquilino', 'outro'];
+    if (contact?.status && BLOCKED_STATUSES.includes(contact.status)) return;
 
     // Classification flow
     const awaitingClassif = await redis.get(CLASSIF_KEY(number));
@@ -139,21 +139,21 @@ async function processAIQueue(number: string) {
     await redis.set(KEYS.aiBusy(number), '1', 'EX', TTL.AI_BUSY);
 
     // Tool calls before the text response
-    if (toolCalls.includes('send_video')) {
+    if (toolCalls.includes('enviar_video_demonstracao')) {
       const videoUrl = await getSetting('video_url');
       if (videoUrl) {
         await sendVideo(remoteJid, videoUrl, '').catch(() => {});
         await saveMessage(number, `media_video_${number}_${Date.now()}`, 'assistant', `[MEDIA:video] ${videoUrl}`).catch(() => {});
       }
     }
-    if (toolCalls.includes('send_pdf')) {
+    if (toolCalls.includes('enviar_pdf_apresentacao')) {
       const pdfUrl = await getSetting('pdf_url');
       if (pdfUrl) {
         await sendDocument(remoteJid, pdfUrl, 'documento.pdf').catch(() => {});
         await saveMessage(number, `media_pdf_${number}_${Date.now()}`, 'assistant', `[MEDIA:document:documento.pdf] ${pdfUrl}`).catch(() => {});
       }
     }
-    if (toolCalls.includes('notify_attendant')) {
+    if (toolCalls.includes('transferir_para_humano')) {
       const attendantNum = await getSetting('notification_number');
       if (attendantNum) await notifyAttendant(number, pushName || number, attendantNum).catch(() => {});
     }
@@ -240,6 +240,13 @@ export async function POST(req: Request) {
 
     const number = remoteJid.split('@')[0];
 
+    // Deduplicate: Evolution API sometimes fires the same event twice
+    if (msgId) {
+      const dedupKey = `dedup.${msgId}`;
+      const isNew = await redis.set(dedupKey, '1', 'EX', 300, 'NX');
+      if (isNew !== 'OK') return NextResponse.json({ ok: true });
+    }
+
     // Outgoing (fromMe=true) → save message + pause AI if human attendant is responding
     if (fromMe) {
       const aiBusy = await redis.get(KEYS.aiBusy(number));
@@ -313,9 +320,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Only respond to allowed statuses (whitelist from Supabase)
-    const ALLOWED_STATUSES = ['pendente_classificacao', 'lead', 'cliente'];
-    if (contact.status && !ALLOWED_STATUSES.includes(contact.status)) {
+    // Block only explicitly excluded statuses; respond to everything else
+    const BLOCKED_STATUSES = ['inquilino', 'outro'];
+    if (contact.status && BLOCKED_STATUSES.includes(contact.status)) {
       return NextResponse.json({ ok: true });
     }
 

@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { getConversationHistory, getSetting } from './db';
 
-export type ToolCall = 'send_video' | 'send_pdf' | 'notify_attendant';
+export type ToolCall = 'enviar_video_demonstracao' | 'enviar_pdf_apresentacao' | 'transferir_para_humano';
 
 export interface AgentResult {
   text: string;
@@ -12,24 +12,24 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
-      name: 'send_video',
-      description: 'Envia um vídeo para o cliente quando ele solicitar ver um vídeo de apresentação, demonstração ou qualquer vídeo.',
+      name: 'enviar_video_demonstracao',
+      description: 'Envia o vídeo demonstrativo do sistema/produto para o cliente. Use quando o cliente pedir para ver o sistema funcionando, pedir um vídeo, demonstração, ou quando o prompt indicar que deve oferecer o vídeo.',
       parameters: { type: 'object', properties: {} },
     },
   },
   {
     type: 'function',
     function: {
-      name: 'send_pdf',
-      description: 'Envia um PDF ou documento para o cliente quando ele solicitar uma proposta, catálogo, material ou PDF.',
+      name: 'enviar_pdf_apresentacao',
+      description: 'Envia o PDF de apresentação ou proposta para o cliente. Use quando o cliente pedir um material, proposta, catálogo, PDF ou documento.',
       parameters: { type: 'object', properties: {} },
     },
   },
   {
     type: 'function',
     function: {
-      name: 'notify_attendant',
-      description: 'Notifica o atendente humano quando o cliente explicitamente solicitar falar com uma pessoa, atendente ou humano.',
+      name: 'transferir_para_humano',
+      description: 'Transfere o atendimento para um consultor humano. Use somente nas situações definidas no prompt: cliente digitou "Falar com Atendente", documentação completa pronta para instalação, ou situações que o prompt especifica.',
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -85,8 +85,7 @@ Quando o cliente solicitar um PDF ou documento, use send_pdf.`;
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: 'system', content: systemContent },
     ...limitedHistory
-      .filter(m => m.role !== 'human')
-      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      .map(m => ({ role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant', content: m.content })),
     { role: 'user', content: userMessage },
   ];
 
@@ -95,7 +94,7 @@ Quando o cliente solicitar um PDF ou documento, use send_pdf.`;
     messages,
     tools: TOOLS,
     tool_choice: 'auto',
-    max_tokens: 600,
+    max_tokens: 1500,
     temperature: 0.7,
   });
 
@@ -105,12 +104,12 @@ Quando o cliente solicitar um PDF ou documento, use send_pdf.`;
   );
   const text =
     choice?.message?.content ||
-    (toolCalls.includes('notify_attendant')
-      ? 'Vou chamar um atendente para você agora mesmo! Aguarde um momento. 😊'
-      : toolCalls.includes('send_video')
-      ? 'Segue o vídeo! 🎬 Assista e qualquer dúvida é só me falar!'
-      : toolCalls.includes('send_pdf')
-      ? 'Segue o documento! 📄 Qualquer dúvida estou à disposição.'
+    (toolCalls.includes('transferir_para_humano')
+      ? 'Vou acionar nosso consultor agora para te atender. Pode aguardar!'
+      : toolCalls.includes('enviar_video_demonstracao')
+      ? 'Segue o vídeo demonstrativo! Recomendo assistir até o final — muito mais claro do que qualquer explicação em texto.'
+      : toolCalls.includes('enviar_pdf_apresentacao')
+      ? 'Segue a apresentação completa em PDF com todos os detalhes. Qualquer dúvida estou aqui.'
       : 'Desculpe, não consegui processar sua mensagem no momento.');
 
   return { text, toolCalls };

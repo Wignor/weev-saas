@@ -345,9 +345,10 @@ export async function addTenantInstance(tenantId: string, instanceName: string, 
 
 export async function getTenantByInstance(instance: string): Promise<Tenant | null> {
   const { rows } = await pool.query<Tenant>(
-    `SELECT t.* FROM tenants t
-     JOIN tenant_instances ti ON ti.tenant_id = t.id
-     WHERE ti.instance_name = $1`,
+    `SELECT DISTINCT t.* FROM tenants t
+     LEFT JOIN tenant_instances ti ON ti.tenant_id = t.id
+     WHERE ti.instance_name = $1 OR t.evolution_instance = $1
+     LIMIT 1`,
     [instance]
   );
   return rows[0] ?? null;
@@ -364,5 +365,69 @@ export async function incrementMaxInstancesByEmail(email: string): Promise<void>
   await pool.query(
     `UPDATE tenants SET max_instances = max_instances + 1 WHERE email = $1`,
     [email]
+  );
+}
+
+// ─── Scheduled Broadcasts ────────────────────────────────────────────────────
+
+export interface ScheduledBroadcast {
+  id: number;
+  tenant_id: string;
+  msg_type: string;
+  template_name: string | null;
+  template_lang: string | null;
+  template_vars: string[] | null;
+  free_text: string | null;
+  numbers: string[];
+  scheduled_at: string;
+  status: 'pending' | 'sent' | 'failed';
+  sent_at: string | null;
+  result_count: number | null;
+  created_at: string;
+}
+
+export async function createScheduledBroadcast(
+  tenantId: string,
+  msgType: string,
+  numbers: string[],
+  scheduledAt: Date,
+  opts: { templateName?: string; templateLang?: string; templateVars?: string[]; freeText?: string }
+): Promise<ScheduledBroadcast> {
+  const { rows } = await pool.query<ScheduledBroadcast>(
+    `INSERT INTO scheduled_broadcasts (tenant_id, msg_type, template_name, template_lang, template_vars, free_text, numbers, scheduled_at)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb, $8) RETURNING *`,
+    [tenantId, msgType, opts.templateName ?? null, opts.templateLang ?? null,
+     opts.templateVars ? JSON.stringify(opts.templateVars) : null,
+     opts.freeText ?? null, JSON.stringify(numbers), scheduledAt]
+  );
+  return rows[0];
+}
+
+export async function getPendingScheduledBroadcasts(): Promise<ScheduledBroadcast[]> {
+  const { rows } = await pool.query<ScheduledBroadcast>(
+    `SELECT * FROM scheduled_broadcasts WHERE status = 'pending' AND scheduled_at <= NOW() ORDER BY scheduled_at ASC LIMIT 20`
+  );
+  return rows;
+}
+
+export async function getRecentScheduledBroadcasts(tenantId: string): Promise<ScheduledBroadcast[]> {
+  const { rows } = await pool.query<ScheduledBroadcast>(
+    `SELECT * FROM scheduled_broadcasts WHERE tenant_id = $1 ORDER BY scheduled_at DESC LIMIT 15`,
+    [tenantId]
+  );
+  return rows;
+}
+
+export async function markBroadcastSent(id: number, resultCount: number): Promise<void> {
+  await pool.query(
+    `UPDATE scheduled_broadcasts SET status = 'sent', sent_at = NOW(), result_count = $2 WHERE id = $1`,
+    [id, resultCount]
+  );
+}
+
+export async function markBroadcastFailed(id: number, error: string): Promise<void> {
+  await pool.query(
+    `UPDATE scheduled_broadcasts SET status = 'failed', error = $2 WHERE id = $1`,
+    [id, error]
   );
 }

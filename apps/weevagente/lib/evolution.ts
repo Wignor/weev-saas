@@ -41,6 +41,10 @@ export async function deleteInstance(instanceName: string) {
   return evol('DELETE', `/instance/delete/${instanceName}`);
 }
 
+export async function logoutInstance(instanceName: string) {
+  return evol('DELETE', `/instance/logout/${instanceName}`);
+}
+
 export async function sendMessage(instance: string, remoteJid: string, text: string, delay = 0) {
   return evol('POST', `/message/sendText/${instance}`, {
     number: remoteJid,

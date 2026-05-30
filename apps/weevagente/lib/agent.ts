@@ -29,9 +29,9 @@ export async function runAgent(
 
   const sysContent = [
     systemPrompt || 'Você é um assistente prestativo.',
-    contactStatus ? `\nStatus do contato: ${contactStatus}` : '',
-    pushName ? `\nNome do contato: ${pushName}` : '',
-  ].join('');
+    contactStatus ? `Status do contato: ${contactStatus}` : '',
+    pushName ? `Nome do contato: ${pushName}` : '',
+  ].filter(Boolean).join('\n');
 
   const msgs: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: 'system', content: sysContent },
@@ -45,6 +45,7 @@ export async function runAgent(
     tools: TOOLS,
     tool_choice: 'auto',
     temperature: 0.7,
+    max_tokens: 800,
   });
 
   const choice = response.choices[0];
@@ -55,6 +56,13 @@ export async function runAgent(
     for (const tc of choice.message.tool_calls) {
       toolCalls.push(tc.function.name);
     }
+  }
+
+  // Fallback text when model only returned tool calls with no content
+  if (!text && toolCalls.length) {
+    if (toolCalls.includes('notify_attendant')) text = 'Vou chamar um atendente para você agora mesmo! Aguarde um momento. 😊';
+    else if (toolCalls.includes('send_video'))   text = 'Segue o vídeo! 🎬 Qualquer dúvida é só me chamar!';
+    else if (toolCalls.includes('send_pdf'))     text = 'Segue o documento! 📄 Qualquer dúvida estou à disposição.';
   }
 
   return { text, toolCalls };

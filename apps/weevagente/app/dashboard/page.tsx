@@ -31,6 +31,7 @@ type Tab = 'inbox' | 'whatsapp' | 'settings' | 'broadcast';
 
 interface MetaTemplate { name: string; status: string; category: string; language: string; }
 interface BroadcastResult { number: string; ok: boolean; error?: string; }
+interface ScheduledBroadcast { id: number; msg_type: string; template_name: string|null; numbers: string[]; scheduled_at: string; status: 'pending'|'sent'|'failed'; result_count: number|null; }
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 const COLORS = ['bg-violet-600','bg-blue-600','bg-indigo-600','bg-rose-600','bg-amber-600','bg-cyan-600'];
@@ -221,6 +222,11 @@ export default function DashboardPage() {
   const [bcastResults, setBcastResults] = useState<BroadcastResult[]>([]);
   const [bcastTemplates, setBcastTemplates] = useState<MetaTemplate[]>([]);
   const [bcastTemplatesLoaded, setBcastTemplatesLoaded] = useState(false);
+  const [bcastScheduledAt, setBcastScheduledAt] = useState('');
+  const [scheduledBroadcasts, setScheduledBroadcasts] = useState<ScheduledBroadcast[]>([]);
+
+  // ── WhatsApp disconnect state ─────────────────────────────────────────────
+  const [disconnecting, setDisconnecting] = useState<string|null>(null);
 
   // ── Load conversations ────────────────────────────────────────────────────
   const loadConversations = useCallback(async () => {
@@ -464,12 +470,26 @@ export default function DashboardPage() {
   // ── Broadcast ─────────────────────────────────────────────────────────────
   const loadBcastTemplates = async () => {
     if (bcastTemplatesLoaded) return;
-    const r = await fetch('/api/meta-templates').catch(() => null);
-    if (r?.ok) {
-      const d = await r.json();
-      setBcastTemplates(d.templates || []);
-    }
+    const [r1, r2] = await Promise.all([
+      fetch('/api/meta-templates').catch(() => null),
+      fetch('/api/meta-broadcast').catch(() => null),
+    ]);
+    if (r1?.ok) { const d = await r1.json(); setBcastTemplates(d.templates || []); }
+    if (r2?.ok) { const d = await r2.json(); setScheduledBroadcasts(d.broadcasts || []); }
     setBcastTemplatesLoaded(true);
+  };
+
+  const reloadScheduledBroadcasts = async () => {
+    const r = await fetch('/api/meta-broadcast').catch(() => null);
+    if (r?.ok) { const d = await r.json(); setScheduledBroadcasts(d.broadcasts || []); }
+  };
+
+  const disconnectInstance = async (instanceName: string) => {
+    if (!window.confirm('Desconectar este número do WhatsApp?')) return;
+    setDisconnecting(instanceName);
+    await fetch(`/api/whatsapp?instance=${encodeURIComponent(instanceName)}`, { method: 'DELETE' }).catch(() => {});
+    setDisconnecting(null);
+    await loadInstances();
   };
 
   useEffect(() => { if (tab === 'broadcast') loadBcastTemplates(); }, [tab]);
@@ -478,7 +498,9 @@ export default function DashboardPage() {
 
   const sendBroadcast = async () => {
     if (!parsedNumbers.length) return;
-    if (!window.confirm(`Enviar para ${parsedNumbers.length} número(s)?`)) return;
+    const isScheduled = !!bcastScheduledAt;
+    const action = isScheduled ? 'agendar' : 'enviar';
+    if (!window.confirm(`${isScheduled ? 'Agendar' : 'Enviar'} para ${parsedNumbers.length} número(s)?`)) return;
     setBcastSending(true);
     setBcastResults([]);
     try {
@@ -492,10 +514,17 @@ export default function DashboardPage() {
           templateLang: bcastTemplateLang,
           templateVars: bcastTemplateVars,
           numbers: parsedNumbers,
+          scheduledAt: bcastScheduledAt || undefined,
         }),
       });
       const data = await r.json();
       if (data.error) { alert(data.error); return; }
+      if (data.scheduled) {
+        alert(`Disparo agendado para ${new Date(data.scheduledAt).toLocaleString('pt-BR')}!`);
+        setBcastScheduledAt('');
+        await reloadScheduledBroadcasts();
+        return;
+      }
       setBcastResults(data.results || []);
     } catch { alert('Erro ao conectar com a API.'); }
     finally { setBcastSending(false); }
@@ -598,11 +627,20 @@ export default function DashboardPage() {
               <div key={inst.id} className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-white">{inst.label || inst.instance_name}</p>
-                  <div className="flex items-center gap-1.5">
-                    {inst.connected
-                      ? <><Wifi size={14} className="text-green-400"/><span className="text-xs text-green-400 font-medium">Conectado</span></>
-                      : <><WifiOff size={14} className="text-red-400"/><span className="text-xs text-red-400 font-medium">Desconectado</span></>
-                    }
+                  <div className="flex items-center gap-2">
+                    {inst.connected ? (
+                      <>
+                        <Wifi size={14} className="text-green-400"/>
+                        <span className="text-xs text-green-400 font-medium">Conectado</span>
+                        <button onClick={() => disconnectInstance(inst.instance_name)}
+                          disabled={disconnecting === inst.instance_name}
+                          className="text-xs px-2 py-1 rounded-lg bg-red-900/30 text-red-400 hover:bg-red-900/50 border border-red-700/30 transition-colors disabled:opacity-50">
+                          {disconnecting === inst.instance_name ? 'Desconectando…' : 'Desconectar'}
+                        </button>
+                      </>
+                    ) : (
+                      <><WifiOff size={14} className="text-red-400"/><span className="text-xs text-red-400 font-medium">Desconectado</span></>
+                    )}
                   </div>
                 </div>
                 <p className="text-[11px] text-slate-500 font-mono">{inst.instance_name}</p>
@@ -853,15 +891,58 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            {/* Send button */}
+            {/* Step 4 — Agendamento */}
+            <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-5 h-5 rounded-full bg-violet-600 text-white text-xs flex items-center justify-center font-bold">4</span>
+                <p className="text-white text-sm font-medium">Agendamento <span className="text-slate-500 text-xs font-normal">(opcional)</span></p>
+              </div>
+              <div className="bg-slate-700/50 rounded-lg p-3 flex gap-2">
+                <Info size={14} className="text-blue-400 shrink-0 mt-0.5"/>
+                <p className="text-xs text-slate-300">Deixe em branco para enviar <strong>imediatamente</strong>. Preencha uma data e hora para agendar o disparo automaticamente.</p>
+              </div>
+              <input type="datetime-local" value={bcastScheduledAt} onChange={e=>setBcastScheduledAt(e.target.value)}
+                min={new Date(Date.now()+60000).toISOString().slice(0,16)}
+                className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+              {bcastScheduledAt && (
+                <p className="text-xs text-violet-400 flex items-center gap-1.5">
+                  <Clock size={12}/> Agendado para: {new Date(bcastScheduledAt).toLocaleString('pt-BR')}
+                </p>
+              )}
+            </div>
+
+            {/* Send / Schedule button */}
             <button
               onClick={sendBroadcast}
               disabled={bcastSending || parsedNumbers.length === 0 || (bcastMsgType==='template' && !bcastTemplateName) || (bcastMsgType==='free' && !bcastFreeText.trim())}
               className="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors">
               {bcastSending
-                ? <><RefreshCw size={16} className="animate-spin"/> Enviando…</>
-                : <><Megaphone size={16}/> Enviar para {parsedNumbers.length} número(s)</>}
+                ? <><RefreshCw size={16} className="animate-spin"/> {bcastScheduledAt ? 'Agendando…' : 'Enviando…'}</>
+                : bcastScheduledAt
+                  ? <><Clock size={16}/> Agendar para {parsedNumbers.length} número(s)</>
+                  : <><Megaphone size={16}/> Enviar para {parsedNumbers.length} número(s)</>}
             </button>
+
+            {/* Scheduled broadcasts list */}
+            {scheduledBroadcasts.length > 0 && (
+              <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-white text-sm font-medium">Disparos Agendados</p>
+                  <button onClick={reloadScheduledBroadcasts} className="text-slate-400 hover:text-white"><RefreshCw size={13}/></button>
+                </div>
+                <div className="space-y-2">
+                  {scheduledBroadcasts.map(b => (
+                    <div key={b.id} className="flex items-center gap-3 bg-slate-700/50 rounded-lg px-3 py-2 text-xs">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${b.status==='sent'?'bg-emerald-400':b.status==='failed'?'bg-red-400':'bg-amber-400'}`}/>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-200 truncate">{b.msg_type==='template' ? `Template: ${b.template_name}` : 'Texto Livre'} · {Array.isArray(b.numbers) ? b.numbers.length : 0} números</p>
+                        <p className="text-slate-500">{new Date(b.scheduled_at).toLocaleString('pt-BR')} · {b.status==='pending'?'Aguardando':b.status==='sent'?`Enviado (${b.result_count||0})`:b.status==='failed'?'Falhou':''}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Results */}
             {bcastResults.length > 0 && (

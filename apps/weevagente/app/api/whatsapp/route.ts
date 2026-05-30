@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getTenantById } from '@/lib/db';
-import { createInstance, getInstanceStatus, getQrCode } from '@/lib/evolution';
+import { createInstance, getInstanceStatus, getQrCode, logoutInstance } from '@/lib/evolution';
 import { getTenantId } from '@/lib/tenant-context';
 
 export async function GET() {
@@ -29,5 +29,20 @@ export async function GET() {
     }
 
     return NextResponse.json({ connected, instance, qrCode });
+  } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const tenantId = await getTenantId();
+    const url = new URL(req.url);
+    const instanceParam = url.searchParams.get('instance');
+
+    const tenant = await getTenantById(tenantId);
+    const instance = instanceParam || tenant?.evolution_instance;
+    if (!instance) return NextResponse.json({ error: 'Instância não encontrada' }, { status: 400 });
+
+    await logoutInstance(instance).catch(() => {});
+    return NextResponse.json({ ok: true });
   } catch { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }); }
 }
