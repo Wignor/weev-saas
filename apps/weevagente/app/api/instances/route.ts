@@ -14,16 +14,18 @@ export async function GET() {
     const webhookUrl = `${process.env.NEXT_PUBLIC_URL || 'https://agente.weevzap.pro'}/api/webhook`;
 
     const result = await Promise.all(instances.map(async (inst) => {
-      let status = await getInstanceStatus(inst.instance_name).catch(() => ({ state: 'close' }));
-      if (!status || status.state === undefined) {
-        await createInstance(inst.instance_name, webhookUrl).catch(() => {});
-        status = { state: 'close' };
-      }
+      const status = await getInstanceStatus(inst.instance_name).catch(() => ({ state: 'close' }));
       const connected = status?.state === 'open';
       let qrCode = null;
       if (!connected) {
+        // Try to get QR; if it fails the instance was deleted from Evolution — recreate it
         const qrData = await getQrCode(inst.instance_name).catch(() => null);
         qrCode = qrData?.base64 ?? null;
+        if (!qrCode) {
+          await createInstance(inst.instance_name, webhookUrl).catch(() => {});
+          const qrData2 = await getQrCode(inst.instance_name).catch(() => null);
+          qrCode = qrData2?.base64 ?? null;
+        }
       }
       return { ...inst, connected, qrCode };
     }));
