@@ -14,7 +14,7 @@ export async function generateSpeech(
       model: 'tts-1',
       voice: (voice as TTSVoice) || 'nova',
       input: text.slice(0, 4096),
-      response_format: 'opus',
+      response_format: 'mp3',
     });
     return Buffer.from(await response.arrayBuffer());
   } catch (err) {
