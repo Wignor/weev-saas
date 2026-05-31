@@ -11,10 +11,11 @@ const SPEED_LIMIT_KMH = Number(process.env.SPEED_LIMIT_KMH) || 100;
 const LOW_BATTERY_THRESHOLD = Number(process.env.LOW_BATTERY_THRESHOLD) || 20;
 const PARKING_MINUTES = Number(process.env.PARKING_MINUTES) || 5;
 
-const SUBS_FILE = path.join(__dirname, '..', 'data', 'subscriptions.json');
-const STATE_FILE = path.join(__dirname, '..', 'data', 'monitor-state.json');
-const PREFS_FILE = path.join(__dirname, '..', 'data', 'notification-prefs.json');
-const ALERTS_LOG_FILE = path.join(__dirname, '..', 'data', 'alerts-log.json');
+const SUBS_FILE         = path.join(__dirname, '..', 'data', 'subscriptions.json');
+const STATE_FILE        = path.join(__dirname, '..', 'data', 'monitor-state.json');
+const PREFS_FILE        = path.join(__dirname, '..', 'data', 'notification-prefs.json');
+const ALERTS_LOG_FILE   = path.join(__dirname, '..', 'data', 'alerts-log.json');
+const DEVICE_PREFS_FILE = path.join(__dirname, '..', 'data', 'device-prefs.json');
 
 const DEFAULT_PREFS = {
   ignitionOn: true, ignitionOff: true, moving: false,
@@ -34,6 +35,18 @@ function readPrefs() {
 function getPrefsForUser(userId) {
   const prefs = readPrefs();
   return { ...DEFAULT_PREFS, ...(prefs[String(userId)] || {}) };
+}
+
+function readDevicePrefs() {
+  try {
+    if (!fs.existsSync(DEVICE_PREFS_FILE)) return {};
+    return JSON.parse(fs.readFileSync(DEVICE_PREFS_FILE, 'utf-8'));
+  } catch { return {}; }
+}
+
+function isJ16(deviceId, devicePrefsMap) {
+  const prefs = devicePrefsMap[String(deviceId)] || {};
+  return String(prefs.deviceModel || '').toUpperCase().includes('J16');
 }
 
 if (!TRACCAR_EMAIL || !TRACCAR_PASSWORD) {
@@ -243,6 +256,7 @@ async function check() {
       return { subs: adminSubs, logUserIds: ['admin'] };
     }
 
+    const devicePrefsMap = readDevicePrefs();
     const prevState = readJSON(STATE_FILE);
     const newState = {};
 
@@ -288,8 +302,9 @@ async function check() {
 
       // --- Cabo de alimentação desconectado ---
       // Só dispara após 60s contínuos de corte — elimina falso positivo de sleep/hibernação
+      // J16 não tem detecção de corte de energia confiável — ignorado para evitar falsos positivos
       const POWER_CUT_CONFIRM_MS = 60000;
-      if (powerCutStillActive && !prev.powerCutNotified && powerCutFirstSeen && (Date.now() - powerCutFirstSeen) >= POWER_CUT_CONFIRM_MS) {
+      if (!isJ16(pos.deviceId, devicePrefsMap) && powerCutStillActive && !prev.powerCutNotified && powerCutFirstSeen && (Date.now() - powerCutFirstSeen) >= POWER_CUT_CONFIRM_MS) {
         await broadcastPush(targetSubs, 'powerCut', '⚡ Aparelho desconectado!',
           `${device.name} — cabo de alimentação do veículo desconectado`, `/dashboard`, meta);
         newState[id].powerCutNotified = true;
@@ -381,7 +396,7 @@ async function check() {
         await broadcastPush(evSubs, 'collision', '💥 Possível colisão detectada',
           `${evDevice.name} — impacto ou vibração forte (${alarm})`, `/dashboard`, evMeta);
       }
-      if (alarm === 'powerCut') {
+      if (alarm === 'powerCut' && !isJ16(ev.deviceId, devicePrefsMap)) {
         await broadcastPush(evSubs, 'powerCut', '⚡ Aparelho desconectado!',
           `${evDevice.name} — cabo de alimentação do veículo desconectado`, `/dashboard`, evMeta);
       }
