@@ -510,7 +510,9 @@ export default function DashboardPage() {
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:true});
       chunksRef.current=[];
-      const mr=new MediaRecorder(stream);
+      const preferredMimes=['audio/ogg;codecs=opus','audio/webm;codecs=opus','audio/webm'];
+      const mimeType=preferredMimes.find(t=>MediaRecorder.isTypeSupported(t))||'';
+      const mr=new MediaRecorder(stream,mimeType?{mimeType}:{});
       mr.ondataavailable=e=>{if(e.data.size>0)chunksRef.current.push(e.data);};
       mr.onstop=()=>{
         stream.getTracks().forEach(t=>t.stop());

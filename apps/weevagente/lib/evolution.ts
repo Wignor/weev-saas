@@ -73,8 +73,9 @@ export async function sendDocument(instance: string, remoteJid: string, url: str
 }
 
 export async function sendPTTAudio(instance: string, remoteJid: string, audioBase64: string) {
+  const number = remoteJid.includes('@') ? remoteJid.split('@')[0] : remoteJid;
   return evol('POST', `/message/sendWhatsAppAudio/${instance}`, {
-    number: remoteJid,
+    number,
     audio: audioBase64,
     encoding: true,
   });
