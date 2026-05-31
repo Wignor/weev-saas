@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAllSettings, setSetting } from '@/lib/db';
 import { getTenantId } from '@/lib/tenant-context';
 
-const HIDDEN_KEYS = new Set(['kiwify_extra_instance_url', 'n8n_forward_url', 'pause_ttl_seconds']);
+const HIDDEN_KEYS = new Set(['kiwify_extra_instance_url', 'n8n_forward_url', 'pause_ttl_seconds', 'system_prompt', 'openai_model', 'max_history_messages']);
 
 export async function GET() {
   try {

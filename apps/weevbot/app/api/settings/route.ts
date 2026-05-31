@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getAllSettings, setSetting } from '@/lib/db';
 
+const HIDDEN_KEYS = new Set(['system_prompt', 'openai_model', 'max_history_messages']);
+
 export async function GET() {
   try {
     const settings = await getAllSettings();
-    return NextResponse.json(settings);
+    return NextResponse.json(settings.filter(s => !HIDDEN_KEYS.has(s.key)));
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
