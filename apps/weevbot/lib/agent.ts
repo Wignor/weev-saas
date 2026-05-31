@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { getSetting } from './db';
-import { redis } from './redis';
+import { redis, KEYS, TTL } from './redis';
 
 export type ToolCall = 'enviar_video_demonstracao' | 'enviar_pdf_apresentacao' | 'transferir_para_humano';
 
