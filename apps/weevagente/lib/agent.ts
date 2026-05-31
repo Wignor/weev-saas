@@ -1,8 +1,15 @@
 import OpenAI from 'openai';
 import { getSetting, getConversationHistory } from './db';
-import { redis } from './redis';
+import { redis, KEYS, TTL } from './redis';
 
 const THREAD_TTL = 60 * 60 * 48; // 48h
+
+export async function pushRedisHistory(tenantId: string, number: string, role: 'user' | 'assistant', content: string): Promise<void> {
+  const key = KEYS.chatHistory(tenantId, number);
+  await redis.rpush(key, JSON.stringify({ role, content }));
+  await redis.ltrim(key, -40, -1); // keep last 40 entries
+  await redis.expire(key, TTL.CHAT_HISTORY);
+}
 
 const CHAT_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
   { type: 'function', function: { name: 'send_video',       description: 'Envia o vídeo de apresentação para o contato.',        parameters: { type: 'object', properties: {}, required: [] } } },
@@ -93,9 +100,10 @@ export async function runAgent(
     return runWithAssistant(client, assistantId.trim(), tenantId, number, message, contactStatus, pushName);
   }
 
-  // Fallback: Chat Completions with manual history
+  // Fallback: Chat Completions with Redis history
   const histLimit = parseInt(histLimitStr || '20', 10);
-  const history = await getConversationHistory(tenantId, number, histLimit);
+  const rawHistory = await redis.lrange(KEYS.chatHistory(tenantId, number), -histLimit * 2, -1).catch(() => [] as string[]);
+  const history = rawHistory.map(r => JSON.parse(r) as {role:'user'|'assistant';content:string});
 
   const sysContent = [
     systemPrompt || 'Você é um assistente prestativo.',
@@ -106,7 +114,7 @@ export async function runAgent(
 
   const msgs: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: 'system', content: sysContent },
-    ...history.map(m => ({ role: m.role === 'user' ? 'user' as const : 'assistant' as const, content: m.content })),
+    ...history,
     { role: 'user', content: message },
   ];
 

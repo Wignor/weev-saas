@@ -13,18 +13,11 @@ function phone(remoteJid: string): string {
 
 export async function sendMessage(remoteJid: string, text: string, delayMs = 0) {
   const number = phone(remoteJid);
-  if (delayMs > 0) {
-    await fetch(`${BASE_URL}/chat/updatePresence/${encodeURIComponent(INSTANCE)}`, {
-      method: 'POST',
-      headers: headers(),
-      body: JSON.stringify({ number, options: { presence: 'composing', delay: delayMs } }),
-    }).catch(() => {});
-    await new Promise(r => setTimeout(r, delayMs));
-  }
+  // delay at top level triggers Evolution API's built-in typing indicator
   await fetch(`${BASE_URL}/message/sendText/${encodeURIComponent(INSTANCE)}`, {
     method: 'POST',
     headers: headers(),
-    body: JSON.stringify({ number, text }),
+    body: JSON.stringify({ number, text, delay: delayMs }),
   });
 }
 

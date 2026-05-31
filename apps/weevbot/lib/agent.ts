@@ -98,6 +98,20 @@ async function runWithAssistant(
   return { text, toolCalls };
 }
 
+async function getRedisHistory(number: string, limit: number): Promise<{role:'user'|'assistant';content:string}[]> {
+  try {
+    const raw = await redis.lrange(KEYS.chatHistory(number), -limit * 2, -1);
+    return raw.map(r => JSON.parse(r) as {role:'user'|'assistant';content:string});
+  } catch { return []; }
+}
+
+export async function pushRedisHistory(number: string, role: 'user' | 'assistant', content: string): Promise<void> {
+  const key = KEYS.chatHistory(number);
+  await redis.rpush(key, JSON.stringify({ role, content }));
+  await redis.ltrim(key, -40, -1); // keep last 40 entries (20 exchanges)
+  await redis.expire(key, TTL.CHAT_HISTORY);
+}
+
 async function runWithChat(
   openai: OpenAI,
   number: string,
@@ -111,9 +125,8 @@ async function runWithChat(
     getSetting('max_history_messages'),
   ]);
 
-  const { getConversationHistory } = await import('./db');
   const limit = parseInt(historyLimitSetting || '20', 10);
-  const history = await getConversationHistory(number, limit);
+  const history = await getRedisHistory(number, limit);
 
   const defaultPrompt = 'Você é um assistente de atendimento ao cliente prestativo e cordial. Responda sempre em português brasileiro.';
   let systemContent = systemPromptSetting || process.env.AGENT_SYSTEM_PROMPT || defaultPrompt;
@@ -125,7 +138,7 @@ async function runWithChat(
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: 'system', content: systemContent },
-    ...history.map(m => ({ role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant', content: m.content })),
+    ...history,
     { role: 'user', content: userMessage },
   ];
 

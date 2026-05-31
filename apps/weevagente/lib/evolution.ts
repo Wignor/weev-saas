@@ -31,9 +31,12 @@ export async function getQrCode(instanceName: string) {
   return evol('GET', `/instance/connect/${instanceName}`);
 }
 
-export async function getInstanceStatus(instanceName: string) {
+export async function getInstanceStatus(instanceName: string): Promise<{ state: string }> {
   try {
-    return await evol('GET', `/instance/connectionState/${instanceName}`);
+    const data = await evol('GET', `/instance/connectionState/${instanceName}`);
+    // Evolution API v2 returns { instance: { state: "open" } }
+    const state: string = data?.instance?.state ?? data?.state ?? 'close';
+    return { state };
   } catch { return { state: 'close' }; }
 }
 
@@ -47,15 +50,8 @@ export async function logoutInstance(instanceName: string) {
 
 export async function sendMessage(instance: string, remoteJid: string, text: string, delay = 0) {
   const number = remoteJid.includes('@') ? remoteJid.split('@')[0] : remoteJid;
-  if (delay > 0) {
-    await fetch(`${BASE}/chat/updatePresence/${instance}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: KEY },
-      body: JSON.stringify({ number, options: { presence: 'composing', delay } }),
-    }).catch(() => {});
-    await new Promise(r => setTimeout(r, delay));
-  }
-  return evol('POST', `/message/sendText/${instance}`, { number, text });
+  // delay at top level triggers Evolution API's built-in typing indicator
+  return evol('POST', `/message/sendText/${instance}`, { number, text, delay });
 }
 
 export async function sendVideo(instance: string, remoteJid: string, url: string, caption = '') {

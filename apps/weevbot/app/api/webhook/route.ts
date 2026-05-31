@@ -3,7 +3,7 @@ import { redis, KEYS, TTL } from '@/lib/redis';
 import { upsertConversation, saveMessage, getSetting } from '@/lib/db';
 import { sendMessage, sendVideo, sendDocument, notifyAttendant, sendPTTAudio } from '@/lib/evolution';
 import { generateSpeech } from '@/lib/tts';
-import { runAgent } from '@/lib/agent';
+import { runAgent, pushRedisHistory } from '@/lib/agent';
 import { getContact, insertNewContact, setContactStatus, touchContact } from '@/lib/contacts';
 import { splitIntoBlocks } from '@/lib/message-utils';
 
@@ -190,6 +190,7 @@ async function processAIQueue(number: string) {
     await Promise.all([
       saveMessage(number, aiMsgId, 'assistant', aiResponse),
       upsertConversation(number, 'active', aiResponse),
+      pushRedisHistory(number, 'assistant', aiResponse),
     ]);
   } catch (err) {
     console.error('[processAIQueue]', err);
@@ -298,6 +299,7 @@ export async function POST(req: Request) {
       saveMessage(number, userMsgId, 'user', text),
       upsertConversation(number, 'active', text, pushName),
       redis.set(KEYS.atendimento(number), 'true', 'EX', TTL.SESSAO_ATIVA),
+      pushRedisHistory(number, 'user', text),
     ]);
 
     // Brand-new contact → send welcome immediately (no debounce)

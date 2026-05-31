@@ -3,7 +3,7 @@ import { redis, KEYS, TTL } from '@/lib/redis';
 import { upsertConversation, saveMessage, getSetting, getContact, insertNewContact, setContactStatus, touchContact } from '@/lib/db';
 import { sendMessage, sendVideo, sendDocument, notifyAttendant, sendPTTAudio } from '@/lib/evolution';
 import { generateSpeech } from '@/lib/tts';
-import { runAgent } from '@/lib/agent';
+import { runAgent, pushRedisHistory } from '@/lib/agent';
 import { splitIntoBlocks } from '@/lib/message-utils';
 import { getTenantByInstance } from '@/lib/db';
 
@@ -77,7 +77,7 @@ async function processAIQueue(tenantId: string, instance: string, number: string
           if ((await redis.get(KEYS.atendimento(tenantId, number))) !== 'humano') {
             await sendBlocks(instance, remoteJid, tenantId, number, aiResponse);
             const id = `ai_lead_${number}_${Date.now()}`;
-            await Promise.all([saveMessage(tenantId, number, id, 'assistant', aiResponse), upsertConversation(tenantId, number, 'active', aiResponse)]);
+            await Promise.all([saveMessage(tenantId, number, id, 'assistant', aiResponse), upsertConversation(tenantId, number, 'active', aiResponse), pushRedisHistory(tenantId, number, 'assistant', aiResponse)]);
           }
         }
       } else {
@@ -133,7 +133,7 @@ async function processAIQueue(tenantId: string, instance: string, number: string
     }
 
     const aiId = `ai_${number}_${Date.now()}`;
-    await Promise.all([saveMessage(tenantId, number, aiId, 'assistant', aiResponse), upsertConversation(tenantId, number, 'active', aiResponse)]);
+    await Promise.all([saveMessage(tenantId, number, aiId, 'assistant', aiResponse), upsertConversation(tenantId, number, 'active', aiResponse), pushRedisHistory(tenantId, number, 'assistant', aiResponse)]);
   } catch (err) {
     console.error('[processAIQueue]', err);
   } finally {
@@ -199,6 +199,7 @@ export async function POST(req: Request) {
       saveMessage(tenantId, number, userMsgId, 'user', text),
       upsertConversation(tenantId, number, 'active', text, pushName),
       redis.set(KEYS.sessaoAtiva(tenantId, number), 'true', 'EX', TTL.SESSAO_ATIVA),
+      pushRedisHistory(tenantId, number, 'user', text),
     ]);
 
     // New contact

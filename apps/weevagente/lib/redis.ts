@@ -13,10 +13,12 @@ export const KEYS = {
   atendimento: (tid: string, n: string) => `t:${tid}:atendimento.${n}`,
   aiBusy:      (tid: string, n: string) => `t:${tid}:ai_busy.${n}`,
   sessaoAtiva: (tid: string, n: string) => `t:${tid}:sessao_ativa.${n}`,
+  chatHistory: (tid: string, n: string) => `t:${tid}:chat_history.${n}`,
 };
 
 export const TTL = {
   SESSAO_ATIVA:  86400,
   PAUSA_HUMANO:  300,
   AI_BUSY:       60,
+  CHAT_HISTORY:  172800, // 48h
 };

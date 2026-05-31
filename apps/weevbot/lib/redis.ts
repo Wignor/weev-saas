@@ -10,10 +10,12 @@ export const redis = new Redis({
 export const KEYS = {
   atendimento: (number: string) => `atendimento.${number}`,
   aiBusy: (number: string) => `ai_busy.${number}`,
+  chatHistory: (number: string) => `chat_history.${number}`,
 };
 
 export const TTL = {
-  PAUSA_HUMANO: 300,    // 5 minutos
-  SESSAO_ATIVA: 1800,   // 30 minutos
-  AI_BUSY: 60,          // 1 minuto
+  PAUSA_HUMANO: 300,
+  SESSAO_ATIVA: 1800,
+  AI_BUSY: 60,
+  CHAT_HISTORY: 172800, // 48h
 };
