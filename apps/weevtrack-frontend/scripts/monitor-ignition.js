@@ -396,9 +396,11 @@ async function check() {
         await broadcastPush(evSubs, 'collision', '💥 Possível colisão detectada',
           `${evDevice.name} — impacto ou vibração forte (${alarm})`, `/dashboard`, evMeta);
       }
-      if (alarm === 'powerCut' && !isJ16(ev.deviceId, devicePrefsMap)) {
-        await broadcastPush(evSubs, 'powerCut', '⚡ Aparelho desconectado!',
-          `${evDevice.name} — cabo de alimentação do veículo desconectado`, `/dashboard`, evMeta);
+      if (alarm === 'powerCut') {
+        // Evento imediato do Traccar pode ser ciclo de sleep/hibernação — mensagem suave
+        // O alerta real "Aparelho desconectado" só dispara após 60s confirmados no loop de posições
+        await broadcastPush(evSubs, 'powerCut', '📡 Aparelho em modo de economia',
+          `${evDevice.name} — sinal de baixo consumo detectado. Monitorando...`, `/dashboard`, evMeta);
       }
       if (ev.type === 'geofenceExit') {
         await broadcastPush(evSubs, 'geofenceExit', '🚧 Cerca virtual — Saída detectada!',
