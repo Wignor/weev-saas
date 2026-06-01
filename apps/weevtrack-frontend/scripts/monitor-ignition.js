@@ -301,10 +301,11 @@ async function check() {
       };
 
       // --- Cabo de alimentação desconectado ---
-      // Só dispara após 60s contínuos de corte — elimina falso positivo de sleep/hibernação
-      // J16 não tem detecção de corte de energia confiável — ignorado para evitar falsos positivos
-      const POWER_CUT_CONFIRM_MS = 60000;
-      if (!isJ16(pos.deviceId, devicePrefsMap) && powerCutStillActive && !prev.powerCutNotified && powerCutFirstSeen && (Date.now() - powerCutFirstSeen) >= POWER_CUT_CONFIRM_MS) {
+      // Timer de 20 minutos: dispositivos em sleep/hibernação acordam antes disso e mandam nova
+      // posição sem o alarme, resetando o estado automaticamente. Se passar 20 min sem posição
+      // nova e o alarme continuar ativo, a desconexão é real.
+      const POWER_CUT_CONFIRM_MS = 20 * 60 * 1000;
+      if (powerCutStillActive && !prev.powerCutNotified && powerCutFirstSeen && (Date.now() - powerCutFirstSeen) >= POWER_CUT_CONFIRM_MS) {
         await broadcastPush(targetSubs, 'powerCut', '⚡ Aparelho desconectado!',
           `${device.name} — cabo de alimentação do veículo desconectado`, `/dashboard`, meta);
         newState[id].powerCutNotified = true;
