@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getConversations, updateConversationStatus } from '@/lib/db';
-import { getTenantId } from '@/lib/tenant-context';
+import { getSession } from '@/lib/tenant-context';
 import { redis, KEYS } from '@/lib/redis';
 
 export async function GET() {
   try {
-    const tenantId = await getTenantId();
-    const data = await getConversations(tenantId);
+    const session = await getSession();
+    const tenantId = session.tenantId;
+    const sectorFilter = session.role === 'operator' ? session.sectorId : undefined;
+    const data = await getConversations(tenantId, sectorFilter);
 
     // Auto-reactivate: if a paused conversation's Redis key has expired, resume AI
     const paused = data.filter(c => c.status === 'paused');

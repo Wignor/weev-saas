@@ -15,6 +15,7 @@ export interface Conversation {
   last_message: string | null;
   last_message_at: string | null;
   created_at: string;
+  sector_id: number | null;
 }
 
 export interface Message {
@@ -67,9 +68,17 @@ export async function upsertConversation(
   );
 }
 
-export async function getConversations(): Promise<Conversation[]> {
+export async function getConversations(sectorId?: number | null): Promise<Conversation[]> {
+  if (sectorId === undefined) {
+    const { rows } = await pool.query<Conversation>(
+      `SELECT * FROM conversations ORDER BY last_message_at DESC NULLS LAST LIMIT 100`
+    );
+    return rows;
+  }
+  if (sectorId === null) return []; // operador sem setor não vê nada
   const { rows } = await pool.query<Conversation>(
-    `SELECT * FROM conversations ORDER BY last_message_at DESC NULLS LAST LIMIT 100`
+    `SELECT * FROM conversations WHERE sector_id = $1 ORDER BY last_message_at DESC NULLS LAST LIMIT 100`,
+    [sectorId]
   );
   return rows;
 }
@@ -382,6 +391,100 @@ export async function deleteUser(id: number): Promise<void> {
   await pool.query(`DELETE FROM users WHERE id = $1`, [id]);
 }
 
+// ─── Sectors ─────────────────────────────────────────────────────────────────
+
+export interface Sector {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at: string;
+}
+
+export async function getSectors(): Promise<Sector[]> {
+  const { rows } = await pool.query<Sector>(`SELECT * FROM sectors ORDER BY name ASC`);
+  return rows;
+}
+
+export async function getSectorByName(name: string): Promise<Sector | null> {
+  const { rows } = await pool.query<Sector>(
+    `SELECT * FROM sectors WHERE LOWER(name) = LOWER($1) LIMIT 1`, [name]
+  );
+  return rows[0] ?? null;
+}
+
+export async function createSector(name: string, description?: string): Promise<Sector> {
+  const { rows } = await pool.query<Sector>(
+    `INSERT INTO sectors (name, description) VALUES ($1, $2) RETURNING *`,
+    [name, description ?? null]
+  );
+  return rows[0];
+}
+
+export async function deleteSector(id: number): Promise<void> {
+  await pool.query(`DELETE FROM sectors WHERE id = $1`, [id]);
+}
+
+export async function transferConversationSector(conversationId: string, toSectorId: number, transferredBy?: string): Promise<void> {
+  const { rows } = await pool.query<{ sector_id: number | null }>(
+    `SELECT sector_id FROM conversations WHERE id = $1`, [conversationId]
+  );
+  const fromSectorId = rows[0]?.sector_id ?? null;
+  await pool.query(`UPDATE conversations SET sector_id = $1 WHERE id = $2`, [toSectorId, conversationId]);
+  await pool.query(
+    `INSERT INTO sector_transfers (conversation_id, from_sector_id, to_sector_id, transferred_by) VALUES ($1, $2, $3, $4)`,
+    [conversationId, fromSectorId, toSectorId, transferredBy ?? null]
+  );
+}
+
+// ─── Operators ────────────────────────────────────────────────────────────────
+
+export interface Operator {
+  id: number;
+  name: string;
+  email: string;
+  sector_id: number | null;
+  active: boolean;
+  created_at: string;
+  sector_name?: string;
+}
+
+export async function getOperatorByEmail(email: string): Promise<Operator | null> {
+  const { rows } = await pool.query<Operator>(
+    `SELECT o.*, s.name AS sector_name FROM operators o
+     LEFT JOIN sectors s ON s.id = o.sector_id
+     WHERE o.email = $1 AND o.active = true LIMIT 1`,
+    [email]
+  );
+  return rows[0] ?? null;
+}
+
+export async function getOperatorPasswordHash(email: string): Promise<string | null> {
+  const { rows } = await pool.query<{ password_hash: string }>(
+    `SELECT password_hash FROM operators WHERE email = $1`, [email]
+  );
+  return rows[0]?.password_hash ?? null;
+}
+
+export async function listOperators(): Promise<Operator[]> {
+  const { rows } = await pool.query<Operator>(
+    `SELECT o.*, s.name AS sector_name FROM operators o
+     LEFT JOIN sectors s ON s.id = o.sector_id ORDER BY o.name ASC`
+  );
+  return rows;
+}
+
+export async function createOperator(name: string, email: string, passwordHash: string, sectorId?: number | null): Promise<Operator> {
+  const { rows } = await pool.query<Operator>(
+    `INSERT INTO operators (name, email, password_hash, sector_id) VALUES ($1, $2, $3, $4) RETURNING *`,
+    [name, email, passwordHash, sectorId ?? null]
+  );
+  return rows[0];
+}
+
+export async function deleteOperator(id: number): Promise<void> {
+  await pool.query(`DELETE FROM operators WHERE id = $1`, [id]);
+}
+
 // ─── Daily Report ────────────────────────────────────────────────────────────
 
 export interface DailyReport {
@@ -393,16 +496,38 @@ export interface DailyReport {
   by_hour: { hour: number; count: number }[];
 }
 
-export async function getDailyReport(date: string): Promise<DailyReport> {
+export async function getDailyReport(date: string, sectorId?: number | null): Promise<DailyReport> {
+  if (sectorId === null) {
+    return { total_conversations: 0, new_contacts: 0, human_paused: 0, ai_active: 0, messages_sent: 0, by_hour: [] };
+  }
   const start = `${date} 00:00:00`;
   const end   = `${date} 23:59:59`;
+  const s = sectorId !== undefined;
   const [totalR, newR, humanR, aiR, msgsR, hourR] = await Promise.all([
-    pool.query(`SELECT COUNT(DISTINCT conversation_id) as count FROM messages WHERE created_at BETWEEN $1 AND $2`, [start, end]),
-    pool.query(`SELECT COUNT(*) as count FROM conversations WHERE DATE(created_at) = $1`, [date]),
-    pool.query(`SELECT COUNT(*) as count FROM conversations WHERE status = 'paused'`),
-    pool.query(`SELECT COUNT(*) as count FROM conversations WHERE status = 'active'`),
-    pool.query(`SELECT COUNT(*) as count FROM messages WHERE created_at BETWEEN $1 AND $2`, [start, end]),
-    pool.query(`SELECT EXTRACT(HOUR FROM created_at) as hour, COUNT(*) as count FROM messages WHERE created_at BETWEEN $1 AND $2 GROUP BY hour ORDER BY hour`, [start, end]),
+    pool.query(
+      s ? `SELECT COUNT(DISTINCT m.conversation_id) as count FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.created_at BETWEEN $1 AND $2 AND c.sector_id = $3`
+        : `SELECT COUNT(DISTINCT conversation_id) as count FROM messages WHERE created_at BETWEEN $1 AND $2`,
+      s ? [start, end, sectorId] : [start, end]),
+    pool.query(
+      s ? `SELECT COUNT(*) as count FROM conversations WHERE DATE(created_at) = $1 AND sector_id = $2`
+        : `SELECT COUNT(*) as count FROM conversations WHERE DATE(created_at) = $1`,
+      s ? [date, sectorId] : [date]),
+    pool.query(
+      s ? `SELECT COUNT(*) as count FROM conversations WHERE status = 'paused' AND sector_id = $1`
+        : `SELECT COUNT(*) as count FROM conversations WHERE status = 'paused'`,
+      s ? [sectorId] : []),
+    pool.query(
+      s ? `SELECT COUNT(*) as count FROM conversations WHERE status = 'active' AND sector_id = $1`
+        : `SELECT COUNT(*) as count FROM conversations WHERE status = 'active'`,
+      s ? [sectorId] : []),
+    pool.query(
+      s ? `SELECT COUNT(m.*) as count FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.created_at BETWEEN $1 AND $2 AND c.sector_id = $3`
+        : `SELECT COUNT(*) as count FROM messages WHERE created_at BETWEEN $1 AND $2`,
+      s ? [start, end, sectorId] : [start, end]),
+    pool.query(
+      s ? `SELECT EXTRACT(HOUR FROM m.created_at) as hour, COUNT(*) as count FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.created_at BETWEEN $1 AND $2 AND c.sector_id = $3 GROUP BY hour ORDER BY hour`
+        : `SELECT EXTRACT(HOUR FROM created_at) as hour, COUNT(*) as count FROM messages WHERE created_at BETWEEN $1 AND $2 GROUP BY hour ORDER BY hour`,
+      s ? [start, end, sectorId] : [start, end]),
   ]);
   return {
     total_conversations: parseInt(totalR.rows[0]?.count || '0'),

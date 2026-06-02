@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { redis, KEYS, TTL } from '@/lib/redis';
-import { upsertConversation, saveMessage, getSetting, getFollowupConfigs, scheduleFollowups, cancelFollowups, getMediaUrlByName } from '@/lib/db';
+import { upsertConversation, saveMessage, getSetting, getFollowupConfigs, scheduleFollowups, cancelFollowups, getMediaUrlByName, getSectorByName, transferConversationSector } from '@/lib/db';
 import { sendMessage, sendVideo, sendDocument, sendImage, sendAudio, notifyAttendant, sendPTTAudio, getMediaBase64 } from '@/lib/evolution';
 import { generateSpeech } from '@/lib/tts';
 import { runAgent, pushRedisHistory } from '@/lib/agent';
@@ -211,6 +211,13 @@ async function processAIQueue(number: string) {
             else                                await sendDocument(remoteJid, media.url, media.name).catch(() => {});
             await saveMessage(number, `media_url_${number}_${Date.now()}`, 'assistant', `[MEDIA:${media.type}] ${media.url}`).catch(() => {});
           }
+        }
+      }
+      if (tc.name === 'transferir_setor') {
+        const sectorName = ((tc.args.setor || tc.args.sector || '') as string).trim();
+        if (sectorName) {
+          const sector = await getSectorByName(sectorName).catch(() => null);
+          if (sector) await transferConversationSector(number, sector.id, 'IA').catch(() => {});
         }
       }
     }

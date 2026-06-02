@@ -31,6 +31,7 @@ interface DailyReport { total_conversations: number; new_contacts: number; human
 interface MediaItem { id: number; name: string; type: 'image'|'video'|'document'|'audio'; url: string; file_name: string; size_bytes: number; }
 interface MediaUrlItem { id: number; name: string; url: string; type: 'document'|'video'|'image'|'audio'; description: string|null; }
 interface AdminTenant { id: string; email: string; name: string | null; status: string; evolution_instance: string | null; created_at: string; }
+interface Operator { id: number; name: string; email: string; sector_id: number | null; active: boolean; created_at: string; }
 
 type Tab = 'dashboard' | 'inbox' | 'whatsapp' | 'broadcast' | 'sectors' | 'followups' | 'settings' | 'admin';
 
@@ -360,11 +361,14 @@ export default function DashboardPage() {
 
   // Current user
   const [currentUserEmail, setCurrentUserEmail] = useState<string|null>(null);
+  const [currentRole, setCurrentRole] = useState<'admin'|'operator'>('admin');
+  const [currentSectorId, setCurrentSectorId] = useState<number|null>(null);
   const ADMIN_EMAIL = 'wignor.ferreira@gmail.com';
 
   // Admin panel
   const [adminTenants, setAdminTenants] = useState<AdminTenant[]>([]);
   const [adminTenantsLoaded, setAdminTenantsLoaded] = useState(false);
+  const [adminSubTab, setAdminSubTab] = useState<'clients'|'sectors'|'operators'>('clients');
   const [newTenant, setNewTenant] = useState({ email: '', name: '', password: '', evolutionInstance: '' });
   const [creatingTenant, setCreatingTenant] = useState(false);
   const [deletingTenant, setDeletingTenant] = useState<string|null>(null);
@@ -383,6 +387,12 @@ export default function DashboardPage() {
   const [newSectorDesc, setNewSectorDesc] = useState('');
   const [creatingSector, setCreatingSector] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+
+  // Operators
+  const [operators, setOperators] = useState<Operator[]>([]);
+  const [newOperator, setNewOperator] = useState({ name: '', email: '', password: '', sectorId: '' });
+  const [creatingOperator, setCreatingOperator] = useState(false);
+  const [operatorsLoaded, setOperatorsLoaded] = useState(false);
   const [transferSectorId, setTransferSectorId] = useState('');
   const [transferNote, setTransferNote] = useState('');
   const [transferring, setTransferring] = useState(false);
@@ -402,13 +412,23 @@ export default function DashboardPage() {
     setAdminTenantsLoaded(true);
   }, []);
 
-  useEffect(() => {
-    fetch('/api/auth/me').then(r=>r.json()).then(d=>setCurrentUserEmail(d.email)).catch(()=>{});
+  const loadOperators = useCallback(async () => {
+    try { const r = await fetch('/api/operators'); if (r.ok) setOperators(await r.json()); } catch {}
+    setOperatorsLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (tab === 'admin' && !adminTenantsLoaded) loadAdminTenants();
-  }, [tab, adminTenantsLoaded, loadAdminTenants]);
+    fetch('/api/auth/me').then(r=>r.json()).then(d=>{
+      setCurrentUserEmail(d.email);
+      setCurrentRole(d.role ?? 'admin');
+      setCurrentSectorId(d.sectorId ?? null);
+    }).catch(()=>{});
+  }, []);
+
+  useEffect(() => {
+    if ((tab === 'admin' || tab === 'sectors') && !adminTenantsLoaded) loadAdminTenants();
+    if ((tab === 'admin' || tab === 'sectors') && !operatorsLoaded) loadOperators();
+  }, [tab, adminTenantsLoaded, loadAdminTenants, operatorsLoaded, loadOperators]);
 
   useEffect(() => {
     loadConversations();
@@ -514,7 +534,7 @@ export default function DashboardPage() {
     setSending(false);
   };
 
-  const STORAGE_LIMIT_MB = 150;
+  const STORAGE_LIMIT_MB = 120;
   const storageUsedBytes = mediaItems.reduce((s, m) => s + (m.size_bytes || 0), 0);
   const storageUsedMB = storageUsedBytes / (1024 * 1024);
   const storagePercent = Math.min((storageUsedMB / STORAGE_LIMIT_MB) * 100, 100);
@@ -530,7 +550,7 @@ export default function DashboardPage() {
       fd.append('file', file);
       fd.append('name', file.name);
       const r = await fetch('/api/media', { method: 'POST', body: fd });
-      if (r.status === 413) { alert('Limite de armazenamento atingido (150 MB). Exclua arquivos para liberar espaço.'); }
+      if (r.status === 413) { alert('Limite de armazenamento atingido (120 MB). Exclua arquivos para liberar espaço.'); }
       else if (r.ok) { const item = await r.json(); setMediaItems(p => [item, ...p]); }
     } catch {}
     setUploadingMedia(false);
@@ -739,7 +759,7 @@ export default function DashboardPage() {
     ['broadcast', 'Disparo', <Megaphone size={16}/>],
     ['sectors', 'Setores', <Building2 size={16}/>],
     ['followups', 'Follow-ups', <Bell size={16}/>],
-    ['settings', 'Configurações', <Settings size={16}/>],
+    ...(currentRole !== 'operator' ? [['settings', 'Configurações', <Settings size={16}/>] as [Tab, string, React.ReactNode]] : []),
     ...(currentUserEmail === ADMIN_EMAIL ? [['admin', 'Admin', <ShieldCheck size={16}/>] as [Tab, string, React.ReactNode]] : []),
   ];
 
@@ -1173,21 +1193,23 @@ export default function DashboardPage() {
                 <p className="text-slate-400 text-xs">Crie setores para organizar e transferir atendimentos</p>
               </div>
 
-              {/* Add sector */}
-              <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
-                <p className="text-sm font-medium text-white">Novo Setor</p>
-                <div className="flex gap-2">
-                  <input value={newSectorName} onChange={e=>setNewSectorName(e.target.value)} placeholder="Nome do setor (ex: Financeiro)"
-                    onKeyDown={e=>e.key==='Enter'&&createSector()}
-                    className="flex-1 bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+              {/* Add sector — admin only */}
+              {currentRole !== 'operator' && (
+                <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+                  <p className="text-sm font-medium text-white">Novo Setor</p>
+                  <div className="flex gap-2">
+                    <input value={newSectorName} onChange={e=>setNewSectorName(e.target.value)} placeholder="Nome do setor (ex: Financeiro)"
+                      onKeyDown={e=>e.key==='Enter'&&createSector()}
+                      className="flex-1 bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                  </div>
+                  <input value={newSectorDesc} onChange={e=>setNewSectorDesc(e.target.value)} placeholder="Descrição (opcional)"
+                    className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                  <button onClick={createSector} disabled={creatingSector||!newSectorName.trim()}
+                    className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                    <Plus size={14}/>{creatingSector?'Criando…':'Criar Setor'}
+                  </button>
                 </div>
-                <input value={newSectorDesc} onChange={e=>setNewSectorDesc(e.target.value)} placeholder="Descrição (opcional)"
-                  className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
-                <button onClick={createSector} disabled={creatingSector||!newSectorName.trim()}
-                  className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-                  <Plus size={14}/>{creatingSector?'Criando…':'Criar Setor'}
-                </button>
-              </div>
+              )}
 
               {/* Sector list */}
               <div className="space-y-2">
@@ -1201,10 +1223,76 @@ export default function DashboardPage() {
                       <p className="text-white text-sm font-medium">{s.name}</p>
                       {s.description&&<p className="text-slate-400 text-xs truncate">{s.description}</p>}
                     </div>
-                    <button onClick={()=>removeSector(s.id)} className="text-slate-500 hover:text-red-400 transition-colors"><Trash2 size={15}/></button>
+                    {currentRole !== 'operator' && (
+                      <button onClick={()=>removeSector(s.id)} className="text-slate-500 hover:text-red-400 transition-colors"><Trash2 size={15}/></button>
+                    )}
                   </div>
                 ))}
               </div>
+
+              {/* Operators management — admin only */}
+              {currentRole !== 'operator' && (
+                <>
+                  <div className="pt-2">
+                    <h3 className="text-white font-semibold text-sm">Operadores</h3>
+                    <p className="text-slate-400 text-xs">Crie logins para sua equipe com acesso ao setor designado</p>
+                  </div>
+
+                  <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+                    <p className="text-sm font-medium text-white">Novo Operador</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input value={newOperator.name} onChange={e=>setNewOperator(p=>({...p,name:e.target.value}))} placeholder="Nome completo"
+                        className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                      <input value={newOperator.email} onChange={e=>setNewOperator(p=>({...p,email:e.target.value}))} placeholder="E-mail" type="email"
+                        className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                    </div>
+                    <input value={newOperator.password} onChange={e=>setNewOperator(p=>({...p,password:e.target.value}))} placeholder="Senha (mín. 6 caracteres)" type="password"
+                      className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                    <select value={newOperator.sectorId} onChange={e=>setNewOperator(p=>({...p,sectorId:e.target.value}))}
+                      className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500">
+                      <option value="">Sem setor</option>
+                      {sectors.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <button onClick={async()=>{
+                      if(!newOperator.name.trim()||!newOperator.email.trim()||newOperator.password.length<6) return;
+                      setCreatingOperator(true);
+                      try {
+                        const r = await fetch('/api/operators',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+                          name:newOperator.name.trim(), email:newOperator.email.trim().toLowerCase(),
+                          password:newOperator.password, sectorId:newOperator.sectorId?parseInt(newOperator.sectorId):null
+                        })});
+                        if(r.ok){ const op=await r.json(); setOperators(p=>[...p,op]); setNewOperator({name:'',email:'',password:'',sectorId:''}); }
+                        else { const e=await r.json(); alert(e.error||'Erro ao criar operador'); }
+                      } finally { setCreatingOperator(false); }
+                    }} disabled={creatingOperator||!newOperator.name.trim()||!newOperator.email.trim()||newOperator.password.length<6}
+                      className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                      <Plus size={14}/>{creatingOperator?'Criando…':'Criar Operador'}
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {operators.length===0&&operatorsLoaded&&<p className="text-slate-500 text-sm text-center py-4">Nenhum operador criado ainda.</p>}
+                    {operators.map(op=>(
+                      <div key={op.id} className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-blue-600/20 flex items-center justify-center shrink-0">
+                          <Users size={16} className="text-blue-400"/>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm font-medium">{op.name}</p>
+                          <p className="text-slate-400 text-xs font-mono">{op.email}</p>
+                          {op.sector_id&&sectors.find(s=>s.id===op.sector_id)&&(
+                            <span className="text-[10px] text-blue-400 flex items-center gap-0.5 mt-0.5"><Building2 size={9}/>{sectors.find(s=>s.id===op.sector_id)?.name}</span>
+                          )}
+                        </div>
+                        <button onClick={async()=>{
+                          await fetch(`/api/operators/${op.id}`,{method:'DELETE'});
+                          setOperators(p=>p.filter(o=>o.id!==op.id));
+                        }} className="text-slate-500 hover:text-red-400 transition-colors"><Trash2 size={15}/></button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -1370,93 +1458,77 @@ export default function DashboardPage() {
                               onSave={()=>saveSetting(s.key)}
                               saving={savingKey===s.key} saved={savedKey===s.key}/>
                           ))}
+                          {group==='Mídias'&&(
+                            <div className="border-t border-slate-700/60 pt-3 space-y-2">
+                              {mediaUrls.map(item=>(
+                                <div key={item.id} className="bg-slate-800 rounded-lg p-2.5 border border-slate-700 flex items-center gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium text-white">{item.name}</p>
+                                    <p className="text-[10px] text-slate-500 capitalize">{item.type}</p>
+                                  </div>
+                                  <button onClick={async()=>{await fetch('/api/media-urls',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:item.id})});setMediaUrls(p=>p.filter(m=>m.id!==item.id));}} className="text-slate-500 hover:text-red-400 shrink-0"><X size={12}/></button>
+                                </div>
+                              ))}
+                              <div className="space-y-2">
+                                <input value={newMediaUrl.name} onChange={e=>setNewMediaUrl(p=>({...p,name:e.target.value}))} placeholder="Nome (ex: Catálogo PDF)" className="w-full bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
+                                <input value={newMediaUrl.url} onChange={e=>setNewMediaUrl(p=>({...p,url:e.target.value}))} placeholder="URL pública do arquivo" className="w-full bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
+                                <div className="flex gap-2">
+                                  <select value={newMediaUrl.type} onChange={e=>setNewMediaUrl(p=>({...p,type:e.target.value as MediaUrlItem['type']}))} className="flex-1 bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none">
+                                    <option value="document">Documento / PDF</option>
+                                    <option value="video">Vídeo</option>
+                                    <option value="image">Imagem</option>
+                                    <option value="audio">Áudio</option>
+                                  </select>
+                                  <button disabled={savingMediaUrl||!newMediaUrl.name.trim()||!newMediaUrl.url.trim()} onClick={async()=>{setSavingMediaUrl(true);try{const r=await fetch('/api/media-urls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newMediaUrl)});if(r.ok){const item=await r.json();setMediaUrls(p=>[...p,item]);setNewMediaUrl({name:'',url:'',type:'document',description:''});}}finally{setSavingMediaUrl(false);}}} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-medium rounded-lg transition-colors shrink-0 flex items-center gap-1">
+                                    <Plus size={12}/>{savingMediaUrl?'…':'+ Adicionar'}
+                                  </button>
+                                </div>
+                              </div>
+                              {mediaUrls.length>0&&<p className="text-[10px] text-slate-500 font-mono">{mediaUrls.map(m=>m.name).join(' · ')}</p>}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                    {group==='Mídias'&&(
-                      <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden mt-3">
-                        <button onClick={()=>toggleGroup('__media_lib')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/30 transition-colors">
-                          <span className="text-white text-sm font-semibold flex items-center gap-2"><Paperclip size={13} className="text-blue-400"/>Biblioteca de Mídia</span>
-                          {isLibOpen?<ChevronUp size={15} className="text-slate-400"/>:<ChevronDown size={15} className="text-slate-400"/>}
-                        </button>
-                        {isLibOpen&&(
-                          <div className="px-3 pb-3 border-t border-slate-700/50 pt-3 space-y-2">
-                            <div className="flex items-center justify-between mb-1">
-                              <label className={`inline-flex items-center gap-1.5 cursor-pointer text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${uploadingMedia?'bg-slate-600 text-slate-400':'bg-blue-600 hover:bg-blue-500 text-white'}`}>
-                                <Plus size={12}/>{uploadingMedia?'Enviando…':'Fazer Upload'}
-                                <input type="file" className="hidden" onChange={uploadMedia} disabled={uploadingMedia}/>
-                              </label>
-                              {!isAdminMaster&&(
-                                <div className="flex-1 ml-3">
-                                  <div className="flex justify-between text-[10px] text-slate-500 mb-0.5">
-                                    <span>{storageUsedMB.toFixed(1)} MB / {STORAGE_LIMIT_MB} MB</span>
-                                  </div>
-                                  <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                                    <div className={`h-full rounded-full transition-all ${storagePercent>90?'bg-red-500':storagePercent>70?'bg-amber-500':'bg-violet-500'}`} style={{width:`${storagePercent}%`}}/>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            {mediaItems.length===0&&<p className="text-xs text-slate-500">Nenhum arquivo na biblioteca.</p>}
-                            {mediaItems.map(item=>(
-                              <div key={item.id} className="bg-slate-800 rounded-lg p-2.5 border border-slate-700 flex items-center gap-2">
-                                <span className="text-xs text-white truncate flex-1">{item.name}</span>
-                                <span className="text-[10px] text-slate-500 shrink-0 capitalize">{item.type}</span>
-                                {item.size_bytes>0&&<span className="text-[10px] text-slate-500 shrink-0">{(item.size_bytes/1024/1024).toFixed(1)}MB</span>}
-                                <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:text-blue-300 shrink-0">Ver</a>
-                                <button onClick={()=>deleteMediaItem(item.id)} className="text-slate-500 hover:text-red-400 shrink-0"><X size={11}/></button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 );
               })}
-              {/* Mídias com Link */}
               <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
-                <button onClick={()=>toggleGroup('__media_urls')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/30 transition-colors">
-                  <span className="text-white text-sm font-semibold flex items-center gap-2"><Link size={13} className="text-emerald-400"/>Mídias com Link (IA)</span>
-                  {openGroups['__media_urls']?<ChevronUp size={15} className="text-slate-400"/>:<ChevronDown size={15} className="text-slate-400"/>}
+                <button onClick={()=>toggleGroup('__media_lib')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/30 transition-colors">
+                  <span className="text-white text-sm font-semibold flex items-center gap-2"><Paperclip size={13} className="text-blue-400"/>Biblioteca de Mídia</span>
+                  {openGroups['__media_lib']?<ChevronUp size={15} className="text-slate-400"/>:<ChevronDown size={15} className="text-slate-400"/>}
                 </button>
-                {openGroups['__media_urls']&&(
+                {openGroups['__media_lib']&&(
                   <div className="px-3 pb-3 border-t border-slate-700/50 pt-3 space-y-2">
-                    <p className="text-xs text-slate-400">A IA envia automaticamente ao usar o tool <code className="bg-slate-700 px-1 rounded text-emerald-400">send_media</code> com o nome exato.</p>
-                    <div className="space-y-2">
-                      <input value={newMediaUrl.name} onChange={e=>setNewMediaUrl(p=>({...p,name:e.target.value}))} placeholder="Nome (ex: Catálogo PDF)" className="w-full bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
-                      <input value={newMediaUrl.url} onChange={e=>setNewMediaUrl(p=>({...p,url:e.target.value}))} placeholder="URL pública do arquivo" className="w-full bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
-                      <div className="flex gap-2">
-                        <select value={newMediaUrl.type} onChange={e=>setNewMediaUrl(p=>({...p,type:e.target.value as MediaUrlItem['type']}))} className="flex-1 bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none">
-                          <option value="document">Documento / PDF</option>
-                          <option value="video">Vídeo</option>
-                          <option value="image">Imagem</option>
-                          <option value="audio">Áudio</option>
-                        </select>
-                        <button disabled={savingMediaUrl||!newMediaUrl.name.trim()||!newMediaUrl.url.trim()} onClick={async()=>{setSavingMediaUrl(true);try{const r=await fetch('/api/media-urls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newMediaUrl)});if(r.ok){const item=await r.json();setMediaUrls(p=>[...p,item]);setNewMediaUrl({name:'',url:'',type:'document',description:'']);}}finally{setSavingMediaUrl(false);}}} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-medium rounded-lg transition-colors shrink-0">
-                          {savingMediaUrl?'…':'Adicionar'}
-                        </button>
-                      </div>
-                    </div>
-                    {mediaUrls.map(item=>(
-                      <div key={item.id} className="bg-slate-800 rounded-lg p-2.5 border border-slate-700 flex items-center gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-white">{item.name}</p>
-                          <p className="text-[10px] text-slate-500 capitalize">{item.type}</p>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className={`inline-flex items-center gap-1.5 cursor-pointer text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${uploadingMedia?'bg-slate-600 text-slate-400':'bg-blue-600 hover:bg-blue-500 text-white'}`}>
+                        <Plus size={12}/>{uploadingMedia?'Enviando…':'Fazer Upload'}
+                        <input type="file" className="hidden" onChange={uploadMedia} disabled={uploadingMedia}/>
+                      </label>
+                      {!isAdminMaster&&(
+                        <div className="flex-1 ml-3">
+                          <div className="flex justify-between text-[10px] text-slate-500 mb-0.5">
+                            <span>{storageUsedMB.toFixed(1)} MB / {STORAGE_LIMIT_MB} MB</span>
+                          </div>
+                          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${storagePercent>90?'bg-red-500':storagePercent>70?'bg-amber-500':'bg-violet-500'}`} style={{width:`${storagePercent}%`}}/>
+                          </div>
                         </div>
-                        <button onClick={async()=>{await fetch('/api/media-urls',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:item.id})});setMediaUrls(p=>p.filter(m=>m.id!==item.id));}} className="text-slate-500 hover:text-red-400 shrink-0"><X size={12}/></button>
+                      )}
+                    </div>
+                    {mediaItems.length===0&&<p className="text-xs text-slate-500">Nenhum arquivo na biblioteca.</p>}
+                    {mediaItems.map(item=>(
+                      <div key={item.id} className="bg-slate-800 rounded-lg p-2.5 border border-slate-700 flex items-center gap-2">
+                        <span className="text-xs text-white truncate flex-1">{item.name}</span>
+                        <span className="text-[10px] text-slate-500 shrink-0 capitalize">{item.type}</span>
+                        {item.size_bytes>0&&<span className="text-[10px] text-slate-500 shrink-0">{(item.size_bytes/1024/1024).toFixed(1)}MB</span>}
+                        <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:text-blue-300 shrink-0">Ver</a>
+                        <button onClick={()=>deleteMediaItem(item.id)} className="text-slate-500 hover:text-red-400 shrink-0"><X size={11}/></button>
                       </div>
                     ))}
-                    {mediaUrls.length>0&&(
-                      <div className="bg-slate-900 rounded-lg p-2.5 border border-slate-700">
-                        <p className="text-[10px] text-slate-500 mb-1 font-medium">Nomes para o prompt:</p>
-                        <p className="text-xs text-emerald-400 font-mono">{mediaUrls.map(m=>m.name).join(' · ')}</p>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
-
               <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
                 <button onClick={()=>toggleGroup('__qr')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/30 transition-colors">
                   <span className="text-white text-sm font-semibold">Respostas Rápidas</span>
@@ -1491,10 +1563,20 @@ export default function DashboardPage() {
               <div className="max-w-2xl mx-auto space-y-6">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-violet-600/20 rounded-xl flex items-center justify-center"><ShieldCheck size={20} className="text-violet-400"/></div>
-                  <div><h2 className="text-white font-semibold">Painel Administrativo</h2><p className="text-slate-400 text-xs">Gerenciar contas de clientes WeevZap PRO</p></div>
+                  <div><h2 className="text-white font-semibold">Painel Administrativo</h2><p className="text-slate-400 text-xs">Clientes, setores e operadores</p></div>
                 </div>
 
-                {/* Create tenant */}
+                {/* Sub-tabs */}
+                <div className="flex gap-1 bg-slate-800/50 rounded-xl p-1 border border-slate-700">
+                  {(['clients','sectors','operators'] as const).map(t=>(
+                    <button key={t} onClick={()=>setAdminSubTab(t)} className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${adminSubTab===t?'bg-violet-600 text-white':'text-slate-400 hover:text-white'}`}>
+                      {t==='clients'?'Clientes':t==='sectors'?'Setores':'Operadores'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── Clientes ── */}
+                {adminSubTab==='clients'&&(<>
                 <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 space-y-4">
                   <p className="text-white text-sm font-medium flex items-center gap-2"><Plus size={14} className="text-violet-400"/> Criar novo cliente</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1513,7 +1595,6 @@ export default function DashboardPage() {
                   </button>
                 </div>
 
-                {/* Tenants list */}
                 <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-3 border-b border-slate-700">
                     <p className="text-white text-sm font-medium">Clientes cadastrados</p>
@@ -1556,6 +1637,61 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
+                </>)}
+
+                {/* ── Setores ── */}
+                {adminSubTab==='sectors'&&(
+                  <div className="space-y-4">
+                    <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex gap-2">
+                      <input value={newSectorName} onChange={e=>setNewSectorName(e.target.value)} placeholder="Nome do setor (ex: Vendas)" className="flex-1 bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                      <button disabled={creatingSector||!newSectorName.trim()} onClick={async()=>{setCreatingSector(true);try{const r=await fetch('/api/sectors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newSectorName})});if(r.ok){const s=await r.json();setSectors(p=>[...p,s]);setNewSectorName('');}}finally{setCreatingSector(false);}}} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 shrink-0">
+                        <Plus size={13}/>{creatingSector?'…':'Criar'}
+                      </button>
+                    </div>
+                    {sectors.length===0?<p className="text-slate-500 text-sm">Nenhum setor cadastrado.</p>:sectors.map(s=>(
+                      <div key={s.id} className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-violet-800/40 flex items-center justify-center shrink-0"><Users size={13} className="text-violet-400"/></div>
+                        <span className="flex-1 text-sm font-medium text-white">{s.name}</span>
+                        <button onClick={async()=>{await fetch(`/api/sectors/${s.id}`,{method:'DELETE'});setSectors(p=>p.filter(x=>x.id!==s.id));}} className="text-slate-500 hover:text-red-400 shrink-0"><Trash2 size={13}/></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── Operadores ── */}
+                {adminSubTab==='operators'&&(
+                  <div className="space-y-4">
+                    <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+                      <p className="text-white text-sm font-medium flex items-center gap-2"><Plus size={13} className="text-violet-400"/> Novo operador</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input value={newOperator.name} onChange={e=>setNewOperator(p=>({...p,name:e.target.value}))} placeholder="Nome" className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                        <input value={newOperator.email} onChange={e=>setNewOperator(p=>({...p,email:e.target.value}))} placeholder="E-mail" type="email" className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input value={newOperator.password} onChange={e=>setNewOperator(p=>({...p,password:e.target.value}))} placeholder="Senha" type="password" className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                        <select value={newOperator.sectorId} onChange={e=>setNewOperator(p=>({...p,sectorId:e.target.value}))} className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500">
+                          <option value="">Setor (opcional)</option>
+                          {sectors.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      </div>
+                      <button disabled={creatingOperator||!newOperator.name.trim()||!newOperator.email.trim()||newOperator.password.length<6} onClick={async()=>{setCreatingOperator(true);try{const r=await fetch('/api/operators',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newOperator.name,email:newOperator.email,password:newOperator.password,sectorId:newOperator.sectorId?parseInt(newOperator.sectorId):null})});if(r.ok){const op=await r.json();setOperators(p=>[...p,op]);setNewOperator({name:'',email:'',password:'',sectorId:''});}}finally{setCreatingOperator(false);}}} className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors">
+                        {creatingOperator?'Criando…':'Criar Operador'}
+                      </button>
+                    </div>
+                    {!operatorsLoaded?<p className="text-slate-500 text-sm flex items-center gap-2"><RefreshCw size={13} className="animate-spin"/> Carregando…</p>:operators.length===0?<p className="text-slate-500 text-sm">Nenhum operador cadastrado.</p>:operators.map(op=>(
+                      <div key={op.id} className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0"><Users size={13} className="text-slate-400"/></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white">{op.name}</p>
+                          <p className="text-xs text-slate-400 font-mono">{op.email}</p>
+                          {op.sector_id && <p className="text-xs text-violet-400 mt-0.5">{sectors.find(s=>s.id===op.sector_id)?.name}</p>}
+                        </div>
+                        <button onClick={async()=>{await fetch(`/api/operators/${op.id}`,{method:'DELETE'});setOperators(p=>p.filter(x=>x.id!==op.id));}} className="text-slate-500 hover:text-red-400 shrink-0"><Trash2 size={13}/></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
               </div>
             </div>
           )}

@@ -5,7 +5,7 @@ import { getMediaItems, createMediaItem, deleteMediaItemById, getTenantStorageUs
 import { uploadToStorage, deleteFromStorage } from '@/lib/media-storage';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'wignor.ferreira@gmail.com';
-const STORAGE_LIMIT = 150 * 1024 * 1024; // 150 MB
+const STORAGE_LIMIT = 120 * 1024 * 1024; // 120 MB
 
 async function getSession() {
   const token = cookies().get(SESSION_COOKIE)?.value;

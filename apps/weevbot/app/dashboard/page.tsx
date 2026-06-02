@@ -8,12 +8,12 @@ import {
   Paperclip, Upload, Film, FileText, Image, Music, Library,
   ExternalLink, LogOut, Megaphone, Info, AlertTriangle,
   Mic, Square, ChevronDown, ChevronUp, BarChart2,
-  Wifi, WifiOff, Users, ShieldCheck, KeyRound, Eye, EyeOff, Bell, Link,
+  Wifi, WifiOff, Users, ShieldCheck, KeyRound, Eye, EyeOff, Bell, Link, Building2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Conversation, Message, Setting, QuickReply, MediaItem, DailyReport } from '@/lib/db';
 
-type Tab = 'dashboard' | 'inbox' | 'whatsapp' | 'broadcast' | 'followups' | 'settings' | 'admin';
+type Tab = 'dashboard' | 'inbox' | 'whatsapp' | 'broadcast' | 'sectors' | 'followups' | 'settings' | 'admin';
 type View = 'chat' | 'kanban';
 type StatusFilter = 'all' | 'active' | 'paused' | 'waiting';
 
@@ -232,9 +232,9 @@ function MsgBubble({ msg }: { msg: Message }) {
 }
 
 // ─── ConvItem ─────────────────────────────────────────────────────────────────
-function ConvItem({ conv, selected, onClick, onTogglePause, toggling, photoUrl }: {
+function ConvItem({ conv, selected, onClick, onTogglePause, toggling, photoUrl, sectorName }: {
   conv: Conversation; selected: boolean; onClick: () => void;
-  onTogglePause: () => void; toggling: boolean; photoUrl?: string|null;
+  onTogglePause: () => void; toggling: boolean; photoUrl?: string|null; sectorName?: string;
 }) {
   const name = conv.push_name || conv.id;
   const time = conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
@@ -247,7 +247,10 @@ function ConvItem({ conv, selected, onClick, onTogglePause, toggling, photoUrl }
             <span className="text-sm font-medium text-white truncate">{conv.push_name || 'Sem nome'}</span>
             <span className="text-xs text-slate-500 shrink-0">{time}</span>
           </div>
-          <div className="flex items-center gap-1.5 mt-0.5"><StatusBadge status={conv.status}/></div>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <StatusBadge status={conv.status}/>
+            {sectorName && <span className="text-[10px] px-1.5 py-0.5 bg-violet-800/40 text-violet-300 rounded-full">{sectorName}</span>}
+          </div>
           {conv.last_message && <p className="text-xs text-slate-500 truncate mt-0.5">{conv.last_message}</p>}
         </div>
       </div>
@@ -409,7 +412,19 @@ export default function DashboardPage() {
 
   // Current user
   const [currentUserEmail, setCurrentUserEmail] = useState<string|null>(null);
+  const [currentRole, setCurrentRole] = useState<'admin'|'operator'>('admin');
+  const [currentSectorId, setCurrentSectorId] = useState<number|null>(null);
   const ADMIN_EMAIL = 'wignor.ferreira@gmail.com';
+
+  // Sectors & Operators (admin panel)
+  const [sectors, setSectors] = useState<{id:number;name:string;description:string|null}[]>([]);
+  const [operators, setOperators] = useState<{id:number;name:string;email:string;sector_id:number|null;sector_name?:string;created_at:string}[]>([]);
+  const [sectorsOpLoaded, setSectorsOpLoaded] = useState(false);
+  const [adminSubTab, setAdminSubTab] = useState<'users'|'sectors'|'operators'>('users');
+  const [newSector, setNewSector] = useState({ name: '' });
+  const [creatingSector, setCreatingSector] = useState(false);
+  const [newOperator, setNewOperator] = useState({ name: '', email: '', password: '', sectorId: '' });
+  const [creatingOperator, setCreatingOperator] = useState(false);
 
   // Media URLs
   const [mediaUrls, setMediaUrls] = useState<MediaUrlItem[]>([]);
@@ -478,7 +493,7 @@ export default function DashboardPage() {
   const loadMediaUrls = useCallback(async()=>{const r=await fetch('/api/media-urls');if(r.ok)setMediaUrls(await r.json());},[]);
 
   const loadCurrentUser = useCallback(async()=>{
-    try{const r=await fetch('/api/auth/me');if(r.ok){const d=await r.json();setCurrentUserEmail(d.email);}}catch{}
+    try{const r=await fetch('/api/auth/me');if(r.ok){const d=await r.json();setCurrentUserEmail(d.email);setCurrentRole(d.role||'admin');setCurrentSectorId(d.sectorId??null);}}catch{}
   },[]);
 
   const loadAdminUsers = useCallback(async()=>{
@@ -502,7 +517,11 @@ export default function DashboardPage() {
 
   useEffect(()=>{
     if(tab==='admin'&&!adminUsersLoaded) loadAdminUsers();
-  },[tab,adminUsersLoaded,loadAdminUsers]);
+    if((tab==='admin'||tab==='sectors')&&!sectorsOpLoaded){
+      Promise.all([fetch('/api/sectors').then(r=>r.ok?r.json():[]),fetch('/api/operators').then(r=>r.ok?r.json():[])])
+        .then(([s,o])=>{setSectors(s);setOperators(o);setSectorsOpLoaded(true);}).catch(()=>setSectorsOpLoaded(true));
+    }
+  },[tab,adminUsersLoaded,loadAdminUsers,sectorsOpLoaded]);
 
   useEffect(()=>{
     loadConversations();loadSettings();loadQuickReplies();loadMediaItems();loadMediaUrls();
@@ -597,7 +616,7 @@ export default function DashboardPage() {
     }catch{}
     setSendingDirect(false);
   }
-  const STORAGE_LIMIT_MB = 150;
+  const STORAGE_LIMIT_MB = 120;
   const storageUsedBytes = mediaItems.reduce((s, m) => s + (m.size_bytes || 0), 0);
   const storageUsedMB = storageUsedBytes / (1024 * 1024);
   const storagePercent = Math.min((storageUsedMB / STORAGE_LIMIT_MB) * 100, 100);
@@ -605,7 +624,7 @@ export default function DashboardPage() {
 
   async function handleMediaUpload(e:React.ChangeEvent<HTMLInputElement>){
     const file=e.target.files?.[0];if(!file)return;setUploadingMedia(true);
-    try{const fd=new FormData();fd.append('file',file);fd.append('name',file.name);const r=await fetch('/api/media',{method:'POST',body:fd});if(r.status===413){alert('Limite de armazenamento atingido (150 MB). Exclua arquivos para liberar espaço.');}else if(r.ok){const item=await r.json();setMediaItems(prev=>[item,...prev]);}}
+    try{const fd=new FormData();fd.append('file',file);fd.append('name',file.name);const r=await fetch('/api/media',{method:'POST',body:fd});if(r.status===413){alert('Limite de armazenamento atingido (120 MB). Exclua arquivos para liberar espaço.');}else if(r.ok){const item=await r.json();setMediaItems(prev=>[item,...prev]);}}
     finally{setUploadingMedia(false);e.target.value='';}
   }
   async function removeMediaItem(id:number){await fetch(`/api/media/${id}`,{method:'DELETE'});setMediaItems(p=>p.filter(m=>m.id!==id));}
@@ -725,8 +744,9 @@ export default function DashboardPage() {
     ['inbox',     <MessageSquare size={16}/>, 'Atendimento'],
     ['whatsapp',  <Phone size={16}/>,      'WhatsApp'],
     ['broadcast', <Megaphone size={16}/>,  'Disparo'],
+    ['sectors',   <Building2 size={16}/>,  'Setores'],
     ['followups', <Bell size={16}/>,       'Follow-ups'],
-    ['settings',  <Settings size={16}/>,   'Configurações'],
+    ...(currentRole !== 'operator' ? [['settings', <Settings size={16}/>, 'Configurações'] as [Tab, React.ReactNode, string]] : []),
     ...(currentUserEmail === ADMIN_EMAIL ? [['admin', <ShieldCheck size={16}/>, 'Admin'] as [Tab, React.ReactNode, string]] : []),
   ];
 
@@ -821,6 +841,12 @@ export default function DashboardPage() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm truncate">{selectedConv.push_name||'Sem nome'}</p>
                 <div className="flex items-center gap-1.5"><Clock size={11} className="text-slate-500"/><StatusBadge status={selectedConv.status}/><span className="text-xs text-slate-500">{selected}</span></div>
+                {sectors.length>0&&currentRole==='admin'&&(
+                  <select value={selectedConv.sector_id??''} onChange={async e=>{const sid=e.target.value?parseInt(e.target.value):null;if(sid){await fetch('/api/sectors/transfer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({conversationId:selected,toSectorId:sid})});setConversations(prev=>prev.map(c=>c.id===selected?{...c,sector_id:sid}:c));setSelectedConv(prev=>prev?{...prev,sector_id:sid}:prev);}}} className="mt-1 bg-slate-700 text-xs text-slate-300 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-violet-500">
+                    <option value="">Sem setor</option>
+                    {sectors.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={()=>selectedConv&&togglePause(selected,selectedConv)} disabled={togglingPause===selected}
@@ -940,7 +966,8 @@ export default function DashboardPage() {
                             </div>
                           ) : (
                             <ConvItem key={conv.id} conv={conv} selected={selected===conv.id} onClick={()=>openConversation(conv.id)}
-                              onTogglePause={()=>togglePause(conv.id,conv)} toggling={togglingPause===conv.id} photoUrl={contactPhotos[conv.id]}/>
+                              onTogglePause={()=>togglePause(conv.id,conv)} toggling={togglingPause===conv.id} photoUrl={contactPhotos[conv.id]}
+                              sectorName={conv.sector_id ? sectors.find(s=>s.id===conv.sector_id)?.name : undefined}/>
                           )
                         ))
                       }
@@ -1200,10 +1227,73 @@ export default function DashboardPage() {
             <div className="max-w-2xl mx-auto space-y-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-violet-600/20 rounded-xl flex items-center justify-center"><ShieldCheck size={20} className="text-violet-400"/></div>
-                <div><h2 className="text-white font-semibold">Painel Administrativo</h2><p className="text-slate-400 text-xs">Gerenciar logins de acesso ao sistema</p></div>
+                <div><h2 className="text-white font-semibold">Painel Administrativo</h2><p className="text-slate-400 text-xs">Logins, setores e operadores</p></div>
               </div>
 
-              {/* Create user */}
+              {/* Sub-tabs */}
+              <div className="flex gap-1 bg-slate-800/50 rounded-xl p-1 border border-slate-700">
+                {(['users','sectors','operators'] as const).map(t=>(
+                  <button key={t} onClick={()=>setAdminSubTab(t)} className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${adminSubTab===t?'bg-violet-600 text-white':'text-slate-400 hover:text-white'}`}>
+                    {t==='users'?'Logins Admin':t==='sectors'?'Setores':'Operadores'}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Setores ── */}
+              {adminSubTab==='sectors'&&(
+                <div className="space-y-4">
+                  <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex gap-2">
+                    <input value={newSector.name} onChange={e=>setNewSector(p=>({...p,name:e.target.value}))} placeholder="Nome do setor (ex: Vendas)" className="flex-1 bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                    <button disabled={creatingSector||!newSector.name.trim()} onClick={async()=>{setCreatingSector(true);try{const r=await fetch('/api/sectors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newSector.name})});if(r.ok){const s=await r.json();setSectors(p=>[...p,s]);setNewSector({name:''});}}finally{setCreatingSector(false);}}} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 shrink-0">
+                      <Plus size={13}/>{creatingSector?'…':'Criar'}
+                    </button>
+                  </div>
+                  {sectors.length===0?<p className="text-slate-500 text-sm">Nenhum setor cadastrado.</p>:sectors.map(s=>(
+                    <div key={s.id} className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-violet-800/40 flex items-center justify-center shrink-0"><Users size={13} className="text-violet-400"/></div>
+                      <span className="flex-1 text-sm font-medium text-white">{s.name}</span>
+                      <button onClick={async()=>{await fetch(`/api/sectors/${s.id}`,{method:'DELETE'});setSectors(p=>p.filter(x=>x.id!==s.id));}} className="text-slate-500 hover:text-red-400 shrink-0"><Trash2 size={13}/></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Operadores ── */}
+              {adminSubTab==='operators'&&(
+                <div className="space-y-4">
+                  <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+                    <p className="text-white text-sm font-medium flex items-center gap-2"><Plus size={13} className="text-violet-400"/> Novo operador</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input value={newOperator.name} onChange={e=>setNewOperator(p=>({...p,name:e.target.value}))} placeholder="Nome" className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                      <input value={newOperator.email} onChange={e=>setNewOperator(p=>({...p,email:e.target.value}))} placeholder="E-mail" type="email" className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input value={newOperator.password} onChange={e=>setNewOperator(p=>({...p,password:e.target.value}))} placeholder="Senha" type="password" className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                      <select value={newOperator.sectorId} onChange={e=>setNewOperator(p=>({...p,sectorId:e.target.value}))} className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500">
+                        <option value="">Setor (opcional)</option>
+                        {sectors.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                    <button disabled={creatingOperator||!newOperator.name.trim()||!newOperator.email.trim()||newOperator.password.length<6} onClick={async()=>{setCreatingOperator(true);try{const r=await fetch('/api/operators',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newOperator.name,email:newOperator.email,password:newOperator.password,sectorId:newOperator.sectorId?parseInt(newOperator.sectorId):null})});if(r.ok){const op=await r.json();setOperators(p=>[...p,op]);setNewOperator({name:'',email:'',password:'',sectorId:''});}}finally{setCreatingOperator(false);}}} className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors">
+                      {creatingOperator?'Criando…':'Criar Operador'}
+                    </button>
+                  </div>
+                  {operators.length===0?<p className="text-slate-500 text-sm">Nenhum operador cadastrado.</p>:operators.map(op=>(
+                    <div key={op.id} className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0"><Users size={13} className="text-slate-400"/></div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white">{op.name}</p>
+                        <p className="text-xs text-slate-400 font-mono">{op.email}</p>
+                        {op.sector_name && <p className="text-xs text-violet-400 mt-0.5">{op.sector_name}</p>}
+                      </div>
+                      <button onClick={async()=>{await fetch(`/api/operators/${op.id}`,{method:'DELETE'});setOperators(p=>p.filter(x=>x.id!==op.id));}} className="text-slate-500 hover:text-red-400 shrink-0"><Trash2 size={13}/></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Logins Admin ── */}
+              {adminSubTab==='users'&&(<>
               <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 space-y-4">
                 <p className="text-white text-sm font-medium flex items-center gap-2"><Plus size={14} className="text-violet-400"/> Criar novo login</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1259,6 +1349,7 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
+              </>)}
             </div>
           </div>
         )}
@@ -1282,6 +1373,102 @@ export default function DashboardPage() {
         )}
 
         {/* ── SETTINGS ──────────────────────────────────────────────── */}
+        {/* ── SECTORS TAB ─────────────────────────────────────────────── */}
+        {tab==='sectors' && (
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div>
+              <h2 className="text-white font-semibold">Setores</h2>
+              <p className="text-slate-400 text-xs">Crie setores para organizar e transferir atendimentos</p>
+            </div>
+
+            {/* Add sector — admin only */}
+            {currentRole !== 'operator' && (
+              <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+                <p className="text-sm font-medium text-white">Novo Setor</p>
+                <div className="flex gap-2">
+                  <input value={newSector.name} onChange={e=>setNewSector(p=>({...p,name:e.target.value}))} placeholder="Nome do setor (ex: Vendas)"
+                    onKeyDown={e=>e.key==='Enter'&&!creatingSector&&newSector.name.trim()&&(async()=>{setCreatingSector(true);try{const r=await fetch('/api/sectors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newSector.name})});if(r.ok){const s=await r.json();setSectors(p=>[...p,s]);setNewSector({name:''});}}finally{setCreatingSector(false);}})()}
+                    className="flex-1 bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                  <button disabled={creatingSector||!newSector.name.trim()} onClick={async()=>{setCreatingSector(true);try{const r=await fetch('/api/sectors',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newSector.name})});if(r.ok){const s=await r.json();setSectors(p=>[...p,s]);setNewSector({name:''});}}finally{setCreatingSector(false);}}}
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 shrink-0">
+                    <Plus size={13}/>{creatingSector?'…':'Criar'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Sectors list */}
+            <div className="space-y-2">
+              {sectors.length===0 && <p className="text-slate-500 text-sm text-center py-6">Nenhum setor criado ainda.</p>}
+              {sectors.map(s=>(
+                <div key={s.id} className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-violet-600/20 flex items-center justify-center shrink-0">
+                    <Building2 size={16} className="text-violet-400"/>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium">{s.name}</p>
+                    {s.description&&<p className="text-slate-400 text-xs truncate">{s.description}</p>}
+                  </div>
+                  {currentRole !== 'operator' && (
+                    <button onClick={async()=>{await fetch(`/api/sectors/${s.id}`,{method:'DELETE'});setSectors(p=>p.filter(x=>x.id!==s.id));}}
+                      className="text-slate-500 hover:text-red-400 transition-colors"><Trash2 size={15}/></button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Operators management — admin only */}
+            {currentRole !== 'operator' && (
+              <>
+                <div className="pt-2">
+                  <h3 className="text-white font-semibold text-sm">Operadores</h3>
+                  <p className="text-slate-400 text-xs">Crie logins para sua equipe com acesso ao setor designado</p>
+                </div>
+                <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+                  <p className="text-white text-sm font-medium">Novo Operador</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input value={newOperator.name} onChange={e=>setNewOperator(p=>({...p,name:e.target.value}))} placeholder="Nome completo"
+                      className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                    <input value={newOperator.email} onChange={e=>setNewOperator(p=>({...p,email:e.target.value}))} placeholder="E-mail" type="email"
+                      className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input value={newOperator.password} onChange={e=>setNewOperator(p=>({...p,password:e.target.value}))} placeholder="Senha (mín. 6 caracteres)" type="password"
+                      className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500"/>
+                    <select value={newOperator.sectorId} onChange={e=>setNewOperator(p=>({...p,sectorId:e.target.value}))}
+                      className="bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-violet-500">
+                      <option value="">Sem setor</option>
+                      {sectors.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <button disabled={creatingOperator||!newOperator.name.trim()||!newOperator.email.trim()||newOperator.password.length<6}
+                    onClick={async()=>{setCreatingOperator(true);try{const r=await fetch('/api/operators',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newOperator.name,email:newOperator.email,password:newOperator.password,sectorId:newOperator.sectorId?parseInt(newOperator.sectorId):null})});if(r.ok){const op=await r.json();setOperators(p=>[...p,op]);setNewOperator({name:'',email:'',password:'',sectorId:'',});}}finally{setCreatingOperator(false);}}}
+                    className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-medium py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors">
+                    <Plus size={13}/>{creatingOperator?'Criando…':'Criar Operador'}
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {operators.length===0&&sectorsOpLoaded&&<p className="text-slate-500 text-sm text-center py-4">Nenhum operador criado ainda.</p>}
+                  {operators.map(op=>(
+                    <div key={op.id} className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-600/20 flex items-center justify-center shrink-0">
+                        <Users size={16} className="text-blue-400"/>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white">{op.name}</p>
+                        <p className="text-xs text-slate-400 font-mono">{op.email}</p>
+                        {op.sector_name&&<span className="text-[10px] text-blue-400 flex items-center gap-0.5 mt-0.5"><Building2 size={9}/>{op.sector_name}</span>}
+                      </div>
+                      <button onClick={async()=>{await fetch(`/api/operators/${op.id}`,{method:'DELETE'});setOperators(p=>p.filter(x=>x.id!==op.id));}}
+                        className="text-slate-500 hover:text-red-400 transition-colors"><Trash2 size={15}/></button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {tab==='settings' && (
           <div className="flex-1 overflow-y-auto p-4 sm:p-6">
             <div className="max-w-2xl mx-auto space-y-4">
@@ -1319,41 +1506,36 @@ export default function DashboardPage() {
                           onChange={v=>setSettingValues(p=>({...p,[s.key]:v}))}
                           onSave={()=>saveSetting(s.key)} saving={savingKey===s.key} saved={savedKey===s.key}/>
                       ))}
-                    </SettingGroup>
-                    {groupLabel==='Mídias'&&(
-                      <SettingGroup label="Biblioteca de Mídia" icon={<Library size={14} className="text-blue-400"/>}>
-                        <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
-                          <label className={`inline-flex items-center gap-2 cursor-pointer text-sm font-medium px-4 py-2 rounded-lg transition-colors ${uploadingMedia?'bg-slate-600 text-slate-400':'bg-blue-600 hover:bg-blue-500 text-white'}`}>
-                            <Upload size={14}/>{uploadingMedia?'Enviando…':'Fazer Upload de Arquivo'}
-                            <input type="file" className="hidden" onChange={handleMediaUpload} disabled={uploadingMedia}/>
-                          </label>
-                          <p className="text-xs text-slate-500 mt-2">Suporta vídeos, PDFs, imagens e áudios.</p>
-                          {!isAdminMaster&&(
-                            <div className="mt-3">
-                              <div className="flex justify-between text-[11px] text-slate-500 mb-1">
-                                <span>Armazenamento</span>
-                                <span>{storageUsedMB.toFixed(1)} MB / {STORAGE_LIMIT_MB} MB</span>
+                      {groupLabel==='Mídias'&&(
+                        <div className="border-t border-slate-700/60 pt-3 mt-1 space-y-2">
+                          {mediaUrls.map(item=>(
+                            <div key={item.id} className="bg-slate-800 rounded-xl p-3 border border-slate-700 flex items-center gap-3">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-white">{item.name}</p>
+                                <p className="text-xs text-slate-400 mt-0.5 capitalize">{item.type} · <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{item.url.length>50?item.url.slice(0,50)+'…':item.url}</a></p>
                               </div>
-                              <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full transition-all ${storagePercent>90?'bg-red-500':storagePercent>70?'bg-amber-500':'bg-blue-500'}`} style={{width:`${storagePercent}%`}}/>
-                              </div>
+                              <button onClick={async()=>{await fetch('/api/media-urls',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:item.id})});setMediaUrls(p=>p.filter(m=>m.id!==item.id));}} className="text-slate-500 hover:text-red-400 shrink-0"><Trash2 size={14}/></button>
                             </div>
-                          )}
-                        </div>
-                        {mediaItems.length===0 && <p className="text-slate-500 text-sm">Nenhum arquivo.</p>}
-                        {mediaItems.map(item=>(
-                          <div key={item.id} className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-slate-700 flex items-center justify-center shrink-0"><MediaIcon type={item.type}/></div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-white truncate">{item.name}</p>
-                              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2"><span className="capitalize">{item.type}</span>{item.size_bytes>0&&<span>{(item.size_bytes/1024/1024).toFixed(1)} MB</span>}</p>
+                          ))}
+                          <div className="grid grid-cols-1 gap-2">
+                            <input value={newMediaUrl.name} onChange={e=>setNewMediaUrl(p=>({...p,name:e.target.value}))} placeholder="Nome (ex: Catálogo PDF)" className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
+                            <input value={newMediaUrl.url} onChange={e=>setNewMediaUrl(p=>({...p,url:e.target.value}))} placeholder="URL pública do arquivo" className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
+                            <div className="flex gap-2">
+                              <select value={newMediaUrl.type} onChange={e=>setNewMediaUrl(p=>({...p,type:e.target.value as MediaUrlItem['type']}))} className="flex-1 bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500">
+                                <option value="document">Documento / PDF</option>
+                                <option value="video">Vídeo</option>
+                                <option value="image">Imagem</option>
+                                <option value="audio">Áudio</option>
+                              </select>
+                              <button disabled={savingMediaUrl||!newMediaUrl.name.trim()||!newMediaUrl.url.trim()} onClick={async()=>{setSavingMediaUrl(true);try{const r=await fetch('/api/media-urls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newMediaUrl)});if(r.ok){const item=await r.json();setMediaUrls(p=>[...p,item]);setNewMediaUrl({name:'',url:'',type:'document',description:''});}}finally{setSavingMediaUrl(false);}}} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors shrink-0 flex items-center gap-1.5">
+                                <Plus size={13}/>{savingMediaUrl?'…':'+ Adicionar'}
+                              </button>
                             </div>
-                            <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 shrink-0 px-2 py-1 rounded hover:bg-slate-700">Ver</a>
-                            <button onClick={()=>removeMediaItem(item.id)} className="text-slate-500 hover:text-red-400 shrink-0"><Trash2 size={14}/></button>
                           </div>
-                        ))}
-                      </SettingGroup>
-                    )}
+                          {mediaUrls.length>0&&<p className="text-[10px] text-slate-500 font-mono">{mediaUrls.map(m=>m.name).join(' · ')}</p>}
+                        </div>
+                      )}
+                    </SettingGroup>
                   </div>
                 );
               })}
@@ -1374,42 +1556,37 @@ export default function DashboardPage() {
                 );
               })()}
 
-              {/* Mídias com Link */}
-              <SettingGroup label="Mídias com Link (IA)" icon={<Link size={14} className="text-emerald-400"/>}>
-                <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
-                  <p className="text-xs text-slate-400">Cadastre arquivos por URL. A IA envia automaticamente quando usar a ferramenta <code className="bg-slate-700 px-1 rounded text-emerald-400">enviar_midia</code> com o nome exato.</p>
-                  <div className="grid grid-cols-1 gap-2">
-                    <input value={newMediaUrl.name} onChange={e=>setNewMediaUrl(p=>({...p,name:e.target.value}))} placeholder="Nome (ex: Catálogo PDF)" className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
-                    <input value={newMediaUrl.url} onChange={e=>setNewMediaUrl(p=>({...p,url:e.target.value}))} placeholder="URL pública do arquivo" className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
-                    <div className="flex gap-2">
-                      <select value={newMediaUrl.type} onChange={e=>setNewMediaUrl(p=>({...p,type:e.target.value as MediaUrlItem['type']}))} className="flex-1 bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500">
-                        <option value="document">Documento / PDF</option>
-                        <option value="video">Vídeo</option>
-                        <option value="image">Imagem</option>
-                        <option value="audio">Áudio</option>
-                      </select>
-                      <button disabled={savingMediaUrl||!newMediaUrl.name.trim()||!newMediaUrl.url.trim()} onClick={async()=>{setSavingMediaUrl(true);try{const r=await fetch('/api/media-urls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newMediaUrl)});if(r.ok){const item=await r.json();setMediaUrls(p=>[...p,item]);setNewMediaUrl({name:'',url:'',type:'document',description:''});}}finally{setSavingMediaUrl(false);}}} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors shrink-0">
-                        {savingMediaUrl?'…':'Adicionar'}
-                      </button>
+              <SettingGroup label="Biblioteca de Mídia" icon={<Library size={14} className="text-blue-400"/>}>
+                <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+                  <label className={`inline-flex items-center gap-2 cursor-pointer text-sm font-medium px-4 py-2 rounded-lg transition-colors ${uploadingMedia?'bg-slate-600 text-slate-400':'bg-blue-600 hover:bg-blue-500 text-white'}`}>
+                    <Upload size={14}/>{uploadingMedia?'Enviando…':'Fazer Upload de Arquivo'}
+                    <input type="file" className="hidden" onChange={handleMediaUpload} disabled={uploadingMedia}/>
+                  </label>
+                  <p className="text-xs text-slate-500 mt-2">Suporta vídeos, PDFs, imagens e áudios. Envie ao cliente via atendimento manual.</p>
+                  {!isAdminMaster&&(
+                    <div className="mt-3">
+                      <div className="flex justify-between text-[11px] text-slate-500 mb-1">
+                        <span>Armazenamento</span>
+                        <span>{storageUsedMB.toFixed(1)} MB / {STORAGE_LIMIT_MB} MB</span>
+                      </div>
+                      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${storagePercent>90?'bg-red-500':storagePercent>70?'bg-amber-500':'bg-blue-500'}`} style={{width:`${storagePercent}%`}}/>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
-                {mediaUrls.length===0 && <p className="text-slate-500 text-sm">Nenhuma mídia cadastrada.</p>}
-                {mediaUrls.map(item=>(
+                {mediaItems.length===0 && <p className="text-slate-500 text-sm">Nenhum arquivo.</p>}
+                {mediaItems.map(item=>(
                   <div key={item.id} className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-slate-700 flex items-center justify-center shrink-0"><MediaIcon type={item.type}/></div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">{item.name}</p>
-                      <p className="text-xs text-slate-400 mt-0.5 capitalize">{item.type} · <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate">{item.url.length>50?item.url.slice(0,50)+'…':item.url}</a></p>
+                      <p className="text-sm font-medium text-white truncate">{item.name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2"><span className="capitalize">{item.type}</span>{item.size_bytes>0&&<span>{(item.size_bytes/1024/1024).toFixed(1)} MB</span>}</p>
                     </div>
-                    <button onClick={async()=>{await fetch('/api/media-urls',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:item.id})});setMediaUrls(p=>p.filter(m=>m.id!==item.id));}} className="text-slate-500 hover:text-red-400 shrink-0"><Trash2 size={14}/></button>
+                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 shrink-0 px-2 py-1 rounded hover:bg-slate-700">Ver</a>
+                    <button onClick={()=>removeMediaItem(item.id)} className="text-slate-500 hover:text-red-400 shrink-0"><Trash2 size={14}/></button>
                   </div>
                 ))}
-                {mediaUrls.length>0&&(
-                  <div className="bg-slate-900 rounded-lg p-3 border border-slate-700">
-                    <p className="text-[10px] text-slate-500 mb-1 font-medium uppercase tracking-wide">Nomes para usar no prompt do Assistente:</p>
-                    <p className="text-xs text-emerald-400 font-mono">{mediaUrls.map(m=>m.name).join(' · ')}</p>
-                  </div>
-                )}
               </SettingGroup>
 
               {/* Respostas Rápidas */}

@@ -7,5 +7,5 @@ export async function GET() {
   if (!token) return NextResponse.json({ email: null }, { status: 401 });
   const session = await verifySessionToken(token);
   if (!session) return NextResponse.json({ email: null }, { status: 401 });
-  return NextResponse.json({ email: session.email });
+  return NextResponse.json({ email: session.email, role: session.role ?? 'admin', sectorId: session.sectorId ?? null, operatorId: session.operatorId ?? null });
 }

@@ -39,6 +39,7 @@ export interface Conversation {
   last_message: string | null;
   last_message_at: string | null;
   created_at: string;
+  sector_id: number | null;
 }
 
 export interface Message {
@@ -279,10 +280,18 @@ export async function upsertConversation(tenantId: string, number: string, statu
   );
 }
 
-export async function getConversations(tenantId: string): Promise<Conversation[]> {
+export async function getConversations(tenantId: string, sectorId?: number | null): Promise<Conversation[]> {
+  if (sectorId === undefined) {
+    const { rows } = await pool.query<Conversation>(
+      `SELECT * FROM conversations WHERE tenant_id = $1 ORDER BY last_message_at DESC NULLS LAST LIMIT 100`,
+      [tenantId]
+    );
+    return rows;
+  }
+  if (sectorId === null) return []; // operador sem setor não vê nada
   const { rows } = await pool.query<Conversation>(
-    `SELECT * FROM conversations WHERE tenant_id = $1 ORDER BY last_message_at DESC NULLS LAST LIMIT 100`,
-    [tenantId]
+    `SELECT * FROM conversations WHERE tenant_id = $1 AND sector_id = $2 ORDER BY last_message_at DESC NULLS LAST LIMIT 100`,
+    [tenantId, sectorId]
   );
   return rows;
 }
@@ -647,6 +656,69 @@ export async function getPendingFollowups(): Promise<(ScheduledFollowup & { foll
   return rows;
 }
 
+// ─── Sector helpers ───────────────────────────────────────────────────────────
+
+export async function getSectorByName(tenantId: string, name: string): Promise<Sector | null> {
+  const { rows } = await pool.query<Sector>(
+    `SELECT * FROM sectors WHERE tenant_id = $1 AND LOWER(name) = LOWER($2) LIMIT 1`,
+    [tenantId, name]
+  );
+  return rows[0] ?? null;
+}
+
+// ─── Operators ────────────────────────────────────────────────────────────────
+
+export interface Operator {
+  id: number;
+  tenant_id: string;
+  name: string;
+  email: string;
+  sector_id: number | null;
+  active: boolean;
+  created_at: string;
+  sector_name?: string;
+}
+
+export async function getOperatorByEmail(email: string): Promise<Operator | null> {
+  const { rows } = await pool.query<Operator>(
+    `SELECT o.*, s.name AS sector_name FROM operators o
+     LEFT JOIN sectors s ON s.id = o.sector_id
+     WHERE o.email = $1 AND o.active = true LIMIT 1`,
+    [email]
+  );
+  return rows[0] ?? null;
+}
+
+export async function getOperatorPasswordHash(email: string): Promise<string | null> {
+  const { rows } = await pool.query<{ password_hash: string }>(
+    `SELECT password_hash FROM operators WHERE email = $1`, [email]
+  );
+  return rows[0]?.password_hash ?? null;
+}
+
+export async function listOperators(tenantId: string): Promise<Operator[]> {
+  const { rows } = await pool.query<Operator>(
+    `SELECT o.*, s.name AS sector_name FROM operators o
+     LEFT JOIN sectors s ON s.id = o.sector_id
+     WHERE o.tenant_id = $1 ORDER BY o.name ASC`,
+    [tenantId]
+  );
+  return rows;
+}
+
+export async function createOperator(tenantId: string, name: string, email: string, passwordHash: string, sectorId?: number | null): Promise<Operator> {
+  const { rows } = await pool.query<Operator>(
+    `INSERT INTO operators (tenant_id, name, email, password_hash, sector_id)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [tenantId, name, email, passwordHash, sectorId ?? null]
+  );
+  return rows[0];
+}
+
+export async function deleteOperator(tenantId: string, id: number): Promise<void> {
+  await pool.query(`DELETE FROM operators WHERE id = $1 AND tenant_id = $2`, [id, tenantId]);
+}
+
 export async function markFollowupSent(id: number): Promise<void> {
   await pool.query(`UPDATE scheduled_followups SET status = 'sent', sent_at = NOW() WHERE id = $1`, [id]);
 }
@@ -667,28 +739,30 @@ export interface DailyReport {
   by_hour: DailyReportEntry[];
 }
 
-export async function getDailyReport(tenantId: string, date?: string): Promise<DailyReport> {
+export async function getDailyReport(tenantId: string, date?: string, sectorId?: number | null): Promise<DailyReport> {
+  if (sectorId === null) {
+    return { total_conversations: 0, new_contacts: 0, human_paused: 0, ai_active: 0, messages_sent: 0, by_hour: [] };
+  }
   const d = date || new Date().toISOString().slice(0, 10);
+  const s = sectorId !== undefined;
   const [convR, newR, msgR, hourR] = await Promise.all([
     pool.query<{ total: string; human_paused: string; ai_active: string }>(
-      `SELECT
-         COUNT(*) AS total,
-         COUNT(*) FILTER (WHERE status = 'paused') AS human_paused,
-         COUNT(*) FILTER (WHERE status = 'active') AS ai_active
-       FROM conversations WHERE tenant_id = $1 AND DATE(last_message_at) = $2`,
-      [tenantId, d]
+      s ? `SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE status = 'paused') AS human_paused, COUNT(*) FILTER (WHERE status = 'active') AS ai_active FROM conversations WHERE tenant_id = $1 AND DATE(last_message_at) = $2 AND sector_id = $3`
+        : `SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE status = 'paused') AS human_paused, COUNT(*) FILTER (WHERE status = 'active') AS ai_active FROM conversations WHERE tenant_id = $1 AND DATE(last_message_at) = $2`,
+      s ? [tenantId, d, sectorId] : [tenantId, d]
     ),
     pool.query<{ count: string }>(
       `SELECT COUNT(*) AS count FROM contacts WHERE tenant_id = $1 AND DATE(created_at) = $2`, [tenantId, d]
     ),
     pool.query<{ count: string }>(
-      `SELECT COUNT(*) AS count FROM messages WHERE tenant_id = $1 AND DATE(created_at) = $2`, [tenantId, d]
+      s ? `SELECT COUNT(m.*) AS count FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.tenant_id = $1 AND DATE(m.created_at) = $2 AND c.sector_id = $3`
+        : `SELECT COUNT(*) AS count FROM messages WHERE tenant_id = $1 AND DATE(created_at) = $2`,
+      s ? [tenantId, d, sectorId] : [tenantId, d]
     ),
     pool.query<{ hour: string; count: string }>(
-      `SELECT EXTRACT(HOUR FROM created_at)::int AS hour, COUNT(*) AS count
-       FROM messages WHERE tenant_id = $1 AND DATE(created_at) = $2 AND role = 'user'
-       GROUP BY hour ORDER BY hour`,
-      [tenantId, d]
+      s ? `SELECT EXTRACT(HOUR FROM m.created_at)::int AS hour, COUNT(*) AS count FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.tenant_id = $1 AND DATE(m.created_at) = $2 AND m.role = 'user' AND c.sector_id = $3 GROUP BY hour ORDER BY hour`
+        : `SELECT EXTRACT(HOUR FROM created_at)::int AS hour, COUNT(*) AS count FROM messages WHERE tenant_id = $1 AND DATE(created_at) = $2 AND role = 'user' GROUP BY hour ORDER BY hour`,
+      s ? [tenantId, d, sectorId] : [tenantId, d]
     ),
   ]);
   return {

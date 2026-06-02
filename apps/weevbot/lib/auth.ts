@@ -11,15 +11,21 @@ async function getKey(): Promise<CryptoKey> {
   );
 }
 
-export async function createSessionToken(email: string): Promise<string> {
-  const payload = JSON.stringify({ email, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 });
+export interface SessionExtra {
+  role?: 'admin' | 'operator';
+  operatorId?: number;
+  sectorId?: number | null;
+}
+
+export async function createSessionToken(email: string, extra?: SessionExtra): Promise<string> {
+  const payload = JSON.stringify({ email, ...extra, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 });
   const key = await getKey();
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
   const sigB64 = btoa(Array.from(new Uint8Array(sig), c => String.fromCharCode(c)).join(''));
   return `${btoa(payload)}.${sigB64}`;
 }
 
-export async function verifySessionToken(token: string): Promise<{ email: string } | null> {
+export async function verifySessionToken(token: string): Promise<{ email: string } & SessionExtra | null> {
   try {
     const [payloadB64, sigB64] = token.split('.');
     if (!payloadB64 || !sigB64) return null;
@@ -28,9 +34,9 @@ export async function verifySessionToken(token: string): Promise<{ email: string
     const sigBytes = Uint8Array.from(atob(sigB64), c => c.charCodeAt(0));
     const valid = await crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(payloadStr));
     if (!valid) return null;
-    const { email, exp } = JSON.parse(payloadStr);
+    const { email, exp, role, operatorId, sectorId } = JSON.parse(payloadStr);
     if (Date.now() > exp) return null;
-    return { email };
+    return { email, role, operatorId, sectorId };
   } catch {
     return null;
   }

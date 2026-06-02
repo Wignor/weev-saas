@@ -1,11 +1,11 @@
 import { getConversations, updateConversationStatus } from '@/lib/db';
-import { getTenantId } from '@/lib/tenant-context';
+import { getSession } from '@/lib/tenant-context';
 import { redis, KEYS } from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
 
-async function getConversationsWithAutoResume(tenantId: string) {
-  const data = await getConversations(tenantId);
+async function getConversationsWithAutoResume(tenantId: string, sectorFilter: number | null | undefined) {
+  const data = await getConversations(tenantId, sectorFilter);
   const paused = data.filter(c => c.status === 'paused');
   if (paused.length) {
     await Promise.all(paused.map(async c => {
@@ -21,7 +21,11 @@ async function getConversationsWithAutoResume(tenantId: string) {
 
 export async function GET() {
   try {
-    const tenantId = await getTenantId();
+    const session = await getSession();
+    const tenantId = session.tenantId;
+    const sectorFilter: number | null | undefined =
+      session.role === 'operator' ? (session.sectorId ?? null) : undefined;
+
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -30,7 +34,7 @@ export async function GET() {
         };
         const iv = setInterval(async () => {
           try {
-            const convs = await getConversationsWithAutoResume(tenantId);
+            const convs = await getConversationsWithAutoResume(tenantId, sectorFilter);
             send({ type: 'conversations', data: convs });
           } catch {}
         }, 4000);
