@@ -1,7 +1,31 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bot, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
+
+function WeevZapLogo({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const dim = size === 'lg' ? 56 : size === 'md' ? 44 : 32;
+  return (
+    <svg width={dim} height={dim} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="48" height="48" rx="10" fill="#7c3aed"/>
+      <line x1="24" y1="6" x2="24" y2="12" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+      <circle cx="24" cy="5" r="2.5" fill="white"/>
+      <rect x="10" y="13" width="28" height="20" rx="5" fill="white"/>
+      <rect x="15" y="18" width="7" height="7" rx="2" fill="#7c3aed"/>
+      <rect x="26" y="18" width="7" height="7" rx="2" fill="#7c3aed"/>
+      <rect x="16.5" y="19.5" width="2" height="2" rx="0.5" fill="white"/>
+      <rect x="27.5" y="19.5" width="2" height="2" rx="0.5" fill="white"/>
+      <rect x="16" y="28" width="16" height="3" rx="1.5" fill="#7c3aed"/>
+      <rect x="19" y="28" width="2" height="3" fill="white"/>
+      <rect x="23" y="28" width="2" height="3" fill="white"/>
+      <rect x="27" y="28" width="2" height="3" fill="white"/>
+      <rect x="14" y="34" width="20" height="10" rx="4" fill="white"/>
+      <circle cx="24" cy="39" r="3" fill="#7c3aed" opacity="0.4"/>
+      <rect x="6" y="34" width="7" height="5" rx="2.5" fill="white"/>
+      <rect x="35" y="34" width="7" height="5" rx="2.5" fill="white"/>
+    </svg>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,19 +50,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-violet-600/10 rounded-full blur-3xl"/>
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-violet-700/12 rounded-full blur-3xl"/>
+        <div className="absolute bottom-0 right-0 w-[300px] h-[300px] bg-violet-900/10 rounded-full blur-3xl"/>
       </div>
-      <div className="w-full max-w-sm relative">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 bg-violet-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-violet-600/30">
-            <Bot size={28} className="text-white"/>
+
+      <div className="w-full max-w-sm relative z-10">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8 select-none">
+          <div className="mb-4 drop-shadow-[0_0_20px_rgba(124,58,237,0.6)]">
+            <WeevZapLogo size="lg"/>
           </div>
-          <h1 className="text-2xl font-bold text-white">WEEV<span className="text-violet-400">ZAP</span></h1>
-          <p className="text-slate-400 text-sm mt-1">Agente IA para WhatsApp</p>
+          <div className="flex items-baseline gap-1">
+            <span className="text-2xl font-black tracking-tight text-white">WeevZap</span>
+            <span className="text-sm font-bold text-violet-400 tracking-widest uppercase ml-1 border border-violet-600/60 px-1.5 py-0.5 rounded-md bg-violet-600/10">PRO</span>
+          </div>
+          <p className="text-slate-400 text-sm mt-1.5">Atendimento inteligente no WhatsApp</p>
         </div>
-        <div className="bg-slate-900 border border-slate-700/60 rounded-2xl p-6 shadow-2xl">
+
+        {/* Card */}
+        <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-700/60 rounded-2xl p-6 shadow-2xl shadow-black/40">
           <h2 className="text-white font-semibold text-lg mb-5">Entrar na conta</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -46,7 +79,7 @@ export default function LoginPage() {
               <div className="relative">
                 <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required
-                  className="w-full bg-slate-800 text-white text-sm rounded-lg pl-9 pr-3 py-2.5 outline-none border border-slate-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 placeholder-slate-600"/>
+                  className="w-full bg-slate-800 text-white text-sm rounded-xl pl-9 pr-3 py-2.5 outline-none border border-slate-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 placeholder-slate-600 transition-colors"/>
               </div>
             </div>
             <div>
@@ -54,20 +87,25 @@ export default function LoginPage() {
               <div className="relative">
                 <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"/>
                 <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required
-                  className="w-full bg-slate-800 text-white text-sm rounded-lg pl-9 pr-10 py-2.5 outline-none border border-slate-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 placeholder-slate-600"/>
-                <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+                  className="w-full bg-slate-800 text-white text-sm rounded-xl pl-9 pr-10 py-2.5 outline-none border border-slate-700 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50 placeholder-slate-600 transition-colors"/>
+                <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
                   {showPass ? <EyeOff size={15}/> : <Eye size={15}/>}
                 </button>
               </div>
             </div>
-            {error && <p className="text-red-400 text-xs bg-red-900/20 border border-red-800/40 rounded-lg px-3 py-2">{error}</p>}
+            {error && (
+              <div className="flex items-start gap-2 bg-red-900/20 border border-red-800/40 rounded-xl px-3 py-2.5">
+                <span className="text-red-400 text-sm">⚠</span>
+                <p className="text-red-400 text-xs">{error}</p>
+              </div>
+            )}
             <button type="submit" disabled={loading}
-              className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white font-semibold text-sm rounded-lg py-2.5 transition-colors mt-1">
+              className="w-full bg-violet-600 hover:bg-violet-500 active:bg-violet-700 disabled:opacity-60 text-white font-semibold text-sm rounded-xl py-2.5 transition-colors shadow-lg shadow-violet-700/30 mt-1">
               {loading ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
         </div>
-        <p className="text-center text-slate-600 text-xs mt-6">WeevZap © {new Date().getFullYear()}</p>
+        <p className="text-center text-slate-600 text-xs mt-5">WeevZap PRO © {new Date().getFullYear()}</p>
       </div>
     </div>
   );

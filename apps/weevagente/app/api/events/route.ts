@@ -1,7 +1,23 @@
-import { getConversations } from '@/lib/db';
+import { getConversations, updateConversationStatus } from '@/lib/db';
 import { getTenantId } from '@/lib/tenant-context';
+import { redis, KEYS } from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
+
+async function getConversationsWithAutoResume(tenantId: string) {
+  const data = await getConversations(tenantId);
+  const paused = data.filter(c => c.status === 'paused');
+  if (paused.length) {
+    await Promise.all(paused.map(async c => {
+      const state = await redis.get(KEYS.atendimento(tenantId, c.id));
+      if (state !== 'humano') {
+        c.status = 'active';
+        updateConversationStatus(tenantId, c.id, 'active').catch(() => {});
+      }
+    }));
+  }
+  return data;
+}
 
 export async function GET() {
   try {
@@ -13,7 +29,10 @@ export async function GET() {
           try { controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`)); } catch {}
         };
         const iv = setInterval(async () => {
-          try { const convs = await getConversations(tenantId); send({ type: 'conversations', data: convs }); } catch {}
+          try {
+            const convs = await getConversationsWithAutoResume(tenantId);
+            send({ type: 'conversations', data: convs });
+          } catch {}
         }, 4000);
         setTimeout(() => { clearInterval(iv); try { controller.close(); } catch {} }, 60000);
       },

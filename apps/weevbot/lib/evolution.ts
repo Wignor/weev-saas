@@ -122,6 +122,25 @@ export async function getProfilePictureUrl(number: string): Promise<string | nul
   }
 }
 
+export async function getMediaBase64(
+  messageKey: object,
+  message: object
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${BASE_URL}/chat/getBase64FromMediaMessage/${encodeURIComponent(INSTANCE)}`,
+      {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ message: { key: messageKey, message } }),
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data?.base64 as string) ?? null;
+  } catch { return null; }
+}
+
 export async function notifyAttendant(customerNumber: string, customerName: string, attendantNumber: string) {
   const text = `🔔 *Solicitação de Atendimento*\n\nCliente: *${customerName}* (${customerNumber}) está aguardando atendimento humano.`;
   await fetch(`${BASE_URL}/message/sendText/${encodeURIComponent(INSTANCE)}`, {

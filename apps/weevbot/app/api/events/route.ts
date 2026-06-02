@@ -1,6 +1,22 @@
-import { getConversations } from '@/lib/db';
+import { getConversations, updateConversationStatus } from '@/lib/db';
+import { redis, KEYS } from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
+
+async function getConversationsWithAutoResume() {
+  const data = await getConversations();
+  const paused = data.filter(c => c.status === 'paused');
+  if (paused.length) {
+    await Promise.all(paused.map(async c => {
+      const state = await redis.get(KEYS.atendimento(c.id));
+      if (state !== 'humano') {
+        c.status = 'active';
+        updateConversationStatus(c.id, 'active').catch(() => {});
+      }
+    }));
+  }
+  return data;
+}
 
 export async function GET(req: Request) {
   const encoder = new TextEncoder();
@@ -11,29 +27,20 @@ export async function GET(req: Request) {
     async start(controller) {
       const send = (type: string, data: unknown) => {
         try {
-          controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ type, data })}\n\n`)
-          );
-        } catch {
-          // client disconnected
-        }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type, data })}\n\n`));
+        } catch {}
       };
 
-      // Send initial data immediately
-      const initial = await getConversations().catch(() => []);
+      const initial = await getConversationsWithAutoResume().catch(() => []);
       send('conversations', initial);
 
-      // Push updates every 2s
       intervalId = setInterval(async () => {
-        const convs = await getConversations().catch(() => null);
+        const convs = await getConversationsWithAutoResume().catch(() => null);
         if (convs) send('conversations', convs);
       }, 2000);
 
-      // Heartbeat every 25s to keep connection alive through proxies
       heartbeatId = setInterval(() => {
-        try {
-          controller.enqueue(encoder.encode(': ping\n\n'));
-        } catch {}
+        try { controller.enqueue(encoder.encode(': ping\n\n')); } catch {}
       }, 25000);
 
       req.signal.addEventListener('abort', () => {

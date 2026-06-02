@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { redis, KEYS, TTL } from '@/lib/redis';
-import { upsertConversation, saveMessage, getSetting } from '@/lib/db';
-import { sendMessage, sendVideo, sendDocument, notifyAttendant, sendPTTAudio } from '@/lib/evolution';
+import { upsertConversation, saveMessage, getSetting, getFollowupConfigs, scheduleFollowups, cancelFollowups } from '@/lib/db';
+import { sendMessage, sendVideo, sendDocument, notifyAttendant, sendPTTAudio, getMediaBase64 } from '@/lib/evolution';
 import { generateSpeech } from '@/lib/tts';
 import { runAgent, pushRedisHistory } from '@/lib/agent';
 import { getContact, insertNewContact, setContactStatus, touchContact } from '@/lib/contacts';
@@ -12,6 +12,20 @@ const PENDING_KEY = (n: string) => `pending_msgs.${n}`;
 const LAST_MSG_KEY = (n: string) => `last_msg_time.${n}`;
 const LOCK_KEY = (n: string) => `debounce_lock.${n}`;
 const DEBOUNCE_MS = 8000;
+
+const BOT_PATTERNS = [
+  'atendimento automático', 'atendimento automatico', 'resposta automática', 'resposta automatica',
+  'mensagem automática', 'mensagem automatica', 'este é um número automático',
+  'este e um numero automatico', 'robô de atendimento', 'bot de atendimento',
+  'horário de atendimento encerrado', 'fora do nosso horário', 'fora do horario',
+  'assistente virtual', 'auto reply', 'autoresponder', 'auto-responder',
+  'não consigo responder mensagens', 'nao consigo responder',
+];
+
+function detectBot(text: string): boolean {
+  const lower = text.toLowerCase();
+  return BOT_PATTERNS.some(p => lower.includes(p));
+}
 
 interface PendingMsg {
   text: string;
@@ -25,10 +39,33 @@ function extractText(message: Record<string, unknown> | undefined): string {
   return (
     (message.conversation as string) ||
     ((message.extendedTextMessage as Record<string, string>)?.text) ||
-    ((message.imageMessage as Record<string, string>)?.caption) ||
-    ((message.videoMessage as Record<string, string>)?.caption) ||
     ''
   );
+}
+
+function isAudioMessage(message: Record<string, unknown> | undefined): boolean {
+  if (!message) return false;
+  return !!(message.audioMessage || message.pttMessage);
+}
+
+async function transcribeAudio(base64: string, openaiKey: string): Promise<string | null> {
+  try {
+    const b64 = base64.includes(',') ? base64.split(',')[1] : base64;
+    const bytes = Buffer.from(b64, 'base64');
+    const blob = new Blob([bytes], { type: 'audio/ogg' });
+    const form = new FormData();
+    form.append('file', blob, 'audio.ogg');
+    form.append('model', 'whisper-1');
+    form.append('language', 'pt');
+    const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${openaiKey}` },
+      body: form,
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return (d?.text as string)?.trim() || null;
+  } catch { return null; }
 }
 
 function forwardToN8n(url: string, body: unknown) {
@@ -70,6 +107,9 @@ async function processAIQueue(number: string) {
     if (!rawMsgs.length) return;
     await redis.del(PENDING_KEY(number));
 
+    const aiEnabled = await getSetting('ai_enabled');
+    if (aiEnabled === 'false') return;
+
     const msgs: PendingMsg[] = rawMsgs.map(m => JSON.parse(m));
     const { remoteJid, pushName } = msgs[msgs.length - 1];
     const combinedText = msgs.map(m => m.text).join('\n');
@@ -95,6 +135,7 @@ async function processAIQueue(number: string) {
         // For 'cliente': send hardcoded confirm. For 'lead': hand off to AI immediately
         // so it can start the qualification flow (ask about city, needs, etc.)
         if (classification === 'cliente') {
+          cancelFollowups(number).catch(() => {});
           const confirmMsg = '✅ Ótimo! Já registrei você como *cliente*. Como posso ajudá-lo hoje?';
           await sendMessage(remoteJid, confirmMsg, 800);
           const aiMsgId = `ai_classif_${number}_${Date.now()}`;
@@ -114,6 +155,7 @@ async function processAIQueue(number: string) {
               saveMessage(number, aiMsgId, 'assistant', aiResponse),
               upsertConversation(number, 'active', aiResponse),
             ]);
+            rescheduleLeadFollowups(number).catch(() => {});
           }
         }
       } else {
@@ -204,6 +246,15 @@ async function processAIQueue(number: string) {
   }
 }
 
+async function rescheduleLeadFollowups(number: string): Promise<void> {
+  try {
+    const configs = await getFollowupConfigs();
+    if (configs.some(c => c.enabled && c.message?.trim())) {
+      await scheduleFollowups(number, configs);
+    }
+  } catch {}
+}
+
 function scheduleAIProcessing(number: string) {
   const check = async () => {
     try {
@@ -248,6 +299,9 @@ export async function POST(req: Request) {
       if (isNew !== 'OK') return NextResponse.json({ ok: true });
     }
 
+    // Bot/loop blocker — block known auto-responders before any processing
+    if (await redis.get(KEYS.botBlock(number))) return NextResponse.json({ ok: true });
+
     // Outgoing (fromMe=true) → save message + pause AI if human attendant is responding
     if (fromMe) {
       const aiBusy = await redis.get(KEYS.aiBusy(number));
@@ -269,9 +323,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    // Incoming message
-    const text = extractText(data.message);
-    if (!text.trim()) return NextResponse.json({ ok: true });
+    // Incoming message — handle text and audio (ignore images, videos, docs)
+    let text = extractText(data.message);
+    if (!text.trim()) {
+      if (!isAudioMessage(data.message)) {
+        return NextResponse.json({ ok: true }); // silently ignore images, videos, documents
+      }
+      // Audio/PTT: transcribe via Whisper
+      const openaiKey = await getSetting('openai_api_key');
+      if (!openaiKey) return NextResponse.json({ ok: true });
+      const base64 = await getMediaBase64(data.key, data.message);
+      if (!base64) {
+        console.warn('[webhook] audio received but could not fetch base64');
+        return NextResponse.json({ ok: true });
+      }
+      const transcription = await transcribeAudio(base64, openaiKey);
+      if (!transcription) {
+        console.warn('[webhook] audio transcription failed or empty');
+        return NextResponse.json({ ok: true });
+      }
+      text = `🎤 ${transcription}`;
+    }
+
+    // Rate limiting + bot keyword detection
+    const rateKey = KEYS.rateLimit(number);
+    const msgCount = await redis.incr(rateKey);
+    if (msgCount === 1) await redis.expire(rateKey, 60);
+    if (msgCount > 8 || detectBot(text)) {
+      await redis.set(KEYS.botBlock(number), '1', 'EX', TTL.BOT_BLOCK);
+      return NextResponse.json({ ok: true });
+    }
 
     const pushName: string | undefined = data.pushName;
     const instance = process.env.EVOLUTION_INSTANCE || 'AT WT';
@@ -327,6 +408,9 @@ export async function POST(req: Request) {
     if (contact.status && BLOCKED_STATUSES.includes(contact.status)) {
       return NextResponse.json({ ok: true });
     }
+
+    // Cancel pending follow-ups since the lead responded
+    if (contact?.status === 'lead') cancelFollowups(number).catch(() => {});
 
     // Queue message and debounce: wait 8s of silence before processing
     const pendingMsg: PendingMsg = { text, msgId: userMsgId, remoteJid, pushName };

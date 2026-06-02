@@ -147,11 +147,59 @@ export async function completeTenantSetup(tenantId: string, passwordHash: string
   );
 }
 
+export async function getAllTenants(): Promise<Tenant[]> {
+  const { rows } = await pool.query<Tenant>(
+    `SELECT id, email, name, status, evolution_instance, kiwify_subscriber_id, kiwify_subscription_id, max_instances, created_at FROM tenants ORDER BY created_at DESC`
+  );
+  return rows;
+}
+
+export async function createTenantDirect(email: string, name: string, passwordHash: string, evolutionInstance: string): Promise<Tenant> {
+  const { rows } = await pool.query<Tenant>(
+    `INSERT INTO tenants (email, name, password_hash, evolution_instance, status)
+     VALUES ($1, $2, $3, $4, 'active') RETURNING *`,
+    [email, name, passwordHash, evolutionInstance]
+  );
+  const tenant = rows[0];
+  await initTenantSettings(tenant.id);
+  return tenant;
+}
+
+export async function updateTenantPasswordHash(tenantId: string, passwordHash: string): Promise<void> {
+  await pool.query(
+    `UPDATE tenants SET password_hash = $1 WHERE id = $2`,
+    [passwordHash, tenantId]
+  );
+}
+
+export async function updateTenantPasswordByEmail(email: string, passwordHash: string): Promise<void> {
+  await pool.query(
+    `UPDATE tenants SET password_hash = $1 WHERE email = $2`,
+    [passwordHash, email]
+  );
+}
+
+export async function updateTenantStatus(tenantId: string, status: TenantStatus): Promise<void> {
+  await pool.query(
+    `UPDATE tenants SET status = $1 WHERE id = $2`,
+    [status, tenantId]
+  );
+}
+
+export async function deleteTenant(tenantId: string): Promise<void> {
+  await pool.query(`DELETE FROM messages WHERE tenant_id = $1`, [tenantId]);
+  await pool.query(`DELETE FROM conversations WHERE tenant_id = $1`, [tenantId]);
+  await pool.query(`DELETE FROM settings WHERE tenant_id = $1`, [tenantId]);
+  await pool.query(`DELETE FROM quick_replies WHERE tenant_id = $1`, [tenantId]);
+  await pool.query(`DELETE FROM tenants WHERE id = $1`, [tenantId]);
+}
+
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 const DEFAULT_SETTINGS = [
+  { key: 'ai_enabled',              label: 'Agente IA Ativo',                   description: 'Ativa ou desativa o processamento automatico da IA. Quando desativado, mensagens sao registradas mas o bot nao responde.', value: 'true' },
   { key: 'system_prompt',           label: 'Prompt do Agente IA',              description: 'Instrucao principal que define a personalidade e comportamento do agente.', value: '' },
-  { key: 'welcome_message',         label: 'Mensagem de Boas-vindas',           description: 'Mensagem enviada automaticamente ao primeiro contato. Use {nome} para o nome do cliente.', value: 'Ola, {nome}! Seja bem-vindo!\n\nVoce ja e nosso cliente ou esta conhecendo nossos servicos?\n\n*JA SOU CLIENTE*\n*QUERO CONHECER*' },
+  { key: 'welcome_message',         label: 'Mensagem de Boas-vindas',           description: 'Mensagem enviada automaticamente ao primeiro contato. Use {nome} para o nome do cliente.', value: '' },
   { key: 'openai_api_key',          label: 'OpenAI API Key',                    description: 'Chave secreta da OpenAI (sk-...). Alteracoes entram em vigor imediatamente.', value: '' },
   { key: 'openai_model',            label: 'Modelo OpenAI',                     description: 'Modelo usado pelo agente. Ex: gpt-4o, gpt-4o-mini, gpt-3.5-turbo.', value: 'gpt-4o-mini' },
   { key: 'max_history_messages',    label: 'Historico de Mensagens',            description: 'Numero de mensagens anteriores enviadas como contexto para a IA.', value: '20' },
@@ -169,6 +217,13 @@ const DEFAULT_SETTINGS = [
   { key: 'meta_phone_number_id',    label: 'Phone Number ID (Meta API Oficial)', description: 'ID do numero de telefone no Meta Business Manager. Encontrado em: WhatsApp > API Setup > Phone Number ID.', value: '' },
   { key: 'meta_access_token',       label: 'Token de Acesso (Meta API Oficial)', description: 'Token permanente de acesso da Meta. Gere em: Meta for Developers > WhatsApp > Configuration > Temporary/Permanent Token.', value: '' },
   { key: 'meta_business_account_id', label: 'Business Account ID (Meta)',        description: 'ID da conta comercial. Necessario para listar seus templates aprovados. Encontrado no Meta Business Manager.', value: '' },
+  { key: 'openai_assistant_id',     label: 'ID do Assistente OpenAI',            description: 'ID do Assistente criado na plataforma OpenAI (começa com asst_).', value: '' },
+  { key: 'google_calendar_id',      label: 'Google Calendar ID',                 description: 'ID do calendário Google (ex: abc@group.calendar.google.com).', value: '' },
+  { key: 'google_client_id',        label: 'Google Client ID',                   description: 'Client ID da aplicação OAuth2 criada no Google Cloud Console.', value: '' },
+  { key: 'google_client_secret',    label: 'Google Client Secret',               description: 'Client Secret da aplicação OAuth2 no Google Cloud Console.', value: '' },
+  { key: 'google_refresh_token',    label: 'Google Refresh Token',               description: 'Token de atualização gerado após autorização OAuth2.', value: '' },
+  { key: 'google_event_duration',   label: 'Duração Padrão do Evento (min)',      description: 'Duração padrão dos eventos criados no Google Calendar (em minutos).', value: '60' },
+  { key: 'google_timezone',         label: 'Fuso Horário do Calendar',            description: 'Fuso horário dos eventos do Google Calendar. Ex: America/Sao_Paulo.', value: 'America/Sao_Paulo' },
 ];
 
 async function initTenantSettings(tenantId: string): Promise<void> {
@@ -430,4 +485,279 @@ export async function markBroadcastFailed(id: number, error: string): Promise<vo
     `UPDATE scheduled_broadcasts SET status = 'failed', error = $2 WHERE id = $1`,
     [id, error]
   );
+}
+
+// ─── Sectors ──────────────────────────────────────────────────────────────────
+
+export interface Sector {
+  id: number;
+  tenant_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+}
+
+export async function getSectors(tenantId: string): Promise<Sector[]> {
+  const { rows } = await pool.query<Sector>(
+    `SELECT * FROM sectors WHERE tenant_id = $1 ORDER BY name ASC`, [tenantId]
+  );
+  return rows;
+}
+
+export async function createSector(tenantId: string, name: string, description?: string): Promise<Sector> {
+  const { rows } = await pool.query<Sector>(
+    `INSERT INTO sectors (tenant_id, name, description) VALUES ($1, $2, $3) RETURNING *`,
+    [tenantId, name, description ?? null]
+  );
+  return rows[0];
+}
+
+export async function deleteSector(tenantId: string, id: number): Promise<void> {
+  await pool.query(`DELETE FROM sectors WHERE id = $1 AND tenant_id = $2`, [id, tenantId]);
+}
+
+export async function transferConversationSector(
+  tenantId: string, conversationId: string, toSectorId: number, transferredBy?: string, note?: string
+): Promise<void> {
+  const { rows } = await pool.query<{ sector_id: number | null }>(
+    `SELECT sector_id FROM conversations WHERE id = $1 AND tenant_id = $2`, [conversationId, tenantId]
+  );
+  const fromSectorId = rows[0]?.sector_id ?? null;
+  await pool.query(
+    `UPDATE conversations SET sector_id = $1 WHERE id = $2 AND tenant_id = $3`, [toSectorId, conversationId, tenantId]
+  );
+  await pool.query(
+    `INSERT INTO sector_transfers (tenant_id, conversation_id, from_sector_id, to_sector_id, transferred_by, note)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [tenantId, conversationId, fromSectorId, toSectorId, transferredBy ?? null, note ?? null]
+  );
+}
+
+export interface SectorTransfer {
+  id: number;
+  conversation_id: string;
+  from_sector_id: number | null;
+  to_sector_id: number;
+  transferred_by: string | null;
+  note: string | null;
+  created_at: string;
+  from_sector_name?: string;
+  to_sector_name?: string;
+}
+
+export async function getSectorTransfers(tenantId: string, conversationId: string): Promise<SectorTransfer[]> {
+  const { rows } = await pool.query<SectorTransfer>(
+    `SELECT st.*, sf.name AS from_sector_name, st2.name AS to_sector_name
+     FROM sector_transfers st
+     LEFT JOIN sectors sf ON sf.id = st.from_sector_id
+     JOIN sectors st2 ON st2.id = st.to_sector_id
+     WHERE st.tenant_id = $1 AND st.conversation_id = $2
+     ORDER BY st.created_at ASC`,
+    [tenantId, conversationId]
+  );
+  return rows;
+}
+
+// ─── Follow-up Configs ────────────────────────────────────────────────────────
+
+export interface FollowupConfig {
+  id: number;
+  tenant_id: string;
+  step_order: number;
+  enabled: boolean;
+  delay_minutes: number;
+  message: string;
+  file_url: string | null;
+  file_type: string | null;
+  file_name: string | null;
+  created_at: string;
+}
+
+export async function getFollowupConfigs(tenantId: string): Promise<FollowupConfig[]> {
+  const { rows } = await pool.query<FollowupConfig>(
+    `SELECT * FROM followup_configs WHERE tenant_id = $1 ORDER BY step_order ASC`, [tenantId]
+  );
+  return rows;
+}
+
+export async function upsertFollowupConfig(
+  tenantId: string,
+  stepOrder: number,
+  data: { enabled: boolean; delay_minutes: number; message: string; file_url?: string; file_type?: string; file_name?: string }
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO followup_configs (tenant_id, step_order, enabled, delay_minutes, message, file_url, file_type, file_name)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (tenant_id, step_order) DO UPDATE SET
+       enabled = EXCLUDED.enabled,
+       delay_minutes = EXCLUDED.delay_minutes,
+       message = EXCLUDED.message,
+       file_url = EXCLUDED.file_url,
+       file_type = EXCLUDED.file_type,
+       file_name = EXCLUDED.file_name`,
+    [tenantId, stepOrder, data.enabled, data.delay_minutes, data.message, data.file_url ?? null, data.file_type ?? null, data.file_name ?? null]
+  );
+}
+
+export interface ScheduledFollowup {
+  id: number;
+  tenant_id: string;
+  conversation_id: string;
+  step_order: number;
+  scheduled_at: string;
+  status: 'pending' | 'sent' | 'cancelled';
+  sent_at: string | null;
+  created_at: string;
+}
+
+export async function scheduleFollowups(tenantId: string, conversationId: string, configs: FollowupConfig[]): Promise<void> {
+  await pool.query(
+    `UPDATE scheduled_followups SET status = 'cancelled' WHERE tenant_id = $1 AND conversation_id = $2 AND status = 'pending'`,
+    [tenantId, conversationId]
+  );
+  const enabled = configs.filter(c => c.enabled && c.message.trim());
+  if (!enabled.length) return;
+  let cumulativeMinutes = 0;
+  for (const c of enabled) {
+    cumulativeMinutes += c.delay_minutes;
+    await pool.query(
+      `INSERT INTO scheduled_followups (tenant_id, conversation_id, step_order, scheduled_at)
+       VALUES ($1, $2, $3, NOW() + ($4 * INTERVAL '1 minute'))`,
+      [tenantId, conversationId, c.step_order, cumulativeMinutes]
+    );
+  }
+}
+
+export async function cancelFollowups(tenantId: string, conversationId: string): Promise<void> {
+  await pool.query(
+    `UPDATE scheduled_followups SET status = 'cancelled' WHERE tenant_id = $1 AND conversation_id = $2 AND status = 'pending'`,
+    [tenantId, conversationId]
+  );
+}
+
+export async function getPendingFollowups(): Promise<(ScheduledFollowup & { followup_message: string; file_url: string | null; file_type: string | null; file_name: string | null; evolution_instance: string | null })[]> {
+  const { rows } = await pool.query(
+    `SELECT sf.*, fc.message AS followup_message, fc.file_url, fc.file_type, fc.file_name, t.evolution_instance
+     FROM scheduled_followups sf
+     JOIN followup_configs fc ON fc.tenant_id = sf.tenant_id AND fc.step_order = sf.step_order
+     JOIN tenants t ON t.id = sf.tenant_id
+     WHERE sf.status = 'pending' AND sf.scheduled_at <= NOW()
+     ORDER BY sf.scheduled_at ASC LIMIT 50`
+  );
+  return rows;
+}
+
+export async function markFollowupSent(id: number): Promise<void> {
+  await pool.query(`UPDATE scheduled_followups SET status = 'sent', sent_at = NOW() WHERE id = $1`, [id]);
+}
+
+// ─── Daily Report ─────────────────────────────────────────────────────────────
+
+export interface DailyReportEntry {
+  hour: number;
+  count: number;
+}
+
+export interface DailyReport {
+  total_conversations: number;
+  new_contacts: number;
+  human_paused: number;
+  ai_active: number;
+  messages_sent: number;
+  by_hour: DailyReportEntry[];
+}
+
+export async function getDailyReport(tenantId: string, date?: string): Promise<DailyReport> {
+  const d = date || new Date().toISOString().slice(0, 10);
+  const [convR, newR, msgR, hourR] = await Promise.all([
+    pool.query<{ total: string; human_paused: string; ai_active: string }>(
+      `SELECT
+         COUNT(*) AS total,
+         COUNT(*) FILTER (WHERE status = 'paused') AS human_paused,
+         COUNT(*) FILTER (WHERE status = 'active') AS ai_active
+       FROM conversations WHERE tenant_id = $1 AND DATE(last_message_at) = $2`,
+      [tenantId, d]
+    ),
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM contacts WHERE tenant_id = $1 AND DATE(created_at) = $2`, [tenantId, d]
+    ),
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM messages WHERE tenant_id = $1 AND DATE(created_at) = $2`, [tenantId, d]
+    ),
+    pool.query<{ hour: string; count: string }>(
+      `SELECT EXTRACT(HOUR FROM created_at)::int AS hour, COUNT(*) AS count
+       FROM messages WHERE tenant_id = $1 AND DATE(created_at) = $2 AND role = 'user'
+       GROUP BY hour ORDER BY hour`,
+      [tenantId, d]
+    ),
+  ]);
+  return {
+    total_conversations: parseInt(convR.rows[0]?.total ?? '0'),
+    new_contacts: parseInt(newR.rows[0]?.count ?? '0'),
+    human_paused: parseInt(convR.rows[0]?.human_paused ?? '0'),
+    ai_active: parseInt(convR.rows[0]?.ai_active ?? '0'),
+    messages_sent: parseInt(msgR.rows[0]?.count ?? '0'),
+    by_hour: hourR.rows.map(r => ({ hour: parseInt(String(r.hour)), count: parseInt(r.count) })),
+  };
+}
+
+// ─── Media Library ────────────────────────────────────────────────────────────
+
+export interface MediaItem {
+  id: number;
+  tenant_id: string;
+  name: string;
+  type: 'image' | 'video' | 'document' | 'audio';
+  url: string;
+  file_name: string;
+  size_bytes: number;
+  created_at: string;
+}
+
+export async function getMediaItems(tenantId: string): Promise<MediaItem[]> {
+  const { rows } = await pool.query<MediaItem>(
+    `SELECT * FROM media_library WHERE tenant_id = $1 ORDER BY created_at DESC`,
+    [tenantId]
+  );
+  return rows;
+}
+
+export async function createMediaItem(
+  tenantId: string,
+  name: string,
+  type: string,
+  url: string,
+  fileName: string,
+  sizeBytes: number
+): Promise<MediaItem> {
+  const { rows } = await pool.query<MediaItem>(
+    `INSERT INTO media_library (tenant_id, name, type, url, file_name, size_bytes)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [tenantId, name, type, url, fileName, sizeBytes]
+  );
+  return rows[0];
+}
+
+export async function getMediaItem(tenantId: string, id: number): Promise<MediaItem | null> {
+  const { rows } = await pool.query<MediaItem>(
+    `SELECT * FROM media_library WHERE id = $1 AND tenant_id = $2`,
+    [id, tenantId]
+  );
+  return rows[0] ?? null;
+}
+
+export async function deleteMediaItemById(tenantId: string, id: number): Promise<string | null> {
+  const { rows } = await pool.query<{ url: string }>(
+    `DELETE FROM media_library WHERE id = $1 AND tenant_id = $2 RETURNING url`,
+    [id, tenantId]
+  );
+  return rows[0]?.url ?? null;
+}
+
+export async function getTenantStorageUsed(tenantId: string): Promise<number> {
+  const { rows } = await pool.query<{ total: string }>(
+    `SELECT COALESCE(SUM(size_bytes), 0)::text AS total FROM media_library WHERE tenant_id = $1`,
+    [tenantId]
+  );
+  return parseInt(rows[0]?.total ?? '0', 10);
 }

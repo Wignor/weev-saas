@@ -11,6 +11,8 @@ export const KEYS = {
   atendimento: (number: string) => `atendimento.${number}`,
   aiBusy: (number: string) => `ai_busy.${number}`,
   chatHistory: (number: string) => `chat_history.${number}`,
+  botBlock: (number: string) => `bot_block.${number}`,
+  rateLimit: (number: string) => `rate.${number}`,
 };
 
 export const TTL = {
@@ -18,4 +20,5 @@ export const TTL = {
   SESSAO_ATIVA: 1800,
   AI_BUSY: 60,
   CHAT_HISTORY: 172800, // 48h
+  BOT_BLOCK: 86400,     // 24h
 };

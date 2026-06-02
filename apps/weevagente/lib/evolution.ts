@@ -72,6 +72,15 @@ export async function sendDocument(instance: string, remoteJid: string, url: str
   });
 }
 
+export async function sendImage(instance: string, remoteJid: string, url: string, caption = '') {
+  return evol('POST', `/message/sendMedia/${instance}`, {
+    number: remoteJid,
+    mediatype: 'image',
+    media: url,
+    caption,
+  });
+}
+
 export async function sendPTTAudio(instance: string, remoteJid: string, audioBase64: string) {
   const number = remoteJid.includes('@') ? remoteJid.split('@')[0] : remoteJid;
   return evol('POST', `/message/sendWhatsAppAudio/${instance}`, {
@@ -79,6 +88,23 @@ export async function sendPTTAudio(instance: string, remoteJid: string, audioBas
     audio: audioBase64,
     encoding: true,
   });
+}
+
+export async function getMediaBase64(
+  instanceName: string,
+  messageKey: object,
+  message: object
+): Promise<string | null> {
+  try {
+    const r = await fetch(`${BASE}/chat/getBase64FromMediaMessage/${encodeURIComponent(instanceName)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: KEY },
+      body: JSON.stringify({ message: { key: messageKey, message } }),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return (d?.base64 as string) ?? null;
+  } catch { return null; }
 }
 
 export async function notifyAttendant(instance: string, contactNumber: string, contactName: string, attendantNumber: string) {

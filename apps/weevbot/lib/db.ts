@@ -226,6 +226,13 @@ export async function deleteMediaItemById(id: number): Promise<string | null> {
   return rows[0]?.url ?? null;
 }
 
+export async function getStorageUsed(): Promise<number> {
+  const { rows } = await pool.query<{ total: string }>(
+    `SELECT COALESCE(SUM(size_bytes), 0)::text AS total FROM media_library`
+  );
+  return parseInt(rows[0]?.total ?? '0', 10);
+}
+
 // ─── Scheduled Broadcasts ────────────────────────────────────────────────────
 
 export interface ScheduledBroadcast {
@@ -285,4 +292,177 @@ export async function markBroadcastFailed(id: number, error: string): Promise<vo
     `UPDATE scheduled_broadcasts SET status = 'failed', error = $2 WHERE id = $1`,
     [id, error]
   );
+}
+
+// ─── Users (admin) ───────────────────────────────────────────────────────────
+
+export interface User {
+  id: number;
+  email: string;
+  name: string | null;
+  created_at: string;
+}
+
+export async function getUsers(): Promise<User[]> {
+  const { rows } = await pool.query<User>(
+    `SELECT id, email, name, created_at FROM users ORDER BY created_at DESC`
+  );
+  return rows;
+}
+
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const { rows } = await pool.query<User>(
+    `SELECT id, email, name, created_at FROM users WHERE email = $1`, [email]
+  );
+  return rows[0] ?? null;
+}
+
+export async function getUserPasswordHash(email: string): Promise<string | null> {
+  const { rows } = await pool.query<{ password_hash: string }>(
+    `SELECT password_hash FROM users WHERE email = $1`, [email]
+  );
+  return rows[0]?.password_hash ?? null;
+}
+
+export async function createUser(email: string, name: string, passwordHash: string): Promise<User> {
+  const { rows } = await pool.query<User>(
+    `INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id, email, name, created_at`,
+    [email, name, passwordHash]
+  );
+  return rows[0];
+}
+
+export async function updateUserPassword(id: number, passwordHash: string): Promise<void> {
+  await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [passwordHash, id]);
+}
+
+export async function updateUserPasswordByEmail(email: string, passwordHash: string): Promise<void> {
+  await pool.query(`UPDATE users SET password_hash = $1 WHERE email = $2`, [passwordHash, email]);
+}
+
+export async function deleteUser(id: number): Promise<void> {
+  await pool.query(`DELETE FROM users WHERE id = $1`, [id]);
+}
+
+// ─── Daily Report ────────────────────────────────────────────────────────────
+
+export interface DailyReport {
+  total_conversations: number;
+  new_contacts: number;
+  human_paused: number;
+  ai_active: number;
+  messages_sent: number;
+  by_hour: { hour: number; count: number }[];
+}
+
+export async function getDailyReport(date: string): Promise<DailyReport> {
+  const start = `${date} 00:00:00`;
+  const end   = `${date} 23:59:59`;
+  const [totalR, newR, humanR, aiR, msgsR, hourR] = await Promise.all([
+    pool.query(`SELECT COUNT(DISTINCT conversation_id) as count FROM messages WHERE created_at BETWEEN $1 AND $2`, [start, end]),
+    pool.query(`SELECT COUNT(*) as count FROM conversations WHERE DATE(created_at) = $1`, [date]),
+    pool.query(`SELECT COUNT(*) as count FROM conversations WHERE status = 'paused'`),
+    pool.query(`SELECT COUNT(*) as count FROM conversations WHERE status = 'active'`),
+    pool.query(`SELECT COUNT(*) as count FROM messages WHERE created_at BETWEEN $1 AND $2`, [start, end]),
+    pool.query(`SELECT EXTRACT(HOUR FROM created_at) as hour, COUNT(*) as count FROM messages WHERE created_at BETWEEN $1 AND $2 GROUP BY hour ORDER BY hour`, [start, end]),
+  ]);
+  return {
+    total_conversations: parseInt(totalR.rows[0]?.count || '0'),
+    new_contacts: parseInt(newR.rows[0]?.count || '0'),
+    human_paused: parseInt(humanR.rows[0]?.count || '0'),
+    ai_active: parseInt(aiR.rows[0]?.count || '0'),
+    messages_sent: parseInt(msgsR.rows[0]?.count || '0'),
+    by_hour: hourR.rows.map(r => ({ hour: parseInt(String(r.hour)), count: parseInt(r.count) })),
+  };
+}
+
+// ─── Follow-ups ───────────────────────────────────────────────────────────────
+
+export interface FollowupConfig {
+  id?: number;
+  step_order: number;
+  enabled: boolean;
+  delay_minutes: number;
+  message: string;
+  file_url: string | null;
+  file_type: string | null;
+  file_name: string | null;
+}
+
+export async function getFollowupConfigs(): Promise<FollowupConfig[]> {
+  const { rows } = await pool.query<FollowupConfig>(
+    `SELECT * FROM followup_configs ORDER BY step_order ASC`
+  );
+  return rows;
+}
+
+export async function upsertFollowupConfig(
+  stepOrder: number,
+  data: { enabled: boolean; delay_minutes: number; message: string; file_url?: string | null; file_type?: string | null; file_name?: string | null }
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO followup_configs (step_order, enabled, delay_minutes, message, file_url, file_type, file_name)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (step_order) DO UPDATE SET
+       enabled = EXCLUDED.enabled,
+       delay_minutes = EXCLUDED.delay_minutes,
+       message = EXCLUDED.message,
+       file_url = EXCLUDED.file_url,
+       file_type = EXCLUDED.file_type,
+       file_name = EXCLUDED.file_name`,
+    [stepOrder, data.enabled, data.delay_minutes, data.message, data.file_url ?? null, data.file_type ?? null, data.file_name ?? null]
+  );
+}
+
+export async function scheduleFollowups(conversationId: string, configs: FollowupConfig[]): Promise<void> {
+  await pool.query(
+    `UPDATE scheduled_followups SET status = 'cancelled' WHERE conversation_id = $1 AND status = 'pending'`,
+    [conversationId]
+  );
+  const enabled = configs.filter(c => c.enabled && c.message?.trim());
+  if (!enabled.length) return;
+  let cumulativeMinutes = 0;
+  for (const c of enabled) {
+    cumulativeMinutes += c.delay_minutes;
+    await pool.query(
+      `INSERT INTO scheduled_followups (conversation_id, step_order, scheduled_at)
+       VALUES ($1, $2, NOW() + ($3 * INTERVAL '1 minute'))`,
+      [conversationId, c.step_order, cumulativeMinutes]
+    );
+  }
+}
+
+export async function cancelFollowups(conversationId: string): Promise<void> {
+  await pool.query(
+    `UPDATE scheduled_followups SET status = 'cancelled' WHERE conversation_id = $1 AND status = 'pending'`,
+    [conversationId]
+  );
+}
+
+export interface ScheduledFollowup {
+  id: number;
+  conversation_id: string;
+  step_order: number;
+  scheduled_at: string;
+  status: 'pending' | 'sent' | 'cancelled';
+  sent_at: string | null;
+  followup_message: string;
+  file_url: string | null;
+  file_type: string | null;
+  file_name: string | null;
+}
+
+export async function getPendingFollowups(): Promise<ScheduledFollowup[]> {
+  const { rows } = await pool.query(
+    `SELECT sf.*, fc.message AS followup_message, fc.file_url, fc.file_type, fc.file_name
+     FROM scheduled_followups sf
+     JOIN followup_configs fc ON fc.step_order = sf.step_order
+     WHERE sf.status = 'pending' AND sf.scheduled_at <= NOW()
+     ORDER BY sf.scheduled_at ASC LIMIT 50`
+  );
+  return rows;
+}
+
+export async function markFollowupSent(id: number): Promise<void> {
+  await pool.query(`UPDATE scheduled_followups SET status = 'sent', sent_at = NOW() WHERE id = $1`, [id]);
 }

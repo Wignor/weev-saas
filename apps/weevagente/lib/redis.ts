@@ -14,6 +14,8 @@ export const KEYS = {
   aiBusy:      (tid: string, n: string) => `t:${tid}:ai_busy.${n}`,
   sessaoAtiva: (tid: string, n: string) => `t:${tid}:sessao_ativa.${n}`,
   chatHistory: (tid: string, n: string) => `t:${tid}:chat_history.${n}`,
+  botBlock:    (tid: string, n: string) => `t:${tid}:bot_block.${n}`,
+  rateLimit:   (tid: string, n: string) => `t:${tid}:rate.${n}`,
 };
 
 export const TTL = {
@@ -21,4 +23,5 @@ export const TTL = {
   PAUSA_HUMANO:  300,
   AI_BUSY:       60,
   CHAT_HISTORY:  172800, // 48h
+  BOT_BLOCK:     86400,  // 24h
 };
