@@ -7,7 +7,7 @@ import {
   ChevronLeft, Wifi, WifiOff, LogOut, Megaphone, Info, AlertTriangle,
   ChevronDown, ChevronUp, Mic, Square, Music, BarChart2, Bell,
   Building2, ArrowRightLeft, Menu, Users, Zap, ShieldCheck, KeyRound,
-  Eye, EyeOff, Paperclip,
+  Eye, EyeOff, Paperclip, Link,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -29,6 +29,7 @@ interface Sector { id: number; name: string; description: string | null; }
 interface FollowupConfig { id?: number; step_order: number; enabled: boolean; delay_minutes: number; message: string; file_url: string; file_type: string; file_name: string; }
 interface DailyReport { total_conversations: number; new_contacts: number; human_paused: number; ai_active: number; messages_sent: number; by_hour: { hour: number; count: number }[]; }
 interface MediaItem { id: number; name: string; type: 'image'|'video'|'document'|'audio'; url: string; file_name: string; size_bytes: number; }
+interface MediaUrlItem { id: number; name: string; url: string; type: 'document'|'video'|'image'|'audio'; description: string|null; }
 interface AdminTenant { id: string; email: string; name: string | null; status: string; evolution_instance: string | null; created_at: string; }
 
 type Tab = 'dashboard' | 'inbox' | 'whatsapp' | 'broadcast' | 'sectors' | 'followups' | 'settings' | 'admin';
@@ -324,6 +325,11 @@ export default function DashboardPage() {
   const [sendingMedia, setSendingMedia] = useState<number|null>(null);
   const mediaUploadRef = useRef<HTMLInputElement>(null);
 
+  // Media URLs
+  const [mediaUrls, setMediaUrls] = useState<MediaUrlItem[]>([]);
+  const [newMediaUrl, setNewMediaUrl] = useState({ name: '', url: '', type: 'document' as MediaUrlItem['type'], description: '' });
+  const [savingMediaUrl, setSavingMediaUrl] = useState(false);
+
   // Audio
   const [isRecording, setIsRecording] = useState(false);
   const [recSecs, setRecSecs] = useState(0);
@@ -412,6 +418,7 @@ export default function DashboardPage() {
     }).catch(()=>{});
     fetch('/api/sectors').then(r=>r.json()).then(setSectors).catch(()=>{});
     fetch('/api/media').then(r=>r.json()).then((d:MediaItem[])=>{ if(Array.isArray(d)) setMediaItems(d); }).catch(()=>{});
+    fetch('/api/media-urls').then(r=>r.json()).then((d:MediaUrlItem[])=>{ if(Array.isArray(d)) setMediaUrls(d); }).catch(()=>{});
     fetch('/api/followups').then(r=>r.json()).then((data:FollowupConfig[])=>{
       if (data?.length) {
         setFollowupConfigs(prev=>prev.map(p=>data.find(d=>d.step_order===p.step_order)||p));
@@ -1407,6 +1414,49 @@ export default function DashboardPage() {
                   </div>
                 );
               })}
+              {/* Mídias com Link */}
+              <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                <button onClick={()=>toggleGroup('__media_urls')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/30 transition-colors">
+                  <span className="text-white text-sm font-semibold flex items-center gap-2"><Link size={13} className="text-emerald-400"/>Mídias com Link (IA)</span>
+                  {openGroups['__media_urls']?<ChevronUp size={15} className="text-slate-400"/>:<ChevronDown size={15} className="text-slate-400"/>}
+                </button>
+                {openGroups['__media_urls']&&(
+                  <div className="px-3 pb-3 border-t border-slate-700/50 pt-3 space-y-2">
+                    <p className="text-xs text-slate-400">A IA envia automaticamente ao usar o tool <code className="bg-slate-700 px-1 rounded text-emerald-400">send_media</code> com o nome exato.</p>
+                    <div className="space-y-2">
+                      <input value={newMediaUrl.name} onChange={e=>setNewMediaUrl(p=>({...p,name:e.target.value}))} placeholder="Nome (ex: Catálogo PDF)" className="w-full bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
+                      <input value={newMediaUrl.url} onChange={e=>setNewMediaUrl(p=>({...p,url:e.target.value}))} placeholder="URL pública do arquivo" className="w-full bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
+                      <div className="flex gap-2">
+                        <select value={newMediaUrl.type} onChange={e=>setNewMediaUrl(p=>({...p,type:e.target.value as MediaUrlItem['type']}))} className="flex-1 bg-slate-700 text-xs text-white rounded-lg px-3 py-2 outline-none">
+                          <option value="document">Documento / PDF</option>
+                          <option value="video">Vídeo</option>
+                          <option value="image">Imagem</option>
+                          <option value="audio">Áudio</option>
+                        </select>
+                        <button disabled={savingMediaUrl||!newMediaUrl.name.trim()||!newMediaUrl.url.trim()} onClick={async()=>{setSavingMediaUrl(true);try{const r=await fetch('/api/media-urls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newMediaUrl)});if(r.ok){const item=await r.json();setMediaUrls(p=>[...p,item]);setNewMediaUrl({name:'',url:'',type:'document',description:'']);}}finally{setSavingMediaUrl(false);}}} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-medium rounded-lg transition-colors shrink-0">
+                          {savingMediaUrl?'…':'Adicionar'}
+                        </button>
+                      </div>
+                    </div>
+                    {mediaUrls.map(item=>(
+                      <div key={item.id} className="bg-slate-800 rounded-lg p-2.5 border border-slate-700 flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-white">{item.name}</p>
+                          <p className="text-[10px] text-slate-500 capitalize">{item.type}</p>
+                        </div>
+                        <button onClick={async()=>{await fetch('/api/media-urls',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:item.id})});setMediaUrls(p=>p.filter(m=>m.id!==item.id));}} className="text-slate-500 hover:text-red-400 shrink-0"><X size={12}/></button>
+                      </div>
+                    ))}
+                    {mediaUrls.length>0&&(
+                      <div className="bg-slate-900 rounded-lg p-2.5 border border-slate-700">
+                        <p className="text-[10px] text-slate-500 mb-1 font-medium">Nomes para o prompt:</p>
+                        <p className="text-xs text-emerald-400 font-mono">{mediaUrls.map(m=>m.name).join(' · ')}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
                 <button onClick={()=>toggleGroup('__qr')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/30 transition-colors">
                   <span className="text-white text-sm font-semibold">Respostas Rápidas</span>

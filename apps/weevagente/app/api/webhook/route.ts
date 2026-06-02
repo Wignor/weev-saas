@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { redis, KEYS, TTL } from '@/lib/redis';
-import { upsertConversation, saveMessage, getSetting, getContact, insertNewContact, setContactStatus, touchContact, getFollowupConfigs, scheduleFollowups, cancelFollowups } from '@/lib/db';
-import { sendMessage, sendVideo, sendDocument, notifyAttendant, sendPTTAudio, getMediaBase64 } from '@/lib/evolution';
+import { upsertConversation, saveMessage, getSetting, getContact, insertNewContact, setContactStatus, touchContact, getFollowupConfigs, scheduleFollowups, cancelFollowups, getMediaUrlByName } from '@/lib/db';
+import { sendMessage, sendVideo, sendDocument, sendImage, sendAudio, notifyAttendant, sendPTTAudio, getMediaBase64 } from '@/lib/evolution';
 import { generateSpeech } from '@/lib/tts';
 import { runAgent, pushRedisHistory } from '@/lib/agent';
 import { splitIntoBlocks } from '@/lib/message-utils';
@@ -140,7 +140,7 @@ async function processAIQueue(tenantId: string, instance: string, number: string
       return;
     }
 
-    const { text: aiResponse, toolCalls } = await runAgent(tenantId, number, combinedText, contact?.status, pushName);
+    const { text: aiResponse, toolCalls, toolCallResults } = await runAgent(tenantId, number, combinedText, contact?.status, pushName);
     touchContact(tenantId, number, pushName).catch(() => {});
     if ((await redis.get(KEYS.atendimento(tenantId, number))) === 'humano') return;
 
@@ -157,6 +157,21 @@ async function processAIQueue(tenantId: string, instance: string, number: string
     if (toolCalls.includes('notify_attendant')) {
       const num = await getSetting(tenantId, 'notification_number');
       if (num) await notifyAttendant(instance, number, pushName || number, num).catch(() => {});
+    }
+    for (const tc of (toolCallResults ?? [])) {
+      if (tc.name === 'send_media') {
+        const nome = ((tc.args.nome || tc.args.name || '') as string).trim();
+        if (nome) {
+          const media = await getMediaUrlByName(tenantId, nome);
+          if (media) {
+            if (media.type === 'video')         await sendVideo(instance, remoteJid, media.url, '').catch(() => {});
+            else if (media.type === 'image')    await sendImage(instance, remoteJid, media.url, '').catch(() => {});
+            else if (media.type === 'audio')    await sendAudio(instance, remoteJid, media.url).catch(() => {});
+            else                                await sendDocument(instance, remoteJid, media.url, media.name).catch(() => {});
+            await saveMessage(tenantId, number, `media_url_${number}_${Date.now()}`, 'assistant', `[MEDIA:${media.type}] ${media.url}`).catch(() => {});
+          }
+        }
+      }
     }
 
     const ttsEnabled = await getSetting(tenantId, 'tts_enabled');

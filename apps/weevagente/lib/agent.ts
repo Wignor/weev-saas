@@ -11,13 +11,18 @@ export async function pushRedisHistory(tenantId: string, number: string, role: '
   await redis.expire(key, TTL.CHAT_HISTORY);
 }
 
+export interface ToolCallResult {
+  name: string;
+  args: Record<string, unknown>;
+}
+
 export async function runAgent(
   tenantId: string,
   number: string,
   message: string,
   contactStatus: string | undefined,
   pushName: string | undefined,
-): Promise<{ text: string; toolCalls: string[] }> {
+): Promise<{ text: string; toolCalls: string[]; toolCallResults: ToolCallResult[] }> {
   const [apiKey, assistantId] = await Promise.all([
     getSetting(tenantId, 'openai_api_key'),
     getSetting(tenantId, 'openai_assistant_id'),
@@ -53,10 +58,14 @@ export async function runAgent(
   });
 
   const toolCalls: string[] = [];
+  const toolCallResults: ToolCallResult[] = [];
 
   if (run.status === 'requires_action') {
     const calls = run.required_action?.submit_tool_outputs?.tool_calls ?? [];
-    for (const tc of calls) toolCalls.push(tc.function.name);
+    for (const tc of calls) {
+      toolCalls.push(tc.function.name);
+      toolCallResults.push({ name: tc.function.name, args: JSON.parse(tc.function.arguments || '{}') });
+    }
     const outputs = calls.map(tc => ({ tool_call_id: tc.id, output: 'ok' }));
     run = await client.beta.threads.runs.submitToolOutputsAndPoll(threadId, run.id, {
       tool_outputs: outputs,
@@ -73,7 +82,8 @@ export async function runAgent(
     if (toolCalls.includes('notify_attendant')) text = 'Vou chamar um atendente para você agora mesmo! Aguarde um momento.';
     else if (toolCalls.includes('send_video'))  text = 'Segue o vídeo!';
     else if (toolCalls.includes('send_pdf'))    text = 'Segue o documento!';
+    else if (toolCalls.includes('send_media'))  text = 'Segue o arquivo!';
   }
 
-  return { text, toolCalls };
+  return { text, toolCalls, toolCallResults };
 }

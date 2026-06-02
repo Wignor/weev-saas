@@ -233,6 +233,44 @@ export async function getStorageUsed(): Promise<number> {
   return parseInt(rows[0]?.total ?? '0', 10);
 }
 
+// ─── Media URLs (link-based, AI-sendable) ─────────────────────────────────────
+
+export interface MediaUrlItem {
+  id: number;
+  name: string;
+  url: string;
+  type: 'document' | 'video' | 'image' | 'audio';
+  description: string | null;
+  created_at: string;
+}
+
+export async function getMediaUrls(): Promise<MediaUrlItem[]> {
+  const { rows } = await pool.query<MediaUrlItem>(
+    `SELECT * FROM media_urls ORDER BY name ASC`
+  );
+  return rows;
+}
+
+export async function createMediaUrl(name: string, url: string, type: string, description?: string): Promise<MediaUrlItem> {
+  const { rows } = await pool.query<MediaUrlItem>(
+    `INSERT INTO media_urls (name, url, type, description) VALUES ($1, $2, $3, $4) RETURNING *`,
+    [name, url, type, description || null]
+  );
+  return rows[0];
+}
+
+export async function deleteMediaUrl(id: number): Promise<void> {
+  await pool.query(`DELETE FROM media_urls WHERE id = $1`, [id]);
+}
+
+export async function getMediaUrlByName(name: string): Promise<MediaUrlItem | null> {
+  const { rows } = await pool.query<MediaUrlItem>(
+    `SELECT * FROM media_urls WHERE LOWER(name) = LOWER($1) LIMIT 1`,
+    [name]
+  );
+  return rows[0] ?? null;
+}
+
 // ─── Scheduled Broadcasts ────────────────────────────────────────────────────
 
 export interface ScheduledBroadcast {

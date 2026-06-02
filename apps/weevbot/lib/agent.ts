@@ -2,11 +2,17 @@ import OpenAI from 'openai';
 import { getSetting } from './db';
 import { redis, KEYS, TTL } from './redis';
 
-export type ToolCall = 'enviar_video_demonstracao' | 'enviar_pdf_apresentacao' | 'transferir_para_humano';
+export type ToolCall = 'enviar_video_demonstracao' | 'enviar_pdf_apresentacao' | 'transferir_para_humano' | 'enviar_midia' | string;
+
+export interface ToolCallResult {
+  name: string;
+  args: Record<string, unknown>;
+}
 
 export interface AgentResult {
   text: string;
   toolCalls: ToolCall[];
+  toolCallResults: ToolCallResult[];
 }
 
 const THREAD_TTL = 60 * 60 * 48; // 48h
@@ -61,10 +67,14 @@ export async function runAgent(
   });
 
   const toolCalls: ToolCall[] = [];
+  const toolCallResults: ToolCallResult[] = [];
 
   if (run.status === 'requires_action') {
     const calls = run.required_action?.submit_tool_outputs?.tool_calls ?? [];
-    for (const tc of calls) toolCalls.push(tc.function.name as ToolCall);
+    for (const tc of calls) {
+      toolCalls.push(tc.function.name as ToolCall);
+      toolCallResults.push({ name: tc.function.name, args: JSON.parse(tc.function.arguments || '{}') });
+    }
     const outputs = calls.map(tc => ({ tool_call_id: tc.id, output: 'ok' }));
     run = await openai.beta.threads.runs.submitToolOutputsAndPoll(threadId, run.id, {
       tool_outputs: outputs,
@@ -81,7 +91,8 @@ export async function runAgent(
     if (toolCalls.includes('transferir_para_humano'))      text = 'Vou acionar nosso consultor agora para te atender. Pode aguardar!';
     else if (toolCalls.includes('enviar_video_demonstracao')) text = 'Segue o vídeo demonstrativo!';
     else if (toolCalls.includes('enviar_pdf_apresentacao'))   text = 'Segue a apresentação em PDF!';
+    else if (toolCalls.includes('enviar_midia'))              text = 'Segue o arquivo!';
   }
 
-  return { text, toolCalls };
+  return { text, toolCalls, toolCallResults };
 }

@@ -761,3 +761,43 @@ export async function getTenantStorageUsed(tenantId: string): Promise<number> {
   );
   return parseInt(rows[0]?.total ?? '0', 10);
 }
+
+// ─── Media URLs (link-based, AI-sendable) ─────────────────────────────────────
+
+export interface MediaUrlItem {
+  id: number;
+  tenant_id: string;
+  name: string;
+  url: string;
+  type: 'document' | 'video' | 'image' | 'audio';
+  description: string | null;
+  created_at: string;
+}
+
+export async function getMediaUrls(tenantId: string): Promise<MediaUrlItem[]> {
+  const { rows } = await pool.query<MediaUrlItem>(
+    `SELECT * FROM media_urls WHERE tenant_id = $1 ORDER BY name ASC`,
+    [tenantId]
+  );
+  return rows;
+}
+
+export async function createMediaUrl(tenantId: string, name: string, url: string, type: string, description?: string): Promise<MediaUrlItem> {
+  const { rows } = await pool.query<MediaUrlItem>(
+    `INSERT INTO media_urls (tenant_id, name, url, type, description) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [tenantId, name, url, type, description || null]
+  );
+  return rows[0];
+}
+
+export async function deleteMediaUrl(tenantId: string, id: number): Promise<void> {
+  await pool.query(`DELETE FROM media_urls WHERE id = $1 AND tenant_id = $2`, [id, tenantId]);
+}
+
+export async function getMediaUrlByName(tenantId: string, name: string): Promise<MediaUrlItem | null> {
+  const { rows } = await pool.query<MediaUrlItem>(
+    `SELECT * FROM media_urls WHERE tenant_id = $1 AND LOWER(name) = LOWER($2) LIMIT 1`,
+    [tenantId, name]
+  );
+  return rows[0] ?? null;
+}

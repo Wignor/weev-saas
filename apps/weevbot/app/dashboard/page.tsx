@@ -8,7 +8,7 @@ import {
   Paperclip, Upload, Film, FileText, Image, Music, Library,
   ExternalLink, LogOut, Megaphone, Info, AlertTriangle,
   Mic, Square, ChevronDown, ChevronUp, BarChart2,
-  Wifi, WifiOff, Users, ShieldCheck, KeyRound, Eye, EyeOff, Bell,
+  Wifi, WifiOff, Users, ShieldCheck, KeyRound, Eye, EyeOff, Bell, Link,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Conversation, Message, Setting, QuickReply, MediaItem, DailyReport } from '@/lib/db';
@@ -22,6 +22,7 @@ interface BroadcastResult { number: string; ok: boolean; error?: string; }
 interface WaStatus { connected: boolean; qrCode: string | null; instance: string; }
 interface AdminUser { id: number; email: string; name: string | null; created_at: string; }
 interface FollowupConfig { id?: number; step_order: number; enabled: boolean; delay_minutes: number; message: string; file_url: string; file_type: string; file_name: string; }
+interface MediaUrlItem { id: number; name: string; url: string; type: 'document'|'video'|'image'|'audio'; description: string|null; }
 
 // ─── FollowupStepCard ─────────────────────────────────────────────────────────
 function FollowupStepCard({ step, config, onSave }: { step: number; config: FollowupConfig; onSave: (c: FollowupConfig) => Promise<void>; }) {
@@ -410,6 +411,11 @@ export default function DashboardPage() {
   const [currentUserEmail, setCurrentUserEmail] = useState<string|null>(null);
   const ADMIN_EMAIL = 'wignor.ferreira@gmail.com';
 
+  // Media URLs
+  const [mediaUrls, setMediaUrls] = useState<MediaUrlItem[]>([]);
+  const [newMediaUrl, setNewMediaUrl] = useState({ name: '', url: '', type: 'document' as MediaUrlItem['type'], description: '' });
+  const [savingMediaUrl, setSavingMediaUrl] = useState(false);
+
   // Admin panel
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminUsersLoaded, setAdminUsersLoaded] = useState(false);
@@ -469,6 +475,7 @@ export default function DashboardPage() {
   },[]);
   const loadQuickReplies = useCallback(async()=>{const r=await fetch('/api/quick-replies');if(r.ok)setQuickReplies(await r.json());},[]);
   const loadMediaItems = useCallback(async()=>{const r=await fetch('/api/media');if(r.ok)setMediaItems(await r.json());},[]);
+  const loadMediaUrls = useCallback(async()=>{const r=await fetch('/api/media-urls');if(r.ok)setMediaUrls(await r.json());},[]);
 
   const loadCurrentUser = useCallback(async()=>{
     try{const r=await fetch('/api/auth/me');if(r.ok){const d=await r.json();setCurrentUserEmail(d.email);}}catch{}
@@ -498,7 +505,7 @@ export default function DashboardPage() {
   },[tab,adminUsersLoaded,loadAdminUsers]);
 
   useEffect(()=>{
-    loadConversations();loadSettings();loadQuickReplies();loadMediaItems();
+    loadConversations();loadSettings();loadQuickReplies();loadMediaItems();loadMediaUrls();
     fetch('/api/followups').then(r=>r.json()).then((data:FollowupConfig[])=>{
       if(data?.length) setFollowupConfigs(prev=>prev.map(p=>data.find(d=>d.step_order===p.step_order)||p));
     }).catch(()=>{});
@@ -1366,6 +1373,44 @@ export default function DashboardPage() {
                   </SettingGroup>
                 );
               })()}
+
+              {/* Mídias com Link */}
+              <SettingGroup label="Mídias com Link (IA)" icon={<Link size={14} className="text-emerald-400"/>}>
+                <div className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+                  <p className="text-xs text-slate-400">Cadastre arquivos por URL. A IA envia automaticamente quando usar a ferramenta <code className="bg-slate-700 px-1 rounded text-emerald-400">enviar_midia</code> com o nome exato.</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    <input value={newMediaUrl.name} onChange={e=>setNewMediaUrl(p=>({...p,name:e.target.value}))} placeholder="Nome (ex: Catálogo PDF)" className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
+                    <input value={newMediaUrl.url} onChange={e=>setNewMediaUrl(p=>({...p,url:e.target.value}))} placeholder="URL pública do arquivo" className="w-full bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500"/>
+                    <div className="flex gap-2">
+                      <select value={newMediaUrl.type} onChange={e=>setNewMediaUrl(p=>({...p,type:e.target.value as MediaUrlItem['type']}))} className="flex-1 bg-slate-700 text-sm text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="document">Documento / PDF</option>
+                        <option value="video">Vídeo</option>
+                        <option value="image">Imagem</option>
+                        <option value="audio">Áudio</option>
+                      </select>
+                      <button disabled={savingMediaUrl||!newMediaUrl.name.trim()||!newMediaUrl.url.trim()} onClick={async()=>{setSavingMediaUrl(true);try{const r=await fetch('/api/media-urls',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newMediaUrl)});if(r.ok){const item=await r.json();setMediaUrls(p=>[...p,item]);setNewMediaUrl({name:'',url:'',type:'document',description:''});}}finally{setSavingMediaUrl(false);}}} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors shrink-0">
+                        {savingMediaUrl?'…':'Adicionar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {mediaUrls.length===0 && <p className="text-slate-500 text-sm">Nenhuma mídia cadastrada.</p>}
+                {mediaUrls.map(item=>(
+                  <div key={item.id} className="bg-slate-800 rounded-xl p-4 border border-slate-700 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white">{item.name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5 capitalize">{item.type} · <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate">{item.url.length>50?item.url.slice(0,50)+'…':item.url}</a></p>
+                    </div>
+                    <button onClick={async()=>{await fetch('/api/media-urls',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:item.id})});setMediaUrls(p=>p.filter(m=>m.id!==item.id));}} className="text-slate-500 hover:text-red-400 shrink-0"><Trash2 size={14}/></button>
+                  </div>
+                ))}
+                {mediaUrls.length>0&&(
+                  <div className="bg-slate-900 rounded-lg p-3 border border-slate-700">
+                    <p className="text-[10px] text-slate-500 mb-1 font-medium uppercase tracking-wide">Nomes para usar no prompt do Assistente:</p>
+                    <p className="text-xs text-emerald-400 font-mono">{mediaUrls.map(m=>m.name).join(' · ')}</p>
+                  </div>
+                )}
+              </SettingGroup>
 
               {/* Respostas Rápidas */}
               <SettingGroup label="Respostas Rápidas" icon={<Zap size={14} className="text-amber-400"/>}>

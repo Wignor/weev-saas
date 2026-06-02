@@ -81,6 +81,17 @@ export async function sendImage(instance: string, remoteJid: string, url: string
   });
 }
 
+export async function sendAudio(instance: string, remoteJid: string, url: string) {
+  const ext = url.split('?')[0].split('.').pop()?.toLowerCase();
+  const mimetype = ext === 'ogg' ? 'audio/ogg' : ext === 'wav' ? 'audio/wav' : 'audio/mpeg';
+  return evol('POST', `/message/sendMedia/${instance}`, {
+    number: remoteJid,
+    mediatype: 'audio',
+    mimetype,
+    media: url,
+  });
+}
+
 export async function sendPTTAudio(instance: string, remoteJid: string, audioBase64: string) {
   const number = remoteJid.includes('@') ? remoteJid.split('@')[0] : remoteJid;
   return evol('POST', `/message/sendWhatsAppAudio/${instance}`, {

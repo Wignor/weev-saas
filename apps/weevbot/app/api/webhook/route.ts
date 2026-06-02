@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { redis, KEYS, TTL } from '@/lib/redis';
-import { upsertConversation, saveMessage, getSetting, getFollowupConfigs, scheduleFollowups, cancelFollowups } from '@/lib/db';
-import { sendMessage, sendVideo, sendDocument, notifyAttendant, sendPTTAudio, getMediaBase64 } from '@/lib/evolution';
+import { upsertConversation, saveMessage, getSetting, getFollowupConfigs, scheduleFollowups, cancelFollowups, getMediaUrlByName } from '@/lib/db';
+import { sendMessage, sendVideo, sendDocument, sendImage, sendAudio, notifyAttendant, sendPTTAudio, getMediaBase64 } from '@/lib/evolution';
 import { generateSpeech } from '@/lib/tts';
 import { runAgent, pushRedisHistory } from '@/lib/agent';
 import { getContact, insertNewContact, setContactStatus, touchContact } from '@/lib/contacts';
@@ -171,7 +171,7 @@ async function processAIQueue(number: string) {
     }
 
     // Normal AI flow
-    const { text: aiResponse, toolCalls } = await runAgent(
+    const { text: aiResponse, toolCalls, toolCallResults } = await runAgent(
       number, combinedText, contact?.status, pushName
     );
     touchContact(number, pushName).catch(() => {});
@@ -198,6 +198,21 @@ async function processAIQueue(number: string) {
     if (toolCalls.includes('transferir_para_humano')) {
       const attendantNum = await getSetting('notification_number');
       if (attendantNum) await notifyAttendant(number, pushName || number, attendantNum).catch(() => {});
+    }
+    for (const tc of (toolCallResults ?? [])) {
+      if (tc.name === 'enviar_midia') {
+        const nome = ((tc.args.nome || tc.args.name || '') as string).trim();
+        if (nome) {
+          const media = await getMediaUrlByName(nome);
+          if (media) {
+            if (media.type === 'video')    await sendVideo(remoteJid, media.url, '').catch(() => {});
+            else if (media.type === 'image')    await sendImage(remoteJid, media.url, '').catch(() => {});
+            else if (media.type === 'audio')    await sendAudio(remoteJid, media.url).catch(() => {});
+            else                                await sendDocument(remoteJid, media.url, media.name).catch(() => {});
+            await saveMessage(number, `media_url_${number}_${Date.now()}`, 'assistant', `[MEDIA:${media.type}] ${media.url}`).catch(() => {});
+          }
+        }
+      }
     }
 
     // TTS: send voice note instead of / in addition to text
