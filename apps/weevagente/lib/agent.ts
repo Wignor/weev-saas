@@ -28,8 +28,8 @@ export async function runAgent(
     getSetting(tenantId, 'openai_assistant_id'),
   ]);
 
-  if (!apiKey) return { text: 'Agente não configurado: chave da OpenAI ausente.', toolCalls: [] };
-  if (!assistantId?.trim()) return { text: 'Agente não configurado: ID do Assistente OpenAI ausente. Configure nas configurações.', toolCalls: [] };
+  if (!apiKey) return { text: 'Agente não configurado: chave da OpenAI ausente.', toolCalls: [], toolCallResults: [] };
+  if (!assistantId?.trim()) return { text: 'Agente não configurado: ID do Assistente OpenAI ausente. Configure nas configurações.', toolCalls: [], toolCallResults: [] };
 
   const client = new OpenAI({ apiKey });
 

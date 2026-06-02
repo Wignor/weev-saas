@@ -36,8 +36,8 @@ export async function runAgent(
   ]);
 
   const apiKey = openaiKey || process.env.OPENAI_API_KEY || '';
-  if (!apiKey) return { text: 'Agente não configurado: chave da OpenAI ausente.', toolCalls: [] };
-  if (!assistantId?.trim()) return { text: 'Agente não configurado: ID do Assistente OpenAI ausente. Configure nas configurações.', toolCalls: [] };
+  if (!apiKey) return { text: 'Agente não configurado: chave da OpenAI ausente.', toolCalls: [], toolCallResults: [] };
+  if (!assistantId?.trim()) return { text: 'Agente não configurado: ID do Assistente OpenAI ausente. Configure nas configurações.', toolCalls: [], toolCallResults: [] };
 
   const openai = new OpenAI({ apiKey });
 
