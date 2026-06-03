@@ -62,5 +62,5 @@ export async function GET(req: Request) {
     alerts = alerts.filter(a => Array.isArray(a.userIds) && a.userIds.includes(userId));
   }
 
-  return NextResponse.json(alerts.slice(0, 300));
+  return NextResponse.json(alerts.slice(0, 500));
 }

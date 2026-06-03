@@ -107,7 +107,7 @@ function logAlert(deviceId, deviceName, type, title, body, userIds) {
     log.unshift(entry);
     const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
     log = log.filter(e => new Date(e.timestamp).getTime() > sixtyDaysAgo);
-    writeJSON(ALERTS_LOG_FILE, log.slice(0, 1000));
+    writeJSON(ALERTS_LOG_FILE, log.slice(0, 5000));
   } catch { /**/ }
 }
 
