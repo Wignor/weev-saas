@@ -52,8 +52,11 @@ export async function GET(req: Request) {
   }
 
   if (user.administrator) {
-    // Admin sees only alerts for unassigned devices (logUserIds: ['admin'])
-    alerts = alerts.filter(a => Array.isArray(a.userIds) && a.userIds.includes('admin'));
+    // Admin sees alerts for: unassigned devices ('admin') + devices assigned to their own Traccar account
+    const adminId = String(user.id);
+    alerts = alerts.filter(a =>
+      Array.isArray(a.userIds) && (a.userIds.includes('admin') || a.userIds.includes(adminId))
+    );
   } else {
     const userId = String(user.id);
     alerts = alerts.filter(a => Array.isArray(a.userIds) && a.userIds.includes(userId));
