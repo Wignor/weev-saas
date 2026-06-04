@@ -107,13 +107,15 @@ function logAlert(deviceId, deviceName, type, title, body, userIds) {
     log.unshift(entry);
     const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
     log = log.filter(e => new Date(e.timestamp).getTime() > sixtyDaysAgo);
-    // Per-user limit: each user keeps at most 1000 entries so no single fleet floods the log
-    const MAX_PER_USER = 1000;
+    // Per-user limit: Weregan (42) → 5000, demais → 2000
+    const HIGH_VOLUME_USERS = { '42': 5000 };
+    const DEFAULT_MAX = 2000;
     const userCounts = {};
     log = log.filter(e => {
       const uid = (Array.isArray(e.userIds) && e.userIds.length > 0) ? e.userIds[0] : 'admin';
+      const limit = HIGH_VOLUME_USERS[uid] || DEFAULT_MAX;
       userCounts[uid] = (userCounts[uid] || 0) + 1;
-      return userCounts[uid] <= MAX_PER_USER;
+      return userCounts[uid] <= limit;
     });
     writeJSON(ALERTS_LOG_FILE, log);
   } catch { /**/ }
