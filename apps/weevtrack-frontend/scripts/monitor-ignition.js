@@ -107,7 +107,15 @@ function logAlert(deviceId, deviceName, type, title, body, userIds) {
     log.unshift(entry);
     const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
     log = log.filter(e => new Date(e.timestamp).getTime() > sixtyDaysAgo);
-    writeJSON(ALERTS_LOG_FILE, log.slice(0, 5000));
+    // Per-user limit: each user keeps at most 1000 entries so no single fleet floods the log
+    const MAX_PER_USER = 1000;
+    const userCounts = {};
+    log = log.filter(e => {
+      const uid = (Array.isArray(e.userIds) && e.userIds.length > 0) ? e.userIds[0] : 'admin';
+      userCounts[uid] = (userCounts[uid] || 0) + 1;
+      return userCounts[uid] <= MAX_PER_USER;
+    });
+    writeJSON(ALERTS_LOG_FILE, log);
   } catch { /**/ }
 }
 
