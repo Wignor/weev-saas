@@ -207,18 +207,20 @@ let lastEventsCheck = Date.now();
 
 // Cache de assignments para evitar falha silenciosa a cada 10s
 let assignmentsCache = {};
+let assignmentsLoaded = false; // true após primeira carga bem-sucedida
 let lastAssignmentsRefresh = 0;
 const ASSIGNMENTS_TTL_MS = 60000; // refresca a cada 60s
 
 async function getAssignmentsCached(headers) {
   const now = Date.now();
-  if (now - lastAssignmentsRefresh < ASSIGNMENTS_TTL_MS && Object.keys(assignmentsCache).length > 0) {
+  if (now - lastAssignmentsRefresh < ASSIGNMENTS_TTL_MS && assignmentsLoaded) {
     return assignmentsCache;
   }
   try {
     const fresh = await getAssignments(headers);
     if (Object.keys(fresh).length > 0) {
       assignmentsCache = fresh;
+      assignmentsLoaded = true;
       lastAssignmentsRefresh = now;
       console.log(`[assignments] Cache atualizado: ${Object.keys(fresh).length} dispositivos atribuídos`);
     } else {
@@ -256,6 +258,11 @@ async function check() {
     }
 
     function subsForDevice(deviceId) {
+      // Se o cache de assignments ainda não foi carregado, não enviar push para evitar
+      // que o admin receba notificações de veículos de clientes durante falha de carregamento
+      if (!assignmentsLoaded) {
+        return { subs: [], logUserIds: [] };
+      }
       const clientId = assignments[deviceId];
       if (clientId) {
         // Device assigned to a client → notify only that client
