@@ -1089,6 +1089,7 @@ export default function DashboardPage() {
   const [licenses, setLicenses] = useState<Record<string, { daysLeft: number; status: string; expiresAt?: string }>>({});
   const [overdueInvoiceUrl, setOverdueInvoiceUrl] = useState<string | null>(null);
   const [minInvoiceDueDays, setMinInvoiceDueDays] = useState<number>(Infinity);
+  const [dismissedBanner, setDismissedBanner] = useState(false);
   const [geofenceDeviceId, setGeofenceDeviceId] = useState<number | null>(null);
   const [showUsersModal, setShowUsersModal] = useState(false);
   const [deviceOwners, setDeviceOwners] = useState<Record<number, OwnerInfo>>({});
@@ -1408,7 +1409,7 @@ export default function DashboardPage() {
     <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--bg-page)', paddingLeft: navWidth }}>
 
       {/* ── Aviso vence amanhã ── */}
-      {worstOverdueDays === 0 && minInvoiceDueDays === 1 && (
+      {!dismissedBanner && worstOverdueDays === 0 && minInvoiceDueDays === 1 && (
         <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 9998 }}>
           <div style={{ background: '#007AFF', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
@@ -1425,13 +1426,17 @@ export default function DashboardPage() {
                   </a>
                 )}
               </div>
+              <button onClick={() => setDismissedBanner(true)}
+                style={{ background: 'rgba(255,255,255,0.25)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', fontSize: 16, flexShrink: 0 }}>
+                ✕
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* ── Aviso vence hoje ── */}
-      {worstOverdueDays === 0 && minInvoiceDueDays === 0 && (
+      {!dismissedBanner && worstOverdueDays === 0 && minInvoiceDueDays === 0 && (
         <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 9998 }}>
           <div style={{ background: '#FF9500', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
@@ -1448,13 +1453,17 @@ export default function DashboardPage() {
                   </a>
                 )}
               </div>
+              <button onClick={() => setDismissedBanner(true)}
+                style={{ background: 'rgba(255,255,255,0.25)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', fontSize: 16, flexShrink: 0 }}>
+                ✕
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* ── Aviso fatura vencida no Asaas (licença ainda válida) ── */}
-      {worstOverdueDays === 0 && minInvoiceDueDays !== Infinity && minInvoiceDueDays < 0 && (
+      {!dismissedBanner && worstOverdueDays === 0 && minInvoiceDueDays !== Infinity && minInvoiceDueDays < 0 && (
         <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 9998 }}>
           <div style={{ background: '#FF3B30', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
@@ -1471,13 +1480,17 @@ export default function DashboardPage() {
                   </a>
                 )}
               </div>
+              <button onClick={() => setDismissedBanner(true)}
+                style={{ background: 'rgba(255,255,255,0.25)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', fontSize: 16, flexShrink: 0 }}>
+                ✕
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* ── Aviso inadimplência (1-2 dias em atraso) ── */}
-      {worstOverdueDays > 0 && worstOverdueDays < 3 && (
+      {!dismissedBanner && worstOverdueDays > 0 && worstOverdueDays < 3 && (
         <div style={{ position: 'fixed', bottom: 80, left: 16, right: 16, zIndex: 9998 }}>
           <div style={{ background: '#FF9500', borderRadius: '16px', padding: '16px', boxShadow: '0 4px 24px rgba(0,0,0,0.35)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
@@ -1494,6 +1507,10 @@ export default function DashboardPage() {
                   </a>
                 )}
               </div>
+              <button onClick={() => setDismissedBanner(true)}
+                style={{ background: 'rgba(255,255,255,0.25)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', fontSize: 16, flexShrink: 0 }}>
+                ✕
+              </button>
             </div>
           </div>
         </div>
